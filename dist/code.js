@@ -116,6 +116,14 @@
     figma.viewport.scrollAndZoomIntoView([sceneNode]);
     return true;
   }
+  var SCREEN_CONTEXT_KEY = "screenContext";
+  function getRememberedScreenContext() {
+    const value = figma.root.getPluginData(SCREEN_CONTEXT_KEY);
+    return value === "WEB" || value === "APLICATIVO" ? value : null;
+  }
+  function rememberScreenContext(context) {
+    figma.root.setPluginData(SCREEN_CONTEXT_KEY, context);
+  }
 
   // src/rules/accessibility-rules-data.ts
   var accessibilityRuleRecords = [
@@ -969,6 +977,9 @@
   function discoverTopLevelComponents(root) {
     const found = [];
     function walk(node) {
+      if ("visible" in node && !node.visible) {
+        return;
+      }
       if (node.name === IGNORED_COMPONENT_NAME) {
         return;
       }
@@ -995,29 +1006,32 @@
     if (!box) return null;
     return { x: box.x, y: box.y, width: box.width, height: box.height };
   }
-  function verticallyOverlaps(a, b) {
-    const aTop = a.y;
-    const aBottom = a.y + a.height;
-    const bTop = b.y;
-    const bBottom = b.y + b.height;
-    const overlap = Math.min(aBottom, bBottom) - Math.max(aTop, bTop);
-    const smallerHeight = Math.min(a.height, b.height);
-    if (smallerHeight <= 0) return false;
-    return overlap > smallerHeight * 0.5;
+  function rowThresholdFor(a, b) {
+    return Math.min(a.height, b.height) * 0.6;
   }
   function sortByReadingOrder(nodes) {
-    const withBounds = nodes.map((node) => ({ node, bounds: getBounds(node) })).filter((entry) => entry.bounds !== null);
-    const withoutBounds = nodes.filter((node) => getBounds(node) === null);
-    withBounds.sort((a, b) => a.bounds.y - b.bounds.y || a.bounds.x - b.bounds.x);
+    const withBounds = [];
+    const withoutBounds = [];
+    for (const node of nodes) {
+      const bounds = getBounds(node);
+      if (bounds) {
+        withBounds.push({ node, bounds, centerY: bounds.y + bounds.height / 2 });
+      } else {
+        withoutBounds.push(node);
+      }
+    }
+    withBounds.sort((a, b) => a.centerY - b.centerY || a.bounds.x - b.bounds.x);
     const rows = [];
     for (const entry of withBounds) {
       const lastRow = rows[rows.length - 1];
-      if (lastRow && verticallyOverlaps({ y: lastRow.top, height: lastRow.bottom - lastRow.top, x: 0, width: 0 }, entry.bounds)) {
+      const lastItem = lastRow == null ? void 0 : lastRow.items[lastRow.items.length - 1];
+      const threshold = lastItem ? rowThresholdFor(lastItem.bounds, entry.bounds) : 0;
+      if (lastRow && Math.abs(entry.centerY - lastRow.averageCenterY) <= threshold) {
         lastRow.items.push(entry);
-        lastRow.top = Math.min(lastRow.top, entry.bounds.y);
-        lastRow.bottom = Math.max(lastRow.bottom, entry.bounds.y + entry.bounds.height);
+        const sum = lastRow.items.reduce((acc, item) => acc + item.centerY, 0);
+        lastRow.averageCenterY = sum / lastRow.items.length;
       } else {
-        rows.push({ top: entry.bounds.y, bottom: entry.bounds.y + entry.bounds.height, items: [entry] });
+        rows.push({ items: [entry], averageCenterY: entry.centerY });
       }
     }
     const ordered = [];
@@ -1031,7 +1045,7 @@
   // src/main/analysis/coreIdentification.ts
   var LIBRARY_NAME_CORE_WEB = "Colmeia DS | Core Web";
   var LIBRARY_NAME_CORE_APP = "Colmeia DS | Core App";
-  var DEBUG_CORE_IDENTIFICATION = true;
+  var DEBUG_CORE_IDENTIFICATION = false;
   function logCoreIdentificationDebugInfo(mainComponent) {
     var _a;
     if (!DEBUG_CORE_IDENTIFICATION) return;
@@ -1518,8 +1532,19 @@
     }
     const screenNode = selection[0];
     lastAnalyzedScreenId = screenNode.id;
-    const result = await analyzeScreen(screenNode);
+    const result = await analyzeScreenRememberingContext(screenNode);
     emitAnalysisResult(result);
+  }
+  async function analyzeScreenRememberingContext(screenNode) {
+    const result = await analyzeScreen(screenNode);
+    if (!result.requiresContextChoice) {
+      return result;
+    }
+    const remembered = getRememberedScreenContext();
+    if (!remembered) {
+      return result;
+    }
+    return analyzeScreen(screenNode, remembered);
   }
   function emitAnalysisResult(result) {
     knownNodeIds = new Set(result.items.map((item) => item.nodeId));
@@ -1535,6 +1560,7 @@
       postToUi({ type: "analysis-error", message: "A tela selecionada n\xE3o existe mais no arquivo." });
       return;
     }
+    rememberScreenContext(context);
     const result = await analyzeScreen(node, context);
     emitAnalysisResult(result);
   }

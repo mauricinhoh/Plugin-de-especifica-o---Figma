@@ -94,3 +94,38 @@ export async function focusNode(nodeId: string): Promise<boolean> {
 export function closePlugin(): void {
   figma.closePlugin();
 }
+
+// ---------- Memória de contexto Web/Aplicativo por arquivo ----------
+
+/**
+ * A Figma Plugin API não expõe (confirmado em 08/09/2026, inclusive
+ * via pedido de feature ainda em aberto da comunidade Figma) o nome
+ * da biblioteca publicada de onde um componente remoto veio — nem em
+ * `component.name`, nem no nome do ComponentSet pai, nem em
+ * `description`. Catalogar manualmente a `key` de cada componente das
+ * bibliotecas Core Web/Core App também não é viável para o time.
+ *
+ * Por isso, quando o plugin não consegue decidir o contexto pelo
+ * nome dos componentes (empate Core Web × Core App), a escolha feita
+ * manualmente pelo designer é guardada no PRÓPRIO ARQUIVO do Figma
+ * via `setPluginData` — dado real, documentado, e privado a este
+ * plugin (outros plugins não conseguem ler). Da próxima vez que uma
+ * análise nesse mesmo arquivo cair em empate, o plugin usa esse valor
+ * lembrado em vez de perguntar de novo. Se algum componente da tela
+ * tiver nome identificável (Core Web ou Core App), esse sinal real
+ * sempre tem prioridade sobre a memória.
+ */
+const SCREEN_CONTEXT_KEY = "screenContext";
+
+export function getRememberedScreenContext(): "WEB" | "APLICATIVO" | null {
+  const value = figma.root.getPluginData(SCREEN_CONTEXT_KEY);
+  return value === "WEB" || value === "APLICATIVO" ? value : null;
+}
+
+export function rememberScreenContext(context: "WEB" | "APLICATIVO"): void {
+  figma.root.setPluginData(SCREEN_CONTEXT_KEY, context);
+}
+
+export function forgetRememberedScreenContext(): void {
+  figma.root.setPluginData(SCREEN_CONTEXT_KEY, "");
+}

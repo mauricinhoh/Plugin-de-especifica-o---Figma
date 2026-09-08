@@ -10,8 +10,10 @@ import {
   focusNode,
   getCurrentSelection,
   getCurrentUserName,
+  getRememberedScreenContext,
   isValidScreenNode,
-  onSelectionChange
+  onSelectionChange,
+  rememberScreenContext
 } from "./figma-api";
 import { analyzeScreen, buildManualItem } from "./analysis/analyzer";
 import { generateMarkers } from "./generation/markers";
@@ -87,8 +89,29 @@ async function runAnalysis(): Promise<void> {
   const screenNode = selection[0];
   lastAnalyzedScreenId = screenNode.id;
 
-  const result = await analyzeScreen(screenNode);
+  const result = await analyzeScreenRememberingContext(screenNode);
   emitAnalysisResult(result);
+}
+
+/**
+ * Roda a análise e, se o sinal automático (nome dos componentes) não
+ * bastar para decidir Web x Aplicativo, tenta usar a escolha que o
+ * designer já fez antes NESTE ARQUIVO (ver `getRememberedScreenContext`
+ * em figma-api.ts) em vez de perguntar de novo. Só pergunta quando
+ * realmente não há nem sinal automático nem memória — exatamente o
+ * pedido do usuário: "só deve aparecer se o plugin não souber qual
+ * contexto realmente está".
+ */
+async function analyzeScreenRememberingContext(screenNode: SceneNode): Promise<ScreenAnalysisResult> {
+  const result = await analyzeScreen(screenNode);
+  if (!result.requiresContextChoice) {
+    return result;
+  }
+  const remembered = getRememberedScreenContext();
+  if (!remembered) {
+    return result;
+  }
+  return analyzeScreen(screenNode, remembered);
 }
 
 function emitAnalysisResult(result: ScreenAnalysisResult): void {
@@ -106,6 +129,9 @@ async function resolveContextChoice(context: "WEB" | "APLICATIVO"): Promise<void
     postToUi({ type: "analysis-error", message: "A tela selecionada não existe mais no arquivo." });
     return;
   }
+  // Guarda a escolha manual no arquivo, para não perguntar de novo na
+  // próxima vez que o sinal automático empatar (ver figma-api.ts).
+  rememberScreenContext(context);
   const result = await analyzeScreen(node as SceneNode, context);
   emitAnalysisResult(result);
 }

@@ -22,11 +22,26 @@ const IGNORED_COMPONENT_NAME = "Header Web";
  * "Header Web" continua ignorado por completo: não vira card, não
  * conta para Core Web/Core App, e sua subárvore também não é
  * percorrida.
+ *
+ * Componentes/camadas OCULTOS no Figma (`node.visible === false`)
+ * também são ignorados por completo, junto com toda a sua subárvore
+ * — um componente escondido atrás de outro, ou uma variante alternada
+ * por visibilidade, não deveria virar card nem marcação. Isso vale
+ * tanto para o próprio componente quanto para qualquer ancestral: se
+ * um grupo/frame estiver oculto, nada dentro dele é considerado,
+ * mesmo que o node filho individualmente tenha `visible: true` (é
+ * assim que a visibilidade efetiva funciona no Figma — a
+ * visibilidade de um ancestral nunca é copiada para os filhos, então
+ * o corte precisa acontecer na hora de decidir se desce ou não).
  */
 export function discoverTopLevelComponents(root: SceneNode): (InstanceNode | ComponentNode)[] {
   const found: (InstanceNode | ComponentNode)[] = [];
 
   function walk(node: SceneNode): void {
+    if ("visible" in node && !node.visible) {
+      return; // oculto: ignora completamente, inclusive a subárvore
+    }
+
     if (node.name === IGNORED_COMPONENT_NAME) {
       return; // ignora completamente, inclusive a subárvore
     }

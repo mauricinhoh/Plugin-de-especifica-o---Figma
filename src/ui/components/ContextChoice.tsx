@@ -33,7 +33,7 @@ export function ContextChoice({ screenName, onChoose, onBack, onClose }: Context
         >
           <Icon name="alert-triangle" size={13} color="var(--color-warning)" />
           <span style={{ fontSize: 11, fontWeight: 900, textTransform: "uppercase", letterSpacing: ".05em" }}>
-            Precisa da sua ajuda
+            Preciso da sua ajuda
           </span>
         </span>
 

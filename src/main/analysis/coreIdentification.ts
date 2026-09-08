@@ -59,7 +59,7 @@ const LIBRARY_NAME_CORE_APP = "Colmeia DS | Core App";
  * direito na janela do plugin → Inspecionar, se estiver no navegador)
  * e rode a análise de novo.
  */
-const DEBUG_CORE_IDENTIFICATION = true;
+const DEBUG_CORE_IDENTIFICATION = false;
 
 function logCoreIdentificationDebugInfo(mainComponent: ComponentNode): void {
   if (!DEBUG_CORE_IDENTIFICATION) return;
