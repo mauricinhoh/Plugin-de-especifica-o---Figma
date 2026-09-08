@@ -5,6 +5,7 @@ import { accessibilityRules } from "../../rules/accessibility-rules";
 import { computeVerbalization, findMatchingRule, UNSPECIFIED_TYPE_KEY } from "../../rules/engine";
 import { generateSpecificationId } from "../idGenerator";
 import { discoverTopLevelComponents } from "./discovery";
+import { sortByReadingOrder } from "./readingOrder";
 import { identifyCoreType } from "./coreIdentification";
 import { resolveScreenContext } from "./contextResolver";
 import { detectPossibleDetachedComponents } from "./detachDetector";
@@ -77,7 +78,11 @@ export async function analyzeScreen(
   screenNode: SceneNode,
   forcedContext?: ScreenContext
 ): Promise<ScreenAnalysisResult> {
-  const topLevelNodes = discoverTopLevelComponents(screenNode);
+  const discovered = discoverTopLevelComponents(screenNode);
+  // Numeração pela posição real no canvas (leitura em "Z"), não pela
+  // ordem das camadas no arquivo — pedido explícito após testes reais
+  // com arquivos organizados de forma inconsistente nas camadas.
+  const topLevelNodes = sortByReadingOrder(discovered);
 
   const items: SpecificationItem[] = [];
   let coreWebCount = 0;

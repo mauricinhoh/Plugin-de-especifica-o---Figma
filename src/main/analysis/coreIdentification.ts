@@ -34,6 +34,46 @@ import { CoreType } from "../../shared/types";
 const LIBRARY_NAME_CORE_WEB = "Colmeia DS | Core Web";
 const LIBRARY_NAME_CORE_APP = "Colmeia DS | Core App";
 
+/**
+ * DIAGNÓSTICO TEMPORÁRIO — seção investigativa pedida pelo usuário
+ * depois que a identificação automática não bateu em produção, mesmo
+ * confirmando que "Colmeia DS | Core Web" é o nome real que aparece
+ * ao navegar para o componente principal no Figma.
+ *
+ * Isso quase certamente significa que "Colmeia DS | Core Web" é o
+ * nome do ARQUIVO da biblioteca (o que a navegação "Go to main
+ * component" mostra), não algo armazenado em `component.name` ou no
+ * nome do ComponentSet — que é o único lugar em que este arquivo
+ * conseguia procurar até agora.
+ *
+ * Enquanto DEBUG_CORE_IDENTIFICATION estiver true, cada instância
+ * analisada imprime no console os campos realmente disponíveis via
+ * API para seu componente principal, para descobrirmos com dados
+ * reais (não suposição) onde — se em algum lugar — esse nome de
+ * biblioteca fica acessível. Depois de confirmado, ajuste
+ * `classifyByNamePaths`/`pathContainsLibrary` para usar o campo certo
+ * e desligue esta flag.
+ *
+ * Como ver o resultado: no Figma desktop, com o plugin aberto, use
+ * Plugins → Development → Open console (ou clique com o botão
+ * direito na janela do plugin → Inspecionar, se estiver no navegador)
+ * e rode a análise de novo.
+ */
+const DEBUG_CORE_IDENTIFICATION = true;
+
+function logCoreIdentificationDebugInfo(mainComponent: ComponentNode): void {
+  if (!DEBUG_CORE_IDENTIFICATION) return;
+  const parent = mainComponent.parent;
+  console.log("[core-identification-debug]", {
+    componentName: mainComponent.name,
+    componentKey: mainComponent.key,
+    remote: mainComponent.remote,
+    description: mainComponent.description,
+    parentType: parent?.type ?? null,
+    parentName: parent && "name" in parent ? parent.name : null
+  });
+}
+
 function pathContainsLibrary(path: string, libraryName: string): boolean {
   return path
     .split("/")
@@ -69,6 +109,8 @@ export async function identifyCoreTypeForInstance(instance: InstanceNode): Promi
     return { coreType: "DESCONHECIDO", mainComponentName: null };
   }
 
+  logCoreIdentificationDebugInfo(mainComponent);
+
   const candidatePaths = [mainComponent.name];
   const parent = mainComponent.parent;
   if (parent && parent.type === "COMPONENT_SET") {
@@ -83,6 +125,7 @@ export async function identifyCoreTypeForInstance(instance: InstanceNode): Promi
  * principal (node.type === "COMPONENT", sem ser uma instância).
  */
 export function identifyCoreTypeForComponent(component: ComponentNode): CoreIdentificationResult {
+  logCoreIdentificationDebugInfo(component);
   const candidatePaths = [component.name];
   const parent = component.parent;
   if (parent && parent.type === "COMPONENT_SET") {

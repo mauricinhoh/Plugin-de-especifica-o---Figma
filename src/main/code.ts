@@ -28,16 +28,6 @@ let lastAnalyzedScreenId: string | null = null;
 let manualSelectionEnabled = false;
 let knownNodeIds = new Set<string>();
 let stopManualSelectionListener: (() => void) | null = null;
-/**
- * Quantidade de componentes encontrados na análise AUTOMÁTICA inicial
- * (seção 3-4 e 17 do briefing de Handoff). Usada para o card especial
- * "01 a XX - Ordem de leitura" no painel do canvas. Componentes
- * adicionados depois via seleção manual NÃO alteram este número —
- * por isso é capturado uma vez em `emitAnalysisResult`, nunca
- * recalculado a partir de `knownNodeIds` (que cresce com adições
- * manuais).
- */
-let autoDiscoveredCount = 0;
 let lastGeneratedOutputNodeId: string | null = null;
 
 // ---------- Utilitários ----------
@@ -64,7 +54,6 @@ function resetFlowState(): void {
   lastAnalyzedScreenId = null;
   knownNodeIds = new Set();
   lastGeneratedOutputNodeId = null;
-  autoDiscoveredCount = 0;
   setManualSelectionEnabled(false);
 }
 
@@ -104,11 +93,6 @@ async function runAnalysis(): Promise<void> {
 
 function emitAnalysisResult(result: ScreenAnalysisResult): void {
   knownNodeIds = new Set(result.items.map((item) => item.nodeId));
-  // Seção 3-4/17: o total do card especial de Ordem de leitura vem
-  // SOMENTE da análise automática, nunca de adições manuais
-  // posteriores — por isso é fixado aqui, no único lugar que reflete
-  // exatamente a descoberta automática.
-  autoDiscoveredCount = result.items.length;
   postToUi({ type: "analysis-result", result });
 }
 
@@ -191,7 +175,14 @@ async function generateSpecifications(items: SpecificationItem[]): Promise<void>
     });
 
     postToUi({ type: "generation-progress", stage: "table", done: 0, total: 1 });
-    const panel = await generatePanel(screenNode as SceneNode, ordered, autoDiscoveredCount);
+    // O total do card "Ordem de leitura" é calculado aqui, a partir
+    // de TODOS os itens presentes na especificação no momento da
+    // geração (automáticos + adicionados manualmente), na ordem
+    // final. Antes, esse total era travado no momento da análise
+    // automática e não mudava com adições manuais — mudado a pedido
+    // do usuário depois de um caso real em produção em que o total
+    // ficava desatualizado.
+    const panel = await generatePanel(screenNode as SceneNode, ordered, ordered.length);
     postToUi({ type: "generation-progress", stage: "table", done: 1, total: 1 });
 
     lastGeneratedOutputNodeId = panel.id;

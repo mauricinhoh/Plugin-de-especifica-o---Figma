@@ -176,10 +176,14 @@ async function createEntryRow(item: SpecificationItem, index: number, isLast: bo
  * número de componente — é só uma linha de texto, sem o badge
  * numerado usado pelos cards de componente.
  *
- * `autoDiscoveredCount` vem exclusivamente da análise automática
- * inicial (nunca de adições manuais — ver comentário em code.ts).
+ * `totalComponentCount` é calculado por quem chama esta função a
+ * partir de TODOS os itens presentes na especificação no momento da
+ * geração — automáticos e adicionados manualmente (ver code.ts). Uma
+ * versão anterior considerava só os componentes da análise
+ * automática; mudado a pedido do usuário após um caso real em que o
+ * total ficava desatualizado assim que ele adicionava itens manuais.
  */
-function createReadingOrderRow(autoDiscoveredCount: number, hasMoreRows: boolean): FrameNode {
+function createReadingOrderRow(totalComponentCount: number, hasMoreRows: boolean): FrameNode {
   const row = figma.createFrame();
   row.name = "Ordem de leitura";
   row.layoutMode = "VERTICAL";
@@ -192,7 +196,7 @@ function createReadingOrderRow(autoDiscoveredCount: number, hasMoreRows: boolean
   row.primaryAxisSizingMode = "AUTO";
   row.counterAxisSizingMode = "FIXED";
 
-  const totalLabel = String(autoDiscoveredCount).padStart(2, "0");
+  const totalLabel = String(totalComponentCount).padStart(2, "0");
   const text = createPlainText(`01 a ${totalLabel} - Ordem de leitura`, ENTRY_TITLE_FONT, 15, TEXT_WHITE);
   appendSized(row, text, { horizontal: "FILL" });
 
@@ -216,7 +220,7 @@ function createReadingOrderRow(autoDiscoveredCount: number, hasMoreRows: boolean
 export async function generatePanel(
   screenNode: SceneNode,
   items: SpecificationItem[],
-  autoDiscoveredCount: number
+  totalComponentCount: number
 ): Promise<FrameNode> {
   await loadFonts();
 
@@ -245,7 +249,7 @@ export async function generatePanel(
   titleSpacer.resize(1, 16);
   appendSized(panel, titleSpacer, { horizontal: "FILL", vertical: "FIXED" });
 
-  const readingOrderRow = createReadingOrderRow(autoDiscoveredCount, ordered.length > 0);
+  const readingOrderRow = createReadingOrderRow(totalComponentCount, ordered.length > 0);
   appendSized(panel, readingOrderRow, { horizontal: "FILL", vertical: "HUG" });
 
   for (let i = 0; i < ordered.length; i += 1) {

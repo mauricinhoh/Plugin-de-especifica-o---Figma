@@ -974,7 +974,6 @@
       }
       if (node.type === "INSTANCE" || node.type === "COMPONENT") {
         found.push(node);
-        return;
       }
       if ("children" in node) {
         for (const child of node.children) {
@@ -990,9 +989,62 @@
     return found;
   }
 
+  // src/main/analysis/readingOrder.ts
+  function getBounds(node) {
+    const box = node.absoluteBoundingBox;
+    if (!box) return null;
+    return { x: box.x, y: box.y, width: box.width, height: box.height };
+  }
+  function verticallyOverlaps(a, b) {
+    const aTop = a.y;
+    const aBottom = a.y + a.height;
+    const bTop = b.y;
+    const bBottom = b.y + b.height;
+    const overlap = Math.min(aBottom, bBottom) - Math.max(aTop, bTop);
+    const smallerHeight = Math.min(a.height, b.height);
+    if (smallerHeight <= 0) return false;
+    return overlap > smallerHeight * 0.5;
+  }
+  function sortByReadingOrder(nodes) {
+    const withBounds = nodes.map((node) => ({ node, bounds: getBounds(node) })).filter((entry) => entry.bounds !== null);
+    const withoutBounds = nodes.filter((node) => getBounds(node) === null);
+    withBounds.sort((a, b) => a.bounds.y - b.bounds.y || a.bounds.x - b.bounds.x);
+    const rows = [];
+    for (const entry of withBounds) {
+      const lastRow = rows[rows.length - 1];
+      if (lastRow && verticallyOverlaps({ y: lastRow.top, height: lastRow.bottom - lastRow.top, x: 0, width: 0 }, entry.bounds)) {
+        lastRow.items.push(entry);
+        lastRow.top = Math.min(lastRow.top, entry.bounds.y);
+        lastRow.bottom = Math.max(lastRow.bottom, entry.bounds.y + entry.bounds.height);
+      } else {
+        rows.push({ top: entry.bounds.y, bottom: entry.bounds.y + entry.bounds.height, items: [entry] });
+      }
+    }
+    const ordered = [];
+    for (const row of rows) {
+      row.items.sort((a, b) => a.bounds.x - b.bounds.x);
+      ordered.push(...row.items.map((e) => e.node));
+    }
+    return [...ordered, ...withoutBounds];
+  }
+
   // src/main/analysis/coreIdentification.ts
   var LIBRARY_NAME_CORE_WEB = "Colmeia DS | Core Web";
   var LIBRARY_NAME_CORE_APP = "Colmeia DS | Core App";
+  var DEBUG_CORE_IDENTIFICATION = true;
+  function logCoreIdentificationDebugInfo(mainComponent) {
+    var _a;
+    if (!DEBUG_CORE_IDENTIFICATION) return;
+    const parent = mainComponent.parent;
+    console.log("[core-identification-debug]", {
+      componentName: mainComponent.name,
+      componentKey: mainComponent.key,
+      remote: mainComponent.remote,
+      description: mainComponent.description,
+      parentType: (_a = parent == null ? void 0 : parent.type) != null ? _a : null,
+      parentName: parent && "name" in parent ? parent.name : null
+    });
+  }
   function pathContainsLibrary(path, libraryName) {
     return path.split("/").map((segment) => segment.trim()).includes(libraryName);
   }
@@ -1012,6 +1064,7 @@
     if (!mainComponent) {
       return { coreType: "DESCONHECIDO", mainComponentName: null };
     }
+    logCoreIdentificationDebugInfo(mainComponent);
     const candidatePaths = [mainComponent.name];
     const parent = mainComponent.parent;
     if (parent && parent.type === "COMPONENT_SET") {
@@ -1020,6 +1073,7 @@
     return classifyByNamePaths(candidatePaths, mainComponent.name);
   }
   function identifyCoreTypeForComponent(component) {
+    logCoreIdentificationDebugInfo(component);
     const candidatePaths = [component.name];
     const parent = component.parent;
     if (parent && parent.type === "COMPONENT_SET") {
@@ -1132,7 +1186,8 @@
     };
   }
   async function analyzeScreen(screenNode, forcedContext) {
-    const topLevelNodes = discoverTopLevelComponents(screenNode);
+    const discovered = discoverTopLevelComponents(screenNode);
+    const topLevelNodes = sortByReadingOrder(discovered);
     const items = [];
     let coreWebCount = 0;
     let coreAppCount = 0;
@@ -1354,7 +1409,7 @@
     }
     return row;
   }
-  function createReadingOrderRow(autoDiscoveredCount2, hasMoreRows) {
+  function createReadingOrderRow(totalComponentCount, hasMoreRows) {
     const row = figma.createFrame();
     row.name = "Ordem de leitura";
     row.layoutMode = "VERTICAL";
@@ -1366,7 +1421,7 @@
     row.fills = [];
     row.primaryAxisSizingMode = "AUTO";
     row.counterAxisSizingMode = "FIXED";
-    const totalLabel = String(autoDiscoveredCount2).padStart(2, "0");
+    const totalLabel = String(totalComponentCount).padStart(2, "0");
     const text = createPlainText(`01 a ${totalLabel} - Ordem de leitura`, ENTRY_TITLE_FONT, 15, TEXT_WHITE);
     appendSized(row, text, { horizontal: "FILL" });
     if (hasMoreRows) {
@@ -1375,7 +1430,7 @@
     }
     return row;
   }
-  async function generatePanel(screenNode, items, autoDiscoveredCount2) {
+  async function generatePanel(screenNode, items, totalComponentCount) {
     await loadFonts();
     const ordered = [...items].sort((a, b) => a.order - b.order);
     const panel = figma.createFrame();
@@ -1398,7 +1453,7 @@
     titleSpacer.fills = [];
     titleSpacer.resize(1, 16);
     appendSized(panel, titleSpacer, { horizontal: "FILL", vertical: "FIXED" });
-    const readingOrderRow = createReadingOrderRow(autoDiscoveredCount2, ordered.length > 0);
+    const readingOrderRow = createReadingOrderRow(totalComponentCount, ordered.length > 0);
     appendSized(panel, readingOrderRow, { horizontal: "FILL", vertical: "HUG" });
     for (let i = 0; i < ordered.length; i += 1) {
       const row = await createEntryRow(ordered[i], i, i === ordered.length - 1);
@@ -1421,7 +1476,6 @@
   var manualSelectionEnabled = false;
   var knownNodeIds = /* @__PURE__ */ new Set();
   var stopManualSelectionListener = null;
-  var autoDiscoveredCount = 0;
   var lastGeneratedOutputNodeId = null;
   function buildComponentTypeOptions() {
     const fromMarkupTypes = MARKUP_TYPES.map((type) => ({
@@ -1435,7 +1489,6 @@
     lastAnalyzedScreenId = null;
     knownNodeIds = /* @__PURE__ */ new Set();
     lastGeneratedOutputNodeId = null;
-    autoDiscoveredCount = 0;
     setManualSelectionEnabled(false);
   }
   function sendSelectionState() {
@@ -1470,7 +1523,6 @@
   }
   function emitAnalysisResult(result) {
     knownNodeIds = new Set(result.items.map((item) => item.nodeId));
-    autoDiscoveredCount = result.items.length;
     postToUi({ type: "analysis-result", result });
   }
   async function resolveContextChoice(context) {
@@ -1532,7 +1584,7 @@
         postToUi({ type: "generation-progress", stage: "markers", done, total });
       });
       postToUi({ type: "generation-progress", stage: "table", done: 0, total: 1 });
-      const panel = await generatePanel(screenNode, ordered, autoDiscoveredCount);
+      const panel = await generatePanel(screenNode, ordered, ordered.length);
       postToUi({ type: "generation-progress", stage: "table", done: 1, total: 1 });
       lastGeneratedOutputNodeId = panel.id;
       const summary = {
