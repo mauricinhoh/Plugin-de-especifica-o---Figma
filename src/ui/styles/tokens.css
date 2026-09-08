@@ -1,0 +1,66 @@
+:root {
+  /* superfícies */
+  --color-surface: #ffffff;
+  --color-surface-subtle: #F9FBF7;
+  --color-surface-muted: #F1F4EE;
+  --color-chrome: #131713;          /* titlebar */
+
+  /* bordas */
+  --color-border: #E4E9DF;
+  --color-border-strong: #D3DACB;
+  --color-border-hover: #C8D2BE;
+
+  /* texto */
+  --color-text-dark: #131713;
+  --color-text-muted: #5C6459;
+  --color-text-subtle: #8A9382;
+  --color-text-disabled: #A3AC9B;
+
+  /* marca */
+  --color-primary: #33820D;
+  --color-primary-hover: #2A6C0A;
+  --color-primary-tint: #EDF5E7;
+  --color-primary-tint-strong: #F4F9F0;
+  --color-primary-ink: #266009;     /* texto verde sobre tint */
+  --color-on-chrome-accent: #9FE07A;
+
+  /* estados */
+  --color-warning: #8A6A00;
+  --color-warning-bg: #FFF7E4;
+  --color-warning-border: #F2E3BC;
+  --color-warning-bg-soft: #FFFDF7;
+  --color-warning-chip-bg: #FDF3D9;
+  --color-danger: #C73434;
+  --color-danger-bg: #FEF6F6;
+  --color-danger-border: #F3D7D7;
+  --color-danger-ink: #9A4141;
+  --color-disabled-bg: #E9EDE5;
+
+  /* raios */
+  --radius-xs: 6px;
+  --radius-sm: 9px;
+  --radius-md: 11px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  /* sombras */
+  --shadow-card: 0 4px 12px rgba(19,23,19,.07);
+  --shadow-card-active: 0 4px 14px rgba(51,130,13,.10);
+  --shadow-lift: 0 6px 20px rgba(51,130,13,.14);
+  --shadow-btn: 0 1px 2px rgba(19,23,19,.16);
+  --shadow-btn-hover: 0 6px 18px rgba(51,130,13,.30);
+  --shadow-footer: 0 -6px 16px rgba(19,23,19,.04);
+
+  /* fontes */
+  --font-family: "Nunito", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --transition: .16s ease;
+
+  /* espaçamentos (mantidos para compatibilidade com código existente) */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+}

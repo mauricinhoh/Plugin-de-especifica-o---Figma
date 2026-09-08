@@ -1,0 +1,13 @@
+{
+  "name": "Especificação de Handoff",
+  "id": "com.colmeia.especificacao-acessibilidade",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": ["none"]
+  },
+  "permissions": ["currentuser"]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "figma-especificacao-acessibilidade",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plugin Figma: Especificação de Acessibilidade",
+  "scripts": {
+    "build:ui": "vite build",
+    "build:code": "esbuild src/main/code.ts --bundle --outfile=dist/code.js --target=es2017 --format=iife",
+    "build": "npm run build:ui && npm run build:code",
+    "watch:code": "npm run build:code -- --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.main.json"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.100.2",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.0",
+    "vite-plugin-singlefile": "^2.0.3"
+  }
+}
