@@ -1,6 +1,21 @@
 /// <reference types="@figma/plugin-typings" />
 
-const IGNORED_COMPONENT_NAME = "Header Web";
+/**
+ * Nomes de componentes/instâncias sempre ignorados pela descoberta
+ * automática: não viram card, não contam para Core Web/Core App, e
+ * sua subárvore inteira também não é percorrida (pode haver
+ * componentes reais aninhados neles, mas essas camadas são
+ * consideradas "chrome" fixo da tela, não conteúdo a especificar).
+ *
+ * Para adicionar/remover um nome desta lista, edite só este array —
+ * nenhuma outra parte do código precisa mudar.
+ */
+const IGNORED_COMPONENT_NAMES = [
+  "Header Web",
+  "[IB-Leg] Acessibility Settings Bar",
+  "[IB-Leg] Header",
+  "[IB-Leg] Navigation Bar"
+];
 
 /**
  * Percorre a árvore a partir do node da tela selecionada e retorna
@@ -19,9 +34,9 @@ const IGNORED_COMPONENT_NAME = "Header Web";
  * componentes reais que precisavam de card. Se um componente A contém
  * um componente B, AMBOS agora geram card.
  *
- * "Header Web" continua ignorado por completo: não vira card, não
- * conta para Core Web/Core App, e sua subárvore também não é
- * percorrida.
+ * "Header Web" e os demais nomes de `IGNORED_COMPONENT_NAMES` continuam
+ * ignorados por completo: não viram card, não contam para Core
+ * Web/Core App, e sua subárvore também não é percorrida.
  *
  * Componentes/camadas OCULTOS no Figma (`node.visible === false`)
  * também são ignorados por completo, junto com toda a sua subárvore
@@ -42,7 +57,7 @@ export function discoverTopLevelComponents(root: SceneNode): (InstanceNode | Com
       return; // oculto: ignora completamente, inclusive a subárvore
     }
 
-    if (node.name === IGNORED_COMPONENT_NAME) {
+    if (IGNORED_COMPONENT_NAMES.includes(node.name)) {
       return; // ignora completamente, inclusive a subárvore
     }
 

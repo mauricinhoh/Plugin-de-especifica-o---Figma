@@ -30,9 +30,15 @@
 
 export type SelectableNode = FrameNode | GroupNode;
 
-/** Retorna o nome do usuário atual, ou string vazia se não disponível. */
+/**
+ * Retorna só o primeiro nome do usuário atual (para a saudação da
+ * Etapa 0), ou string vazia se não disponível. `figma.currentUser.name`
+ * às vezes vem como nome completo — aqui pegamos só o primeiro token
+ * separado por espaço, sem tentar interpretar sobrenomes compostos.
+ */
 export function getCurrentUserName(): string {
-  return figma.currentUser?.name ?? "";
+  const fullName = figma.currentUser?.name ?? "";
+  return fullName.trim().split(/\s+/)[0] ?? "";
 }
 
 /** Nós de topo aceitos como "tela" para iniciar a análise. */

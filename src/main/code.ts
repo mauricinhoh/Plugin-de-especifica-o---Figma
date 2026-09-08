@@ -18,11 +18,20 @@ import {
 import { analyzeScreen, buildManualItem } from "./analysis/analyzer";
 import { generateMarkers } from "./generation/markers";
 import { generatePanel } from "./generation/panel";
+import { clearPreviewMarker, showPreviewMarker } from "./generation/previewMarker";
 
 const UI_WIDTH = 420;
 const UI_HEIGHT = 700;
 
 figma.showUI(__html__, { width: UI_WIDTH, height: UI_HEIGHT, themeColors: false });
+
+// Roda mesmo que o plugin seja fechado pelo X nativo do Figma (não
+// só pela nossa mensagem "close-plugin") — é a única forma garantida
+// de não deixar a marcação de preview órfã no arquivo. Precisa ser
+// síncrono (ver o comentário em previewMarker.ts).
+figma.on("close", () => {
+  clearPreviewMarker();
+});
 
 // ---------- Estado da execução atual (não persistido — seção 37) ----------
 
@@ -57,6 +66,7 @@ function resetFlowState(): void {
   knownNodeIds = new Set();
   lastGeneratedOutputNodeId = null;
   setManualSelectionEnabled(false);
+  clearPreviewMarker();
 }
 
 function sendSelectionState(): void {
@@ -182,6 +192,11 @@ async function handleManualSelectionChange(): Promise<void> {
  */
 async function generateSpecifications(items: SpecificationItem[]): Promise<void> {
   try {
+    // Remove qualquer marcação temporária de preview que possa ter
+    // ficado de um card aberto — as marcações reais são criadas logo
+    // abaixo e não devem conviver com uma prévia órfã.
+    clearPreviewMarker();
+
     if (!lastAnalyzedScreenId) {
       postToUi({ type: "generation-error", message: "Nenhuma tela associada a esta especificação." });
       return;
@@ -287,6 +302,12 @@ figma.ui.onmessage = (message: UiToMainMessage) => {
       break;
     case "generate-specifications":
       void generateSpecifications(message.items);
+      break;
+    case "preview-marker":
+      void showPreviewMarker(message.nodeId, message.index);
+      break;
+    case "clear-preview-marker":
+      clearPreviewMarker();
       break;
     case "focus-node":
       void focusNode(message.nodeId).then((found) => {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ComponentTypeOption, DetachWarning, SpecificationItem } from "../../shared/types";
 import { Card } from "./Card";
 import { Button } from "./Button";
@@ -6,6 +6,7 @@ import { Icon } from "./Icon";
 import { EmptyState } from "./EmptyState";
 import { TitleBar } from "./TitleBar";
 import { Stepper } from "./Stepper";
+import { postToMain } from "../mainBridge";
 
 interface Step2Props {
   items: SpecificationItem[];
@@ -54,6 +55,28 @@ export function Step2({
   const [detachFilterActive, setDetachFilterActive] = useState(false);
 
   const detachedNodeIds = useMemo(() => new Set(detachWarnings.map((w) => w.nodeId)), [detachWarnings]);
+
+  // Marcação temporária no canvas ("aqui está esse componente") para
+  // o card expandido — pedido do usuário depois de relatar
+  // dificuldade em identificar o componente só pelo nome. Depende só
+  // de valores primitivos (id/nodeId/índice), não do array `items`
+  // inteiro, para não recriar a marcação a cada tecla digitada na
+  // verbalização do card aberto.
+  const expandedItem = useMemo(() => items.find((item) => item.id === expandedId) ?? null, [items, expandedId]);
+  const expandedIndex = expandedItem ? items.indexOf(expandedItem) : -1;
+  const expandedNodeId = expandedItem?.nodeId ?? null;
+
+  useEffect(() => {
+    if (expandedNodeId === null || expandedIndex === -1) {
+      postToMain({ type: "clear-preview-marker" });
+      return;
+    }
+    postToMain({ type: "preview-marker", nodeId: expandedNodeId, index: expandedIndex });
+    return () => {
+      postToMain({ type: "clear-preview-marker" });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedNodeId, expandedIndex]);
 
   const optionLabelByKey = useMemo(() => {
     const map = new Map<string, string>();

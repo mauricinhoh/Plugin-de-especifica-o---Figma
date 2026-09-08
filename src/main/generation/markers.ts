@@ -20,7 +20,7 @@ const MARKER_FONT: FontName = { family: "Inter", style: "Bold" };
  * (seção 33) se refere à interface do plugin, não a objetos gerados
  * no canvas de um arquivo cujas fontes locais podem variar.
  */
-async function createMarkerForItem(node: SceneNode, index: number): Promise<GroupNode> {
+export async function createMarkerForItem(node: SceneNode, index: number): Promise<GroupNode> {
   const bounds = node.absoluteBoundingBox;
   if (!bounds) {
     throw new Error(`Não foi possível ler a posição do componente "${node.name}".`);

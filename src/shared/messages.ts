@@ -26,6 +26,10 @@ export type UiToMainMessage =
    * duplicações ao adicionar via seleção manual (seção 23). */
   | { type: "sync-known-node-ids"; nodeIds: string[] }
   | { type: "generate-specifications"; items: SpecificationItem[] }
+  /** Mostra/atualiza a marcação temporária do componente cujo card está expandido na Etapa 2. */
+  | { type: "preview-marker"; nodeId: string; index: number }
+  /** Remove a marcação temporária (card fechado, trocado ou removido). */
+  | { type: "clear-preview-marker" }
   /** Seleciona e enquadra um node incompatível no canvas ("Ir para"). */
   | { type: "focus-node"; nodeId: string }
   /** Seleciona e enquadra o painel de especificações recém-gerado. */

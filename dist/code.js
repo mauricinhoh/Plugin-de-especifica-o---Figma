@@ -77,8 +77,9 @@
 
   // src/main/figma-api.ts
   function getCurrentUserName() {
-    var _a, _b;
-    return (_b = (_a = figma.currentUser) == null ? void 0 : _a.name) != null ? _b : "";
+    var _a, _b, _c;
+    const fullName = (_b = (_a = figma.currentUser) == null ? void 0 : _a.name) != null ? _b : "";
+    return (_c = fullName.trim().split(/\s+/)[0]) != null ? _c : "";
   }
   function isValidScreenNode(node) {
     return node.type === "FRAME" || node.type === "GROUP";
@@ -973,14 +974,19 @@
   }
 
   // src/main/analysis/discovery.ts
-  var IGNORED_COMPONENT_NAME = "Header Web";
+  var IGNORED_COMPONENT_NAMES = [
+    "Header Web",
+    "[IB-Leg] Acessibility Settings Bar",
+    "[IB-Leg] Header",
+    "[IB-Leg] Navigation Bar"
+  ];
   function discoverTopLevelComponents(root) {
     const found = [];
     function walk(node) {
       if ("visible" in node && !node.visible) {
         return;
       }
-      if (node.name === IGNORED_COMPONENT_NAME) {
+      if (IGNORED_COMPONENT_NAMES.includes(node.name)) {
         return;
       }
       if (node.type === "INSTANCE" || node.type === "COMPONENT") {
@@ -1482,10 +1488,32 @@
     return panel;
   }
 
+  // src/main/generation/previewMarker.ts
+  var previewMarkerGroup = null;
+  async function showPreviewMarker(nodeId, index) {
+    clearPreviewMarker();
+    const node = await figma.getNodeByIdAsync(nodeId);
+    if (!node || !("absoluteBoundingBox" in node) || !node.absoluteBoundingBox) {
+      return;
+    }
+    previewMarkerGroup = await createMarkerForItem(node, index);
+  }
+  function clearPreviewMarker() {
+    if (!previewMarkerGroup) return;
+    try {
+      previewMarkerGroup.remove();
+    } catch (e) {
+    }
+    previewMarkerGroup = null;
+  }
+
   // src/main/code.ts
   var UI_WIDTH = 420;
   var UI_HEIGHT = 700;
   figma.showUI(__html__, { width: UI_WIDTH, height: UI_HEIGHT, themeColors: false });
+  figma.on("close", () => {
+    clearPreviewMarker();
+  });
   var lastAnalyzedScreenId = null;
   var manualSelectionEnabled = false;
   var knownNodeIds = /* @__PURE__ */ new Set();
@@ -1504,6 +1532,7 @@
     knownNodeIds = /* @__PURE__ */ new Set();
     lastGeneratedOutputNodeId = null;
     setManualSelectionEnabled(false);
+    clearPreviewMarker();
   }
   function sendSelectionState() {
     const selection = getCurrentSelection();
@@ -1594,6 +1623,7 @@
   }
   async function generateSpecifications(items) {
     try {
+      clearPreviewMarker();
       if (!lastAnalyzedScreenId) {
         postToUi({ type: "generation-error", message: "Nenhuma tela associada a esta especifica\xE7\xE3o." });
         return;
@@ -1673,6 +1703,12 @@
         break;
       case "generate-specifications":
         void generateSpecifications(message.items);
+        break;
+      case "preview-marker":
+        void showPreviewMarker(message.nodeId, message.index);
+        break;
+      case "clear-preview-marker":
+        clearPreviewMarker();
         break;
       case "focus-node":
         void focusNode(message.nodeId).then((found) => {
