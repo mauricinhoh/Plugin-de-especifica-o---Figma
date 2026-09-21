@@ -19,17 +19,19 @@ const IGNORED_COMPONENT_NAMES = [
 ];
 
 /**
- * Decide, para um componente/instância reconhecido pela descoberta,
- * se ele é reconhecido (tem regra) e se a busca deve continuar
- * descendo dentro dele mesmo assim (ver `ComponentTypeRule.alwaysDescend`
- * em accessibility-rules.ts — casos como "Header Product", que sempre
- * têm outros componentes reais dentro). Fornecida por quem chama
- * (analyzer.ts), para discovery.ts continuar sem depender do motor de
- * regras diretamente. Assíncrona porque resolver o nome do componente
- * principal de uma INSTANCE exige `getMainComponentAsync`.
+ * Decide, para um componente/instância/texto reconhecido pela
+ * descoberta, se ele é reconhecido (tem regra, ou — no caso de um
+ * TEXT solto — se o tamanho da fonte bate com um nível de título) e
+ * se a busca deve continuar descendo dentro dele mesmo assim (ver
+ * `ComponentTypeRule.alwaysDescend` em accessibility-rules.ts — casos
+ * como "Header Product", que sempre têm outros componentes reais
+ * dentro). Fornecida por quem chama (analyzer.ts), para discovery.ts
+ * continuar sem depender do motor de regras diretamente. Assíncrona
+ * porque resolver o nome do componente principal de uma INSTANCE
+ * exige `getMainComponentAsync`.
  */
 export type ComponentClassifier = (
-  node: InstanceNode | ComponentNode
+  node: InstanceNode | ComponentNode | TextNode
 ) => Promise<{ recognized: boolean; alwaysDescend: boolean }>;
 
 /**
@@ -46,6 +48,18 @@ export type ComponentClassifier = (
  *   dentro (ex.: um "Header Flow" que é só uma composição do arquivo,
  *   sem regra própria, mas contém um "Breadcrumb" e um "Header
  *   Product" que são reconhecidos e geram card cada um).
+ * - Node TEXT solto (não dentro de nenhum componente já reconhecido)
+ *   → também passa por `classify`: se o tamanho da fonte bater com um
+ *   nível de título (ver main/analysis/headingDetection.ts), vira
+ *   card como se fosse um "Heading" — pedido do usuário depois de
+ *   notar que títulos soltos na tela (sem usar o componente Heading
+ *   de verdade) estavam sendo ignorados. Só roda FORA de qualquer
+ *   componente já reconhecido (ver `insideRecognizedContainer` no
+ *   corpo da função) — dentro de um container estruturado (Empty
+ *   State, Card, Modal...) o texto já é capturado pela extração
+ *   própria daquele componente, então classificar de novo por tamanho
+ *   duplicaria ou confundiria o resultado. TEXT nunca tem
+ *   `alwaysDescend` relevante (não tem filhos).
  *
  * "Header Web" e os demais nomes de `IGNORED_COMPONENT_NAMES`
  * continuam ignorados por completo: não viram card, não contam para
@@ -59,10 +73,10 @@ export type ComponentClassifier = (
 export async function discoverTopLevelComponents(
   root: SceneNode,
   classify: ComponentClassifier
-): Promise<(InstanceNode | ComponentNode)[]> {
-  const found: (InstanceNode | ComponentNode)[] = [];
+): Promise<(InstanceNode | ComponentNode | TextNode)[]> {
+  const found: (InstanceNode | ComponentNode | TextNode)[] = [];
 
-  async function walk(node: SceneNode): Promise<void> {
+  async function walk(node: SceneNode, insideRecognizedContainer: boolean): Promise<void> {
     if ("visible" in node && !node.visible) {
       return; // oculto: ignora completamente, inclusive a subárvore
     }
@@ -71,30 +85,48 @@ export async function discoverTopLevelComponents(
       return; // ignora completamente, inclusive a subárvore
     }
 
-    if (node.type === "INSTANCE" || node.type === "COMPONENT") {
-      const { recognized, alwaysDescend } = await classify(node);
+    // TEXT solto só é classificado (por tamanho de título) quando NÃO
+    // está dentro de um componente já reconhecido. Componentes
+    // estruturados (Empty State, Card, Modal, Drawer...) têm a PRÓPRIA
+    // extração de texto (ex.: "primeiro e segundo texto" do Empty
+    // State) — deixar o detector genérico de título rodar também
+    // dentro deles duplicaria/confundiria título e descrição com o
+    // texto que o próprio card do container já captura. Só se aplica
+    // dentro de composições SEM regra própria (ex.: "Header Flow"),
+    // onde não existe outra extração cuidando desse texto.
+    const shouldClassify =
+      node.type === "INSTANCE" || node.type === "COMPONENT" || (node.type === "TEXT" && !insideRecognizedContainer);
+
+    let nextInsideRecognizedContainer = insideRecognizedContainer;
+
+    if (shouldClassify) {
+      const { recognized, alwaysDescend } = await classify(node as InstanceNode | ComponentNode | TextNode);
       if (recognized) {
-        found.push(node);
+        found.push(node as InstanceNode | ComponentNode | TextNode);
         if (!alwaysDescend) {
           return; // reconhecido e comportamento padrão: para aqui
         }
         // reconhecido, mas marcado para sempre aprofundar: cria o
-        // card acima E continua a busca dentro dele também.
+        // card acima E continua a busca dentro dele também — a partir
+        // daqui, TEXT solto encontrado já está "dentro" desse
+        // container reconhecido.
+        nextInsideRecognizedContainer = true;
       }
       // não reconhecido: não vira card sozinho, mas continua a busca
-      // dentro dele (pode haver componentes reais lá dentro).
+      // dentro dele (pode haver componentes reais lá dentro — não se
+      // aplica a TEXT, que não tem filhos).
     }
 
     if ("children" in node) {
       for (const child of node.children) {
-        await walk(child);
+        await walk(child, nextInsideRecognizedContainer);
       }
     }
   }
 
   if ("children" in root) {
     for (const child of root.children) {
-      await walk(child);
+      await walk(child, false);
     }
   }
 

@@ -56,10 +56,14 @@ export interface ComponentTypeRule<TExtracted extends object = ExtractedTextData
    * dos componentes). "all-text": todos os textos visíveis, juntados
    * com ", " — para componentes com múltiplos textos que formam a
    * verbalização junto (ex.: Breadcrumb). Os dois preenchem o mesmo
-   * campo `extractedData.text`, então uma regra deve usar só um dos
-   * dois na prática.
+   * campo `extractedData.text`. "first-two-texts": primeiro texto vai
+   * pra `extractedData.text`, segundo vai pra `extractedData.text2` —
+   * para componentes com posições fixas de conteúdo (ex.: Empty
+   * State: "o primeiro texto é sempre o título, o segundo é sempre a
+   * descrição"), onde cada posição precisa de um placeholder
+   * diferente no template.
    */
-  extraction: Array<"first-text" | "all-text">;
+  extraction: Array<"first-text" | "all-text" | "first-two-texts">;
   /**
    * Template de verbalização. Usa placeholders "(Nome)", "[Nome]" ou
    * "{Nome}" — os três estilos usados pela planilha real; ver

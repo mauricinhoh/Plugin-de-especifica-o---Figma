@@ -10,8 +10,9 @@ import { sortByReadingOrder } from "./readingOrder";
 import { identifyCoreType } from "./coreIdentification";
 import { resolveScreenContext } from "./contextResolver";
 import { detectPossibleDetachedComponents } from "./detachDetector";
-import { extractAllTextsJoined, extractFirstText } from "./textExtraction";
+import { extractAllTextsJoined, extractFirstText, extractFirstTwoTexts } from "./textExtraction";
 import { extractVariantProperties } from "./stateExtraction";
+import { detectHeadingLevelFromFontSize } from "./headingDetection";
 import { findCoreIncompatibilities } from "./validation";
 
 /**
@@ -21,10 +22,20 @@ import { findCoreIncompatibilities } from "./validation";
  * `ComponentTypeRule.alwaysDescend`) — usado pela descoberta
  * (discovery.ts) para decidir se aprofunda mesmo em um componente
  * reconhecido (ex.: "Header Product").
+ *
+ * Um TEXT solto (não dentro de INSTANCE/COMPONENT) é "reconhecido"
+ * quando o tamanho da fonte bate com um nível de título — pedido do
+ * usuário depois de notar que títulos soltos na tela (sem usar o
+ * componente Heading de verdade) estavam sendo ignorados pela
+ * descoberta automática.
  */
 async function classifyComponent(
-  node: InstanceNode | ComponentNode
+  node: InstanceNode | ComponentNode | TextNode
 ): Promise<{ recognized: boolean; alwaysDescend: boolean }> {
+  if (node.type === "TEXT") {
+    const headingLevel = detectHeadingLevelFromFontSize(node);
+    return { recognized: headingLevel !== null, alwaysDescend: false };
+  }
   const componentName = await resolveComponentName(node);
   const rule = findMatchingRule(accessibilityRules, { nodeName: node.name, componentName });
   return { recognized: rule !== undefined, alwaysDescend: rule?.alwaysDescend ?? false };
@@ -72,22 +83,42 @@ async function buildSpecificationItem(
   manuallyAdded: boolean
 ): Promise<SpecificationItem> {
   const isComponentLike = node.type === "INSTANCE" || node.type === "COMPONENT";
+  const isTextNode = node.type === "TEXT";
+
   const coreType = isComponentLike
     ? (await identifyCoreType(node as InstanceNode | ComponentNode)).coreType
     : "DESCONHECIDO";
 
   const componentName = isComponentLike ? await resolveComponentName(node as InstanceNode | ComponentNode) : null;
 
-  const rule = findMatchingRule(accessibilityRules, {
-    nodeName: node.name,
-    componentName
-  });
+  let rule = isComponentLike
+    ? findMatchingRule(accessibilityRules, { nodeName: node.name, componentName })
+    : undefined;
 
   const extractedData: Record<string, string> = {};
-  if (rule?.extraction.includes("all-text")) {
+
+  if (isTextNode) {
+    // Título "solto": usa sempre a regra "Heading", independente do
+    // nome da camada — o motivo de ter sido descoberto já é o tamanho
+    // da fonte bater com um nível de título (ver classifyComponent).
+    const headingLevel = detectHeadingLevelFromFontSize(node as TextNode);
+    if (headingLevel) {
+      rule = accessibilityRules.find((r) => r.key === "heading");
+      extractedData.text = (node as TextNode).characters;
+      extractedData.nivel = headingLevel;
+    }
+  } else if (rule?.extraction.includes("all-text")) {
     const text = extractAllTextsJoined(node);
     if (text !== undefined) {
       extractedData.text = text;
+    }
+  } else if (rule?.extraction.includes("first-two-texts")) {
+    const { first, second } = extractFirstTwoTexts(node);
+    if (first !== undefined) {
+      extractedData.text = first;
+    }
+    if (second !== undefined) {
+      extractedData.text2 = second;
     }
   } else if (rule?.extraction.includes("first-text")) {
     const text = extractFirstText(node);

@@ -19,17 +19,30 @@
     "label acessivel": (data) => data.text,
     "label do botao": (data) => data.text,
     "texto da label": (data) => data.text,
-    "titulo com hierarquia logica": (data) => data.text
+    "titulo com hierarquia logica": (data) => data.text,
+    // Segunda posição de texto (ex.: a descrição do Empty State, que é
+    // sempre o SEGUNDO texto do componente, não relacionado a tamanho
+    // de fonte — ver rules/accessibility-rules-data.ts, extração
+    // "duas-posicoes"). Só populado para componentes que usam essa
+    // extração; nos demais este placeholder simplesmente não resolve.
+    "leitura do conteudo": (data) => data.text2,
+    // Nível de título (h1–h6), calculado a partir do tamanho da fonte
+    // do TEXT — não é o mesmo dado que os outros (não é o texto visível,
+    // é um número deduzido). Ver main/analysis/headingDetection.ts.
+    // Só existe em `extractedData.nivel` quando o node é um TEXT solto
+    // reconhecido como título; para os demais casos o placeholder
+    // simplesmente não resolve (fica como está, sem inventar nível).
+    "ordem logica": (data) => data.nivel
     // Deliberadamente SEM resolver (ficam como template editável):
     // "placeholder", "conteudo preenchido", "texto de suporte",
     // "texto de apoio", "heading", "mensagem", "mensagem de erro",
     // "alt-text", "carregando", "description", "descricao",
-    // "helper text", "leitura do conteudo", "mascara", "nivel",
-    // "posicao", "posicao e total de etapas", "valor", "x de x",
-    // "x itens", "contador", "ordem logica" — são textos DIFERENTES do
-    // texto/rótulo principal do componente (ou dados que o plugin não
-    // consegue extrair, como contadores/posição), então resolver
-    // automático arriscaria pegar o texto errado ou inventar um número.
+    // "helper text", "mascara", "nivel", "posicao", "posicao e total de
+    // etapas", "valor", "x de x", "x itens", "contador" — são textos
+    // DIFERENTES do texto/rótulo principal do componente (ou dados que
+    // o plugin não consegue extrair, como contadores/posição), então
+    // resolver automático arriscaria pegar o texto errado ou inventar
+    // um número.
   };
   function normalizePlaceholderName(raw) {
     return raw.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
@@ -272,10 +285,11 @@
       "categoria": "Content",
       "componente": "Empty State",
       "estados": "Est\xE1tico; bot\xE3o interno segue Button Primary.",
-      "verbalizacaoEsperada": 'Verbaliza cada componente separadamente. T\xEDtulo: "[T\xEDtulo com hierarquia l\xF3gica]" Descri\xE7\xE3o: "[Leitura do conte\xFAdo]", Button primary: "[Label], bot\xE3o"\n',
+      "verbalizacaoEsperada": 'Verbaliza cada componente separadamente \u2014 o bot\xE3o vira seu pr\xF3prio card. T\xEDtulo: "[T\xEDtulo com hierarquia l\xF3gica]" Descri\xE7\xE3o: "[Leitura do conte\xFAdo]"',
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "extracaoTexto": "todos"
+      "sempreAprofundar": true,
+      "extracaoTexto": "duas-posicoes"
     },
     {
       "categoria": "Content",
@@ -351,7 +365,8 @@
       "estados": "Padr\xE3o.",
       "verbalizacaoEsperada": "Ordem l\xF3gica dos componentes",
       "tipo": "Estrutura",
-      "foco": "Apenas elementos interativos"
+      "foco": "Apenas elementos interativos",
+      "sempreAprofundar": true
     },
     {
       "categoria": "Containers",
@@ -368,7 +383,8 @@
       "estados": "Aberto e Fechado; tipos Default, Danger e Positive.",
       "verbalizacaoEsperada": 'Ordem l\xF3gica dos componentes. Icon button X: "Fechar, bot\xE3o".',
       "tipo": "Estrutura",
-      "foco": "Apenas elementos interativos"
+      "foco": "Apenas elementos interativos",
+      "sempreAprofundar": true
     },
     {
       "categoria": "Containers",
@@ -395,7 +411,8 @@
       "estados": "Aberto e Fechado.",
       "verbalizacaoEsperada": 'Ordem l\xF3gica dos componentes. Icon button X: "Fechar, bot\xE3o".',
       "tipo": "Estrutura",
-      "foco": "Apenas elementos interativos"
+      "foco": "Apenas elementos interativos",
+      "sempreAprofundar": true
     },
     {
       "categoria": "Containers",
@@ -821,7 +838,9 @@
       markupType: resolveMarkupType(record),
       identifier: { matches: matchesComponentName(record.componente, ...(_b = record.aliasesDeNome) != null ? _b : []) },
       hasVerbalization: hasTemplate,
-      extraction: [record.extracaoTexto === "todos" ? "all-text" : "first-text"],
+      extraction: [
+        record.extracaoTexto === "todos" ? "all-text" : record.extracaoTexto === "duas-posicoes" ? "first-two-texts" : "first-text"
+      ],
       template: hasTemplate ? rawTemplate : void 0,
       states: statesMap,
       focusEligible: resolveFocusEligible(record),
@@ -901,31 +920,34 @@
   ];
   async function discoverTopLevelComponents(root, classify) {
     const found = [];
-    async function walk(node) {
+    async function walk(node, insideRecognizedContainer) {
       if ("visible" in node && !node.visible) {
         return;
       }
       if (IGNORED_COMPONENT_NAMES.includes(node.name)) {
         return;
       }
-      if (node.type === "INSTANCE" || node.type === "COMPONENT") {
+      const shouldClassify = node.type === "INSTANCE" || node.type === "COMPONENT" || node.type === "TEXT" && !insideRecognizedContainer;
+      let nextInsideRecognizedContainer = insideRecognizedContainer;
+      if (shouldClassify) {
         const { recognized, alwaysDescend } = await classify(node);
         if (recognized) {
           found.push(node);
           if (!alwaysDescend) {
             return;
           }
+          nextInsideRecognizedContainer = true;
         }
       }
       if ("children" in node) {
         for (const child of node.children) {
-          await walk(child);
+          await walk(child, nextInsideRecognizedContainer);
         }
       }
     }
     if ("children" in root) {
       for (const child of root.children) {
-        await walk(child);
+        await walk(child, false);
       }
     }
     return found;
@@ -1101,6 +1123,14 @@
     const texts = findAllTexts(node).map((t) => t.characters);
     return texts.length > 0 ? texts.join(", ") : void 0;
   }
+  function extractFirstTwoTexts(node) {
+    var _a, _b;
+    const texts = findAllTexts(node);
+    return {
+      first: (_a = texts[0]) == null ? void 0 : _a.characters,
+      second: (_b = texts[1]) == null ? void 0 : _b.characters
+    };
+  }
 
   // src/main/analysis/stateExtraction.ts
   function extractVariantProperties(node) {
@@ -1120,6 +1150,24 @@
     return Object.keys(variantValues).length > 0 ? variantValues : null;
   }
 
+  // src/main/analysis/headingDetection.ts
+  var FONT_SIZE_TO_HEADING_LEVEL = {
+    40: "2",
+    32: "2",
+    24: "3",
+    20: "4",
+    16: "5",
+    14: "6"
+  };
+  function detectHeadingLevelFromFontSize(node) {
+    var _a;
+    if (node.fontSize === figma.mixed) {
+      return null;
+    }
+    const size = node.fontSize;
+    return (_a = FONT_SIZE_TO_HEADING_LEVEL[size]) != null ? _a : null;
+  }
+
   // src/main/analysis/validation.ts
   function findCoreIncompatibilities(items, context) {
     const forbidden = context === "WEB" ? "CORE_APP" : "CORE_WEB";
@@ -1134,6 +1182,10 @@
   // src/main/analysis/analyzer.ts
   async function classifyComponent(node) {
     var _a;
+    if (node.type === "TEXT") {
+      const headingLevel = detectHeadingLevelFromFontSize(node);
+      return { recognized: headingLevel !== null, alwaysDescend: false };
+    }
     const componentName = await resolveComponentName(node);
     const rule = findMatchingRule(accessibilityRules, { nodeName: node.name, componentName });
     return { recognized: rule !== void 0, alwaysDescend: (_a = rule == null ? void 0 : rule.alwaysDescend) != null ? _a : false };
@@ -1152,17 +1204,30 @@
   async function buildSpecificationItem(node, order, manuallyAdded) {
     var _a, _b, _c;
     const isComponentLike = node.type === "INSTANCE" || node.type === "COMPONENT";
+    const isTextNode = node.type === "TEXT";
     const coreType = isComponentLike ? (await identifyCoreType(node)).coreType : "DESCONHECIDO";
     const componentName = isComponentLike ? await resolveComponentName(node) : null;
-    const rule = findMatchingRule(accessibilityRules, {
-      nodeName: node.name,
-      componentName
-    });
+    let rule = isComponentLike ? findMatchingRule(accessibilityRules, { nodeName: node.name, componentName }) : void 0;
     const extractedData = {};
-    if (rule == null ? void 0 : rule.extraction.includes("all-text")) {
+    if (isTextNode) {
+      const headingLevel = detectHeadingLevelFromFontSize(node);
+      if (headingLevel) {
+        rule = accessibilityRules.find((r) => r.key === "heading");
+        extractedData.text = node.characters;
+        extractedData.nivel = headingLevel;
+      }
+    } else if (rule == null ? void 0 : rule.extraction.includes("all-text")) {
       const text = extractAllTextsJoined(node);
       if (text !== void 0) {
         extractedData.text = text;
+      }
+    } else if (rule == null ? void 0 : rule.extraction.includes("first-two-texts")) {
+      const { first, second } = extractFirstTwoTexts(node);
+      if (first !== void 0) {
+        extractedData.text = first;
+      }
+      if (second !== void 0) {
+        extractedData.text2 = second;
       }
     } else if (rule == null ? void 0 : rule.extraction.includes("first-text")) {
       const text = extractFirstText(node);

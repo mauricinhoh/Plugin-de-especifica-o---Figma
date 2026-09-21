@@ -89,3 +89,19 @@ export function extractAllTextsJoined(node: SceneNode): string | undefined {
   const texts = findAllTexts(node).map((t) => t.characters);
   return texts.length > 0 ? texts.join(", ") : undefined;
 }
+
+/**
+ * Retorna o PRIMEIRO e o SEGUNDO texto utilizável do componente,
+ * separadamente (mesma ordem de `findAllTexts`) — pedido do usuário
+ * pro Empty State: "o primeiro texto sempre é o título, o segundo
+ * sempre é a descrição", uma posição fixa, não relacionada a tamanho
+ * de fonte. Qualquer texto além do segundo é ignorado por esta
+ * função (não existe "terceiro" no contrato atual).
+ */
+export function extractFirstTwoTexts(node: SceneNode): { first?: string; second?: string } {
+  const texts = findAllTexts(node);
+  return {
+    first: texts[0]?.characters,
+    second: texts[1]?.characters
+  };
+}

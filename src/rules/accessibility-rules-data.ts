@@ -105,9 +105,12 @@ export interface AccessibilityRuleRecord {
    * Componentes com múltiplos textos que juntos formam a verbalização
    * (ex.: Breadcrumb: "Início, Produtos, Detalhes") usam "todos" —
    * junta todos os textos visíveis, na ordem, separados por vírgula.
+   * "duas-posicoes" pega o primeiro texto e o segundo texto
+   * separadamente (ex.: Empty State: primeiro = título, segundo =
+   * descrição — posição fixa, não relacionada a tamanho de fonte).
    * Default: "primeiro".
    */
-  extracaoTexto?: "primeiro" | "todos";
+  extracaoTexto?: "primeiro" | "todos" | "duas-posicoes";
   /**
    * NÃO vem da planilha — campo de extensão. Traduz o NOME de uma
    * propriedade booleana do Figma (quando "true") para o rótulo de
@@ -264,10 +267,11 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Content",
     "componente": "Empty State",
     "estados": "Estático; botão interno segue Button Primary.",
-    "verbalizacaoEsperada": "Verbaliza cada componente separadamente. Título: \"[Título com hierarquia lógica]\" Descrição: \"[Leitura do conteúdo]\", Button primary: \"[Label], botão\"\n",
+    "verbalizacaoEsperada": "Verbaliza cada componente separadamente — o botão vira seu próprio card. Título: \"[Título com hierarquia lógica]\" Descrição: \"[Leitura do conteúdo]\"",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "extracaoTexto": "todos"
+    "sempreAprofundar": true,
+    "extracaoTexto": "duas-posicoes"
   },
   {
     "categoria": "Content",
@@ -343,7 +347,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "estados": "Padrão.",
     "verbalizacaoEsperada": "Ordem lógica dos componentes",
     "tipo": "Estrutura",
-    "foco": "Apenas elementos interativos"
+    "foco": "Apenas elementos interativos",
+    "sempreAprofundar": true
   },
   {
     "categoria": "Containers",
@@ -360,7 +365,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "estados": "Aberto e Fechado; tipos Default, Danger e Positive.",
     "verbalizacaoEsperada": "Ordem lógica dos componentes. Icon button X: \"Fechar, botão\".",
     "tipo": "Estrutura",
-    "foco": "Apenas elementos interativos"
+    "foco": "Apenas elementos interativos",
+    "sempreAprofundar": true
   },
   {
     "categoria": "Containers",
@@ -387,7 +393,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "estados": "Aberto e Fechado.",
     "verbalizacaoEsperada": "Ordem lógica dos componentes. Icon button X: \"Fechar, botão\".",
     "tipo": "Estrutura",
-    "foco": "Apenas elementos interativos"
+    "foco": "Apenas elementos interativos",
+    "sempreAprofundar": true
   },
   {
     "categoria": "Containers",

@@ -191,7 +191,13 @@ function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<Extracted
     markupType: resolveMarkupType(record) as MarkupTypeKey,
     identifier: { matches: matchesComponentName(record.componente, ...(record.aliasesDeNome ?? [])) },
     hasVerbalization: hasTemplate,
-    extraction: [record.extracaoTexto === "todos" ? "all-text" : "first-text"],
+    extraction: [
+      record.extracaoTexto === "todos"
+        ? "all-text"
+        : record.extracaoTexto === "duas-posicoes"
+          ? "first-two-texts"
+          : "first-text"
+    ],
     template: hasTemplate ? rawTemplate : undefined,
     states: statesMap,
     focusEligible: resolveFocusEligible(record),
