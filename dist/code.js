@@ -146,57 +146,6 @@
   ];
   var DECORATIVE_MARKUP_TYPE = "decorativo";
 
-  // src/main/figma-api.ts
-  function getCurrentUserName() {
-    var _a, _b, _c;
-    const fullName = (_b = (_a = figma.currentUser) == null ? void 0 : _a.name) != null ? _b : "";
-    return (_c = fullName.trim().split(/\s+/)[0]) != null ? _c : "";
-  }
-  function isValidScreenNode(node) {
-    return node.type === "FRAME" || node.type === "GROUP";
-  }
-  function getCurrentSelection() {
-    return figma.currentPage.selection;
-  }
-  function onSelectionChange(callback) {
-    figma.on("selectionchange", callback);
-    return () => figma.off("selectionchange", callback);
-  }
-  var LAYER_COUNT_LIMIT = 5e3;
-  function countDescendants(node) {
-    let count = 0;
-    function walk(current) {
-      if ("children" in current) {
-        for (const child of current.children) {
-          count += 1;
-          if (count >= LAYER_COUNT_LIMIT) return false;
-          if (!walk(child)) return false;
-        }
-      }
-      return true;
-    }
-    walk(node);
-    return count;
-  }
-  async function focusNode(nodeId) {
-    const node = await figma.getNodeByIdAsync(nodeId);
-    if (!node || !("x" in node)) {
-      return false;
-    }
-    const sceneNode = node;
-    figma.currentPage.selection = [sceneNode];
-    figma.viewport.scrollAndZoomIntoView([sceneNode]);
-    return true;
-  }
-  var SCREEN_CONTEXT_KEY = "screenContext";
-  function getRememberedScreenContext() {
-    const value = figma.root.getPluginData(SCREEN_CONTEXT_KEY);
-    return value === "WEB" || value === "APLICATIVO" ? value : null;
-  }
-  function rememberScreenContext(context) {
-    figma.root.setPluginData(SCREEN_CONTEXT_KEY, context);
-  }
-
   // src/rules/accessibility-rules-data.ts
   var accessibilityRuleRecords = [
     {
@@ -365,7 +314,7 @@
       "categoria": "Content",
       "componente": "List Ghost",
       "estados": "Padr\xE3o, est\xE1tico.",
-      "verbalizacaoEsperada": "[Description], [Label]",
+      "verbalizacaoEsperada": "[Label]",
       "tipo": "N\xE3o interativo",
       "foco": "N\xE3o",
       "extracaoTexto": "todos"
@@ -391,9 +340,10 @@
       "categoria": "Content",
       "componente": "Table",
       "estados": "Default, Linhas selecionadas, Sem dados.",
-      "verbalizacaoEsperada": "Segue a documenta\xE7\xE3o da tabela: https://confederacaosicredi.sharepoint.com/:w:/r/teams/nucleodeacessibilidade/Shared%20Documents/Especifica%C3%A7%C3%B5es%20Colmeia/Especificac%CC%A7%C3%B5es%20para%20tabela%20(Table).docx?d=w3d5f894400084c4c94753e09a8ad20d7&csf=1&web=1&e=gcqGDV",
+      "verbalizacaoEsperada": "Segue a documenta\xE7\xE3o da tabela: link da documenta\xE7\xE3o",
       "tipo": "Estrutura",
-      "foco": "Apenas elementos interativos"
+      "foco": "Apenas elementos interativos",
+      "links": [{ "text": "link da documenta\xE7\xE3o", "url": "https://confederacaosicredi.sharepoint.com/:w:/r/teams/nucleodeacessibilidade/Shared%20Documents/Especifica%C3%A7%C3%B5es%20Colmeia/Especificac%CC%A7%C3%B5es%20para%20tabela%20(Table).docx?d=w3d5f894400084c4c94753e09a8ad20d7&csf=1&web=1&e=gcqGDV" }]
     },
     {
       "categoria": "Containers",
@@ -436,7 +386,8 @@
       "verbalizacaoEsperada": '"[Label], Bot\xE3o"',
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "extracaoTexto": "todos"
+      "extracaoTexto": "todos",
+      "sempreAprofundar": true
     },
     {
       "categoria": "Containers",
@@ -485,7 +436,7 @@
       "categoria": "Feedback",
       "componente": "Toast",
       "estados": "Exibido e Oculto.",
-      "verbalizacaoEsperada": '"[Description],[label] link externo, fechar,bot\xE3o".',
+      "verbalizacaoEsperada": '"[label] link externo, fechar,bot\xE3o".',
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos"
     },
@@ -749,7 +700,8 @@
       "estados": "Selecionada e N\xE3o selecionada.",
       "verbalizacaoEsperada": 'Selecionada:"[R\xF3tulo], guia selecionado, [Posi\xE7\xE3o]" N\xE3o seleciona:"[R\xF3tulo], guia n\xE3o selecionado, [Posi\xE7\xE3o]"',
       "tipo": "Bot\xE3o",
-      "foco": "Sim"
+      "foco": "Sim",
+      "extracaoTexto": "todos"
     },
     {
       "categoria": "Status",
@@ -875,10 +827,62 @@
       focusEligible: resolveFocusEligible(record),
       alwaysDescend: (_c = record.sempreAprofundar) != null ? _c : false,
       stateFlagAliases: record.stateFlagAliases,
-      derivedStates: record.derivedStates
+      derivedStates: record.derivedStates,
+      links: record.links
     };
   }
   var accessibilityRules = accessibilityRuleRecords.map(buildRule);
+
+  // src/main/figma-api.ts
+  function getCurrentUserName() {
+    var _a, _b, _c;
+    const fullName = (_b = (_a = figma.currentUser) == null ? void 0 : _a.name) != null ? _b : "";
+    return (_c = fullName.trim().split(/\s+/)[0]) != null ? _c : "";
+  }
+  function isValidScreenNode(node) {
+    return node.type === "FRAME" || node.type === "GROUP";
+  }
+  function getCurrentSelection() {
+    return figma.currentPage.selection;
+  }
+  function onSelectionChange(callback) {
+    figma.on("selectionchange", callback);
+    return () => figma.off("selectionchange", callback);
+  }
+  var LAYER_COUNT_LIMIT = 5e3;
+  function countDescendants(node) {
+    let count = 0;
+    function walk(current) {
+      if ("children" in current) {
+        for (const child of current.children) {
+          count += 1;
+          if (count >= LAYER_COUNT_LIMIT) return false;
+          if (!walk(child)) return false;
+        }
+      }
+      return true;
+    }
+    walk(node);
+    return count;
+  }
+  async function focusNode(nodeId) {
+    const node = await figma.getNodeByIdAsync(nodeId);
+    if (!node || !("x" in node)) {
+      return false;
+    }
+    const sceneNode = node;
+    figma.currentPage.selection = [sceneNode];
+    figma.viewport.scrollAndZoomIntoView([sceneNode]);
+    return true;
+  }
+  var SCREEN_CONTEXT_KEY = "screenContext";
+  function getRememberedScreenContext() {
+    const value = figma.root.getPluginData(SCREEN_CONTEXT_KEY);
+    return value === "WEB" || value === "APLICATIVO" ? value : null;
+  }
+  function rememberScreenContext(context) {
+    figma.root.setPluginData(SCREEN_CONTEXT_KEY, context);
+  }
 
   // src/main/idGenerator.ts
   var counter = 0;
@@ -1693,11 +1697,12 @@
         designerName: getCurrentUserName(),
         screenName: screenNode.name,
         items: ordered.map((item) => {
-          var _a, _b;
+          var _a, _b, _c;
           return {
             nodeName: item.nodeName,
             markupTypeLabel: (_b = (_a = MARKUP_TYPES.find((t) => t.key === item.markupType)) == null ? void 0 : _a.label) != null ? _b : UNSPECIFIED_TYPE_LABEL,
-            verbalization: item.verbalization
+            verbalization: item.verbalization,
+            links: item.ruleKey ? (_c = accessibilityRules.find((r) => r.key === item.ruleKey)) == null ? void 0 : _c.links : void 0
           };
         })
       };

@@ -197,7 +197,8 @@ function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<Extracted
     focusEligible: resolveFocusEligible(record),
     alwaysDescend: record.sempreAprofundar ?? false,
     stateFlagAliases: record.stateFlagAliases,
-    derivedStates: record.derivedStates
+    derivedStates: record.derivedStates,
+    links: record.links
   };
 }
 

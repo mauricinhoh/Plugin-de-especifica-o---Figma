@@ -129,6 +129,14 @@ export interface AccessibilityRuleRecord {
    * é específico de cada componente, nunca um algoritmo genérico.
    */
   derivedStates?: Array<{ whenFlagsEqual: Record<string, string>; thenState: string }>;
+  /**
+   * NÃO vem da planilha — campo de extensão. Links reais que devem
+   * virar HYPERLINK de verdade no .docx exportado (não só texto azul
+   * sublinhado — um link clicável, apontando pra URL real). O `text`
+   * precisa aparecer EXATAMENTE (mesma grafia) dentro de
+   * `verbalizacaoEsperada` — é esse trecho que vira o link.
+   */
+  links?: Array<{ text: string; url: string }>;
 }
 
 export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
@@ -298,7 +306,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Content",
     "componente": "List Ghost",
     "estados": "Padrão, estático.",
-    "verbalizacaoEsperada": "[Description], [Label]",
+    "verbalizacaoEsperada": "[Label]",
     "tipo": "Não interativo",
     "foco": "Não",
     "extracaoTexto": "todos"
@@ -324,9 +332,10 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Content",
     "componente": "Table",
     "estados": "Default, Linhas selecionadas, Sem dados.",
-    "verbalizacaoEsperada": "Segue a documentação da tabela: https://confederacaosicredi.sharepoint.com/:w:/r/teams/nucleodeacessibilidade/Shared%20Documents/Especifica%C3%A7%C3%B5es%20Colmeia/Especificac%CC%A7%C3%B5es%20para%20tabela%20(Table).docx?d=w3d5f894400084c4c94753e09a8ad20d7&csf=1&web=1&e=gcqGDV",
+    "verbalizacaoEsperada": "Segue a documentação da tabela: link da documentação",
     "tipo": "Estrutura",
-    "foco": "Apenas elementos interativos"
+    "foco": "Apenas elementos interativos",
+    "links": [{"text": "link da documentação", "url": "https://confederacaosicredi.sharepoint.com/:w:/r/teams/nucleodeacessibilidade/Shared%20Documents/Especifica%C3%A7%C3%B5es%20Colmeia/Especificac%CC%A7%C3%B5es%20para%20tabela%20(Table).docx?d=w3d5f894400084c4c94753e09a8ad20d7&csf=1&web=1&e=gcqGDV"}]
   },
   {
     "categoria": "Containers",
@@ -369,7 +378,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "verbalizacaoEsperada": "\"[Label], Botão\"",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "extracaoTexto": "todos"
+    "extracaoTexto": "todos",
+    "sempreAprofundar": true
   },
   {
     "categoria": "Containers",
@@ -418,7 +428,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Feedback",
     "componente": "Toast",
     "estados": "Exibido e Oculto.",
-    "verbalizacaoEsperada": "\"[Description],[label] link externo, fechar,botão\".",
+    "verbalizacaoEsperada": "\"[label] link externo, fechar,botão\".",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos"
   },
@@ -682,7 +692,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "estados": "Selecionada e Não selecionada.",
     "verbalizacaoEsperada": "Selecionada:\"[Rótulo], guia selecionado, [Posição]\" Não seleciona:\"[Rótulo], guia não selecionado, [Posição]\"",
     "tipo": "Botão",
-    "foco": "Sim"
+    "foco": "Sim",
+    "extracaoTexto": "todos"
   },
   {
     "categoria": "Status",

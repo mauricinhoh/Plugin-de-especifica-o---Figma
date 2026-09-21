@@ -15,11 +15,10 @@ type IconElement = { type: "path"; d: string } | { type: "circle"; cx: number; c
 
 const icons: Record<string, IconElement[]> = {
   accessibility: [
-    { type: "circle", cx: 16, cy: 4, r: 1 },
-    { type: "path", d: "m18 19 1-7-6 1" },
-    { type: "path", d: "m5 8 3-3 5.5 3-2.36 3.5" },
-    { type: "path", d: "M4.24 14.5a5 5 0 0 0 6.88 6" },
-    { type: "path", d: "M13.76 17.5a5 5 0 0 0-6.88-6" }
+    { type: "circle", cx: 12, cy: 5, r: 1 },
+    { type: "path", d: "m9 20 3-6 3 6" },
+    { type: "path", d: "m6 8 6 2 6-2" },
+    { type: "path", d: "M12 10v4" }
   ],
   download: [
     { type: "path", d: "M12 15V3" },

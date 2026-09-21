@@ -140,5 +140,7 @@ export interface UsageLogEntry {
     nodeName: string;
     markupTypeLabel: string;
     verbalization: string;
+    /** Links que devem virar hyperlink de verdade no .docx exportado — ver ComponentTypeRule.links. */
+    links?: Array<{ text: string; url: string }>;
   }>;
 }

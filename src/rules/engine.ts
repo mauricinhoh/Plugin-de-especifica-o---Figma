@@ -126,6 +126,14 @@ export interface ComponentTypeRule<TExtracted extends object = ExtractedTextData
    * estiverem ativas.
    */
   derivedStates?: Array<{ whenFlagsEqual: Record<string, string>; thenState: string }>;
+  /**
+   * Links reais que devem virar HYPERLINK de verdade no .docx
+   * exportado (não só texto azul — um link clicável de verdade).
+   * `text` precisa aparecer exatamente dentro do template/verbalização
+   * final; é esse trecho que a geração do docx troca por um hyperlink
+   * apontando para `url`. Ver ui/docx/generateHandoffDocx.ts.
+   */
+  links?: Array<{ text: string; url: string }>;
 }
 
 /**
