@@ -167,6 +167,15 @@ function slugify(componentName: string): string {
 
 // ---------- 5. Montagem final ----------
 
+function buildVariantsInsideContainer(record: AccessibilityRuleRecord): Record<string, string> | undefined {
+  if (!record.verbalizacaoDentroDe) return undefined;
+  const map: Record<string, string> = {};
+  for (const container of Object.keys(record.verbalizacaoDentroDe)) {
+    map[slugify(container)] = `${slugify(record.componente)}--dentro-de-${slugify(container)}`;
+  }
+  return map;
+}
+
 function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<ExtractedTextData> {
   const states = parseVerbalizationStates(record.verbalizacaoEsperada);
   const statesMap =
@@ -196,12 +205,19 @@ function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<Extracted
         ? "all-text"
         : record.extracaoTexto === "duas-posicoes"
           ? "first-two-texts"
-          : "first-text"
+          : record.extracaoTexto === "tres-posicoes"
+            ? "first-three-texts"
+            : "first-text"
     ],
     template: hasTemplate ? rawTemplate : undefined,
     states: statesMap,
     focusEligible: resolveFocusEligible(record),
     alwaysDescend: record.sempreAprofundar ?? false,
+    childrenOnly: record.somenteFilhos ?? false,
+    cardPerItem: record.cardPorItem ?? false,
+    textsByLayerName: record.textosPorCamada,
+    variantsInsideContainer: buildVariantsInsideContainer(record),
+    lastInside: record.ultimosDentro,
     stateFlagAliases: record.stateFlagAliases,
     derivedStates: record.derivedStates,
     links: record.links
@@ -209,6 +225,30 @@ function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<Extracted
 }
 
 export const accessibilityRules: ComponentTypeRule<ExtractedTextData>[] = accessibilityRuleRecords.map(buildRule);
+
+/**
+ * Regras-variante "dentro de contêiner" (ex.: Button Icon dentro do
+ * Drawer → "Fechar"). Mesma regra do componente, só com a verbalização
+ * trocada. Ficam FORA de `accessibilityRules` de propósito: não podem
+ * ser encontradas pelo nome (senão todo Button Icon viraria "Fechar");
+ * só são usadas quando o analyzer confirma o contêiner.
+ */
+export const containerVariantRules: ComponentTypeRule<ExtractedTextData>[] = [];
+for (const record of accessibilityRuleRecords) {
+  const variants = record.verbalizacaoDentroDe ?? {};
+  for (const container of Object.keys(variants)) {
+    containerVariantRules.push({
+      ...buildRule({ ...record, verbalizacaoDentroDe: undefined, verbalizacaoEsperada: variants[container] }),
+      key: `${slugify(record.componente)}--dentro-de-${slugify(container)}`
+    });
+  }
+}
+
+/** Busca uma regra pela chave, incluindo as variantes "dentro de contêiner". */
+export function findRuleByKey(key: string | null | undefined): ComponentTypeRule<ExtractedTextData> | undefined {
+  if (!key) return undefined;
+  return accessibilityRules.find((r) => r.key === key) ?? containerVariantRules.find((r) => r.key === key);
+}
 
 /**
  * Para adicionar um componente novo: adicione o registro em

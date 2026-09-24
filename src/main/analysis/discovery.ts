@@ -32,7 +32,7 @@ const IGNORED_COMPONENT_NAMES = [
  */
 export type ComponentClassifier = (
   node: InstanceNode | ComponentNode | TextNode
-) => Promise<{ recognized: boolean; alwaysDescend: boolean }>;
+) => Promise<{ recognized: boolean; alwaysDescend: boolean; childrenOnly?: boolean; cardPerItem?: boolean }>;
 
 /**
  * Percorre a árvore a partir do node da tela selecionada e decide,
@@ -70,9 +70,35 @@ export type ComponentClassifier = (
  * — a visibilidade de um ancestral nunca é copiada para os filhos no
  * Figma, então o corte precisa acontecer na hora de decidir se desce.
  */
+/**
+ * Itens de um contêiner "cardPerItem" (ex.: os chips de um Chip
+ * Filter): as instâncias visíveis mais próximas dentro dele, passando
+ * por frames/grupos de layout intermediários. Não desce dentro de um
+ * item já encontrado (o texto dele é extraído depois, pela regra).
+ */
+function collectItems(node: SceneNode): (InstanceNode | ComponentNode)[] {
+  const items: (InstanceNode | ComponentNode)[] = [];
+  if (!("children" in node)) return items;
+  for (const child of node.children) {
+    if ("visible" in child && !child.visible) continue;
+    if (child.type === "INSTANCE" || child.type === "COMPONENT") {
+      items.push(child);
+    } else if ("children" in child) {
+      items.push(...collectItems(child));
+    }
+  }
+  return items;
+}
+
+/**
+ * `inheritedParents` (opcional, saída): para cada item gerado por um
+ * contêiner "cardPerItem", guarda item.id → contêiner, para que o
+ * analyzer aplique a regra do contêiner ao item.
+ */
 export async function discoverTopLevelComponents(
   root: SceneNode,
-  classify: ComponentClassifier
+  classify: ComponentClassifier,
+  inheritedParents?: Map<string, InstanceNode | ComponentNode>
 ): Promise<(InstanceNode | ComponentNode | TextNode)[]> {
   const found: (InstanceNode | ComponentNode | TextNode)[] = [];
 
@@ -100,8 +126,29 @@ export async function discoverTopLevelComponents(
     let nextInsideRecognizedContainer = insideRecognizedContainer;
 
     if (shouldClassify) {
-      const { recognized, alwaysDescend } = await classify(node as InstanceNode | ComponentNode | TextNode);
-      if (recognized) {
+      const { recognized, alwaysDescend, childrenOnly, cardPerItem } = await classify(
+        node as InstanceNode | ComponentNode | TextNode
+      );
+      if (recognized && cardPerItem && (node.type === "INSTANCE" || node.type === "COMPONENT")) {
+        // Contêiner de itens iguais (ex.: Chip Filter): cada item de
+        // dentro vira card com a regra do contêiner. Se não achar
+        // nenhum item, cai no card único do contêiner (nada se perde).
+        const items = collectItems(node);
+        if (items.length === 0) {
+          found.push(node);
+        } else {
+          for (const item of items) {
+            found.push(item);
+            inheritedParents?.set(item.id, node);
+          }
+        }
+        return;
+      }
+      if (recognized && childrenOnly) {
+        // Reconhecido, mas SEM card próprio (ex.: Button Group): só
+        // desce, e cada componente reconhecido lá dentro vira seu card.
+        nextInsideRecognizedContainer = true;
+      } else if (recognized) {
         found.push(node as InstanceNode | ComponentNode | TextNode);
         if (!alwaysDescend) {
           return; // reconhecido e comportamento padrão: para aqui

@@ -5,7 +5,7 @@ import { postToUi } from "./messaging";
 import { ComponentTypeOption, GenerationSummary, ScreenAnalysisResult, SpecificationItem, UsageLogEntry } from "../shared/types";
 import { UNSPECIFIED_TYPE_KEY, UNSPECIFIED_TYPE_LABEL } from "../rules/engine";
 import { MARKUP_TYPES } from "../rules/markupTypes";
-import { accessibilityRules } from "../rules/accessibility-rules";
+import { findRuleByKey } from "../rules/accessibility-rules";
 import {
   countDescendants,
   focusNode,
@@ -246,7 +246,7 @@ async function generateSpecifications(items: SpecificationItem[]): Promise<void>
         nodeName: item.nodeName,
         markupTypeLabel: MARKUP_TYPES.find((t) => t.key === item.markupType)?.label ?? UNSPECIFIED_TYPE_LABEL,
         verbalization: item.verbalization,
-        links: item.ruleKey ? accessibilityRules.find((r) => r.key === item.ruleKey)?.links : undefined
+        links: findRuleByKey(item.ruleKey)?.links
       }))
     };
     const updatedLog = appendUsageLogEntry(logEntry);

@@ -59,12 +59,21 @@ const PLACEHOLDER_RESOLVERS: Record<string, PlaceholderResolver> = {
   "label do botao": (data) => data.text,
   "texto da label": (data) => data.text,
   "titulo com hierarquia logica": (data) => data.text,
+  // Sinônimos específicos por posição, confirmados no Banner Image
+  // Full (título, descrição e rótulo do botão, cada um na sua posição,
+  // todos no mesmo card — ver extração "tres-posicoes"). Diferente do
+  // "label" genérico acima (que sempre é a PRIMEIRA posição), esses
+  // são explícitos sobre qual posição querem.
+  "label do titulo": (data) => data.text,
+  "label da descricao": (data) => data.text2,
+  "rotulo do botao": (data) => data.text3,
   // Segunda posição de texto (ex.: a descrição do Empty State, que é
   // sempre o SEGUNDO texto do componente, não relacionado a tamanho
   // de fonte — ver rules/accessibility-rules-data.ts, extração
   // "duas-posicoes"). Só populado para componentes que usam essa
   // extração; nos demais este placeholder simplesmente não resolve.
   "leitura do conteudo": (data) => data.text2,
+  descricao: (data) => data.text2,
   // Nível de título (h1–h6), calculado a partir do tamanho da fonte
   // do TEXT — não é o mesmo dado que os outros (não é o texto visível,
   // é um número deduzido). Ver main/analysis/headingDetection.ts.
@@ -75,7 +84,7 @@ const PLACEHOLDER_RESOLVERS: Record<string, PlaceholderResolver> = {
   // Deliberadamente SEM resolver (ficam como template editável):
   // "placeholder", "conteudo preenchido", "texto de suporte",
   // "texto de apoio", "heading", "mensagem", "mensagem de erro",
-  // "alt-text", "carregando", "description", "descricao",
+  // "alt-text", "carregando", "description",
   // "helper text", "mascara", "nivel", "posicao", "posicao e total de
   // etapas", "valor", "x de x", "x itens", "contador" — são textos
   // DIFERENTES do texto/rótulo principal do componente (ou dados que
@@ -108,6 +117,12 @@ export function resolvePlaceholders(template: string, extractedData: Record<stri
   return template.replace(PLACEHOLDER_PATTERN, (match, viaParens, viaBrackets, viaBraces) => {
     const rawName: string = viaParens ?? viaBrackets ?? viaBraces;
     const key = normalizePlaceholderName(rawName);
+    // Texto achado pelo NOME da camada (ver textosPorCamada nos dados)
+    // tem prioridade sobre a regra genérica por posição.
+    const byLayer = extractedData[`camada:${key}`];
+    if (byLayer !== undefined) {
+      return byLayer;
+    }
     const resolver = PLACEHOLDER_RESOLVERS[key];
     if (!resolver) {
       return match;

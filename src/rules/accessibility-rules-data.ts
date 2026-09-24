@@ -100,17 +100,62 @@ export interface AccessibilityRuleRecord {
    */
   sempreAprofundar?: boolean;
   /**
+   * NÃO vem da planilha — campo de extensão. Quando true, o componente
+   * é reconhecido mas NÃO gera card próprio: a descoberta só desce
+   * dentro dele e cada componente reconhecido lá dentro vira seu card
+   * (ex.: Button Group → um card por botão, com a regra de Button
+   * Primary/Secondary). Pedido do usuário.
+   */
+  somenteFilhos?: boolean;
+  /**
+   * NÃO vem da planilha — campo de extensão. Quando true, o componente
+   * é um CONTÊINER DE ITENS IGUAIS (ex.: Chip Filter com 1 a 8 chips):
+   * não gera card próprio, e cada item de dentro vira um card usando a
+   * regra DESTE componente (verbalização, tipo, foco), pegando o texto
+   * do próprio item. Não depende do nome das camadas de dentro.
+   */
+  cardPorItem?: boolean;
+  /**
+   * NÃO vem da planilha — campo de extensão. Preenche cada placeholder
+   * com o texto da CAMADA de mesmo papel dentro do componente, achada
+   * pelo NOME da camada (não pela posição). Chave = nome do placeholder
+   * (como no texto, ex.: "helper text"); valor = trechos que o nome da
+   * camada pode conter (sem acento/maiúscula). Ex.: Input Text →
+   * { "label": ["label"], "placeholder": ["placeholder"], ... }.
+   * Se a camada não existir/estiver oculta, o placeholder fica visível
+   * no card para o designer preencher (o [label] ainda cai no primeiro
+   * texto, como antes).
+   */
+  textosPorCamada?: Record<string, string[]>;
+  /**
+   * NÃO vem da planilha — campo de extensão. Verbalização diferente
+   * quando ESTE componente está dentro de um contêiner específico
+   * (chave = nome do contêiner, igual ao campo `componente` dele).
+   * Ex.: Button Icon dentro do Drawer diz "Fechar" em vez do [Label].
+   * Fora desses contêineres, vale a verbalização normal.
+   */
+  verbalizacaoDentroDe?: Record<string, string>;
+  /**
+   * NÃO vem da planilha — campo de extensão. Componentes (nomes iguais
+   * ao campo `componente`) que, quando estão dentro DESTE contêiner,
+   * devem ser sempre os últimos da ordem entre os itens do contêiner.
+   * Ex.: Drawer → ["Button Icon"] (o X de fechar é lido por último).
+   */
+  ultimosDentro?: string[];
+  /**
    * NÃO vem da planilha — campo de extensão. Por padrão, a extração
    * pega só o primeiro texto visível dentro do componente ("primeiro").
    * Componentes com múltiplos textos que juntos formam a verbalização
    * (ex.: Breadcrumb: "Início, Produtos, Detalhes") usam "todos" —
    * junta todos os textos visíveis, na ordem, separados por vírgula.
-   * "duas-posicoes" pega o primeiro texto e o segundo texto
-   * separadamente (ex.: Empty State: primeiro = título, segundo =
-   * descrição — posição fixa, não relacionada a tamanho de fonte).
+   * "duas-posicoes"/"tres-posicoes" pegam o primeiro, segundo (e
+   * terceiro) texto separadamente (ex.: Empty State: primeiro =
+   * título, segundo = descrição; Banner Image Full: primeiro =
+   * título, segundo = descrição, terceiro = rótulo do botão — tudo no
+   * mesmo card) — posição fixa, não relacionada a tamanho de fonte.
    * Default: "primeiro".
    */
-  extracaoTexto?: "primeiro" | "todos" | "duas-posicoes";
+  extracaoTexto?: "primeiro" | "todos" | "duas-posicoes" | "tres-posicoes";
   /**
    * NÃO vem da planilha — campo de extensão. Traduz o NOME de uma
    * propriedade booleana do Figma (quando "true") para o rótulo de
@@ -149,7 +194,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "estados": "Habilitado, Foco, Desabilitado e Loading. O grupo em si não possui estados próprios.",
     "verbalizacaoEsperada": "Default: “[Label], Botão”.\nBotão desabilitado: “[Label], indisponível, botão”.\nHabilitado: “[Label], Botão”.\nLoading: “Carregando” ",
     "tipo": "Estrutura",
-    "foco": "Apenas elementos interativos"
+    "foco": "Apenas elementos interativos",
+    "somenteFilhos": true
   },
   {
     "categoria": "Action",
@@ -157,7 +203,10 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "estados": "Habilitado, Disabled, Focus, Hover.",
     "verbalizacaoEsperada": "Habilitado: “[Label], botão.”\nDisabled: “[Label], Indisponível, botão.”\nFocus: “[Label], botão.”\n",
     "tipo": "Botão",
-    "foco": "Sim"
+    "foco": "Sim",
+    "verbalizacaoDentroDe": {
+      "Drawer": "Habilitado: “Fechar, botão.”\nDisabled: “Fechar, Indisponível, botão.”\nFocus: “Fechar, botão.”"
+    }
   },
   {
     "categoria": "Action",
@@ -219,7 +268,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Content",
     "componente": "Currency",
     "estados": "Padrão, Mascarado; variação positiva ou negativa apenas visual.",
-    "verbalizacaoEsperada": "Hiden true: \"Valor oculto\" Hiden false positive: \"[Valor]\" Hiden true negative: \"Menos [valor]\"",
+    "verbalizacaoEsperada": "Hiden true: \"Valor oculto\" Hiden false positive: \"[Label]\" Hiden true negative: \"Menos [Label]\"",
     "tipo": "Não interativo",
     "foco": "Não"
   },
@@ -267,11 +316,10 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Content",
     "componente": "Empty State",
     "estados": "Estático; botão interno segue Button Primary.",
-    "verbalizacaoEsperada": "Verbaliza cada componente separadamente — o botão vira seu próprio card. Título: \"[Título com hierarquia lógica]\" Descrição: \"[Leitura do conteúdo]\"",
+    "verbalizacaoEsperada": "Verbaliza cada componente separadamente. Título: \"[Título com hierarquia lógica]\" Descrição: \"[Leitura do conteúdo]\", Button primary: \"[rótulo do botão], botão\"",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "sempreAprofundar": true,
-    "extracaoTexto": "duas-posicoes"
+    "extracaoTexto": "tres-posicoes"
   },
   {
     "categoria": "Content",
@@ -354,10 +402,11 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Containers",
     "componente": "Banner Image Full",
     "estados": "Habilitado, Focus, Hover, relacionados à ação.",
-    "verbalizacaoEsperada": "\"[Título], [Descrição],[Label],Botão\"",
+    "verbalizacaoEsperada": "[label do Título], [label da descrição],[rótulo do botão], Botão",
     "tipo": "Imagem",
     "foco": "Não",
-    "extracaoTexto": "todos"
+    "extracaoTexto": "tres-posicoes",
+    "aliasesDeNome": ["Banner Full Image"]
   },
   {
     "categoria": "Containers",
@@ -372,10 +421,10 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Containers",
     "componente": "Cookies",
     "estados": "Visível e Aceito.",
-    "verbalizacaoEsperada": "Ordem lógica dos componentes com suas devidas semânticas",
+    "verbalizacaoEsperada": "[label do Título], [label da descrição],[rótulo do botão], Botão",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "extracaoTexto": "todos"
+    "extracaoTexto": "tres-posicoes"
   },
   {
     "categoria": "Containers",
@@ -394,7 +443,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "verbalizacaoEsperada": "Ordem lógica dos componentes. Icon button X: \"Fechar, botão\".",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "sempreAprofundar": true
+    "ultimosDentro": ["Button Icon"],
+    "somenteFilhos": true
   },
   {
     "categoria": "Containers",
@@ -475,9 +525,10 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Chip Filter",
     "estados": "Habilitado, Focus.",
-    "verbalizacaoEsperada": "Label], Remover, Botão\"",
+    "verbalizacaoEsperada": "[Label], Remover, Botão",
     "tipo": "Entrada",
-    "foco": "Sim"
+    "foco": "Sim",
+    "cardPorItem": true
   },
   {
     "categoria": "Inputs",
@@ -542,7 +593,27 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "estados": "Default, Filled, Hover, Active, Error, Disabled.",
     "verbalizacaoEsperada": "Recolhido: \"[Label],[Mascara],[Helper text], campo de edição,recolhido, botão\" Expandido: \"[Label],[Mascara],[Helper text], campo de edição, expandido, botão\"",
     "tipo": "Entrada",
-    "foco": "Sim"
+    "foco": "Sim",
+    "textosPorCamada": {
+      "label": [
+        "label",
+        "rotulo"
+      ],
+      "mascara": [
+        "mascara",
+        "mask",
+        "value",
+        "valor",
+        "placeholder"
+      ],
+      "helper text": [
+        "helper",
+        "texto de apoio",
+        "texto de ajuda",
+        "suporte",
+        "support"
+      ]
+    }
   },
   {
     "categoria": "Inputs",
@@ -550,7 +621,23 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "estados": "Habilitado, Focus, Filled, Error, Disabled.",
     "verbalizacaoEsperada": "\"[label], [placeholder], [helper text], Campo de edição\"",
     "tipo": "Entrada",
-    "foco": "Sim"
+    "foco": "Sim",
+    "textosPorCamada": {
+      "label": [
+        "label",
+        "rotulo"
+      ],
+      "placeholder": [
+        "placeholder"
+      ],
+      "helper text": [
+        "helper",
+        "texto de apoio",
+        "texto de ajuda",
+        "suporte",
+        "support"
+      ]
+    }
   },
   {
     "categoria": "Inputs",
@@ -558,7 +645,29 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "estados": "Default, Hover, Focus, Filled, Disabled, Error, Read-only.",
     "verbalizacaoEsperada": "\"[label], [placeholder], [contador], [helper text], Caixa de edição\"",
     "tipo": "Entrada",
-    "foco": "Sim"
+    "foco": "Sim",
+    "textosPorCamada": {
+      "label": [
+        "label",
+        "rotulo"
+      ],
+      "placeholder": [
+        "placeholder"
+      ],
+      "contador": [
+        "contador",
+        "counter",
+        "caracteres",
+        "character"
+      ],
+      "helper text": [
+        "helper",
+        "texto de apoio",
+        "texto de ajuda",
+        "suporte",
+        "support"
+      ]
+    }
   },
   {
     "categoria": "Inputs",
@@ -738,7 +847,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Status",
     "componente": "Tag Container",
     "estados": "Estático.",
-    "verbalizacaoEsperada": "Label",
+    "verbalizacaoEsperada": "[Label]",
     "tipo": "Não interativo",
     "foco": "Não"
   },

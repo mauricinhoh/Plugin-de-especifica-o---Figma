@@ -56,14 +56,17 @@ export interface ComponentTypeRule<TExtracted extends object = ExtractedTextData
    * dos componentes). "all-text": todos os textos visíveis, juntados
    * com ", " — para componentes com múltiplos textos que formam a
    * verbalização junto (ex.: Breadcrumb). Os dois preenchem o mesmo
-   * campo `extractedData.text`. "first-two-texts": primeiro texto vai
-   * pra `extractedData.text`, segundo vai pra `extractedData.text2` —
-   * para componentes com posições fixas de conteúdo (ex.: Empty
-   * State: "o primeiro texto é sempre o título, o segundo é sempre a
-   * descrição"), onde cada posição precisa de um placeholder
-   * diferente no template.
+   * campo `extractedData.text`. "first-two-texts"/"first-three-texts":
+   * primeiro texto vai pra `extractedData.text`, segundo pra
+   * `extractedData.text2` e (no caso de três) o terceiro pra
+   * `extractedData.text3` — para componentes com posições fixas de
+   * conteúdo (ex.: Empty State: título é sempre o primeiro texto,
+   * descrição o segundo; Banner Image Full: título, descrição e
+   * rótulo do botão, cada um em sua posição, todos no mesmo card),
+   * onde cada posição precisa de um placeholder diferente no
+   * template.
    */
-  extraction: Array<"first-text" | "all-text" | "first-two-texts">;
+  extraction: Array<"first-text" | "all-text" | "first-two-texts" | "first-three-texts">;
   /**
    * Template de verbalização. Usa placeholders "(Nome)", "[Nome]" ou
    * "{Nome}" — os três estilos usados pela planilha real; ver
@@ -98,6 +101,19 @@ export interface ComponentTypeRule<TExtracted extends object = ExtractedTextData
    * discovery.ts.
    */
   alwaysDescend: boolean;
+  /**
+   * Reconhecido, mas sem card próprio: a descoberta só desce e os
+   * filhos reconhecidos viram cards (ex.: Button Group).
+   */
+  childrenOnly?: boolean;
+  /** Contêiner de itens iguais: cada item de dentro vira card com ESTA regra (ex.: Chip Filter). */
+  cardPerItem?: boolean;
+  /** Placeholder → trechos do nome da camada de texto que o preenchem (ver dados: textosPorCamada). */
+  textsByLayerName?: Record<string, string[]>;
+  /** Chave da regra-variante a usar quando dentro de cada contêiner (chave do contêiner → chave da variante). */
+  variantsInsideContainer?: Record<string, string>;
+  /** Rótulos de componentes que vão por último dentro deste contêiner (ex.: Drawer → Button Icon). */
+  lastInside?: string[];
   /**
    * Traduz o NOME de uma propriedade booleana do Figma (quando "true")
    * para o rótulo de estado correspondente na planilha, quando eles

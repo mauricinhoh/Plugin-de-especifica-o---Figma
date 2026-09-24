@@ -1,5 +1,25 @@
 "use strict";
 (() => {
+  var __defProp = Object.defineProperty;
+  var __defProps = Object.defineProperties;
+  var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
+  var __getOwnPropSymbols = Object.getOwnPropertySymbols;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __propIsEnum = Object.prototype.propertyIsEnumerable;
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __spreadValues = (a, b) => {
+    for (var prop in b || (b = {}))
+      if (__hasOwnProp.call(b, prop))
+        __defNormalProp(a, prop, b[prop]);
+    if (__getOwnPropSymbols)
+      for (var prop of __getOwnPropSymbols(b)) {
+        if (__propIsEnum.call(b, prop))
+          __defNormalProp(a, prop, b[prop]);
+      }
+    return a;
+  };
+  var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
+
   // src/main/messaging.ts
   function postToUi(message) {
     figma.ui.postMessage(message);
@@ -20,12 +40,21 @@
     "label do botao": (data) => data.text,
     "texto da label": (data) => data.text,
     "titulo com hierarquia logica": (data) => data.text,
+    // Sinônimos específicos por posição, confirmados no Banner Image
+    // Full (título, descrição e rótulo do botão, cada um na sua posição,
+    // todos no mesmo card — ver extração "tres-posicoes"). Diferente do
+    // "label" genérico acima (que sempre é a PRIMEIRA posição), esses
+    // são explícitos sobre qual posição querem.
+    "label do titulo": (data) => data.text,
+    "label da descricao": (data) => data.text2,
+    "rotulo do botao": (data) => data.text3,
     // Segunda posição de texto (ex.: a descrição do Empty State, que é
     // sempre o SEGUNDO texto do componente, não relacionado a tamanho
     // de fonte — ver rules/accessibility-rules-data.ts, extração
     // "duas-posicoes"). Só populado para componentes que usam essa
     // extração; nos demais este placeholder simplesmente não resolve.
     "leitura do conteudo": (data) => data.text2,
+    descricao: (data) => data.text2,
     // Nível de título (h1–h6), calculado a partir do tamanho da fonte
     // do TEXT — não é o mesmo dado que os outros (não é o texto visível,
     // é um número deduzido). Ver main/analysis/headingDetection.ts.
@@ -36,7 +65,7 @@
     // Deliberadamente SEM resolver (ficam como template editável):
     // "placeholder", "conteudo preenchido", "texto de suporte",
     // "texto de apoio", "heading", "mensagem", "mensagem de erro",
-    // "alt-text", "carregando", "description", "descricao",
+    // "alt-text", "carregando", "description",
     // "helper text", "mascara", "nivel", "posicao", "posicao e total de
     // etapas", "valor", "x de x", "x itens", "contador" — são textos
     // DIFERENTES do texto/rótulo principal do componente (ou dados que
@@ -50,9 +79,13 @@
   var PLACEHOLDER_PATTERN = /\(([^()]+)\)|\[([^[\]]+)\]|\{([^{}]+)\}/g;
   function resolvePlaceholders(template, extractedData) {
     return template.replace(PLACEHOLDER_PATTERN, (match, viaParens, viaBrackets, viaBraces) => {
-      var _a;
-      const rawName = (_a = viaParens != null ? viaParens : viaBrackets) != null ? _a : viaBraces;
+      var _a2;
+      const rawName = (_a2 = viaParens != null ? viaParens : viaBrackets) != null ? _a2 : viaBraces;
       const key = normalizePlaceholderName(rawName);
+      const byLayer = extractedData[`camada:${key}`];
+      if (byLayer !== void 0) {
+        return byLayer;
+      }
       const resolver = PLACEHOLDER_RESOLVERS[key];
       if (!resolver) {
         return match;
@@ -126,11 +159,11 @@
     return void 0;
   }
   function computeVerbalization(rule, extractedData, variantValues = []) {
-    var _a;
+    var _a2;
     if (!rule || !rule.hasVerbalization) {
       return "";
     }
-    const template = (_a = selectVerbalizationTemplate(rule, variantValues)) != null ? _a : rule.template;
+    const template = (_a2 = selectVerbalizationTemplate(rule, variantValues)) != null ? _a2 : rule.template;
     if (!template) {
       return "";
     }
@@ -167,7 +200,8 @@
       "estados": "Habilitado, Foco, Desabilitado e Loading. O grupo em si n\xE3o possui estados pr\xF3prios.",
       "verbalizacaoEsperada": "Default: \u201C[Label], Bot\xE3o\u201D.\nBot\xE3o desabilitado: \u201C[Label], indispon\xEDvel, bot\xE3o\u201D.\nHabilitado: \u201C[Label], Bot\xE3o\u201D.\nLoading: \u201CCarregando\u201D ",
       "tipo": "Estrutura",
-      "foco": "Apenas elementos interativos"
+      "foco": "Apenas elementos interativos",
+      "somenteFilhos": true
     },
     {
       "categoria": "Action",
@@ -175,7 +209,10 @@
       "estados": "Habilitado, Disabled, Focus, Hover.",
       "verbalizacaoEsperada": "Habilitado: \u201C[Label], bot\xE3o.\u201D\nDisabled: \u201C[Label], Indispon\xEDvel, bot\xE3o.\u201D\nFocus: \u201C[Label], bot\xE3o.\u201D\n",
       "tipo": "Bot\xE3o",
-      "foco": "Sim"
+      "foco": "Sim",
+      "verbalizacaoDentroDe": {
+        "Drawer": "Habilitado: \u201CFechar, bot\xE3o.\u201D\nDisabled: \u201CFechar, Indispon\xEDvel, bot\xE3o.\u201D\nFocus: \u201CFechar, bot\xE3o.\u201D"
+      }
     },
     {
       "categoria": "Action",
@@ -237,7 +274,7 @@
       "categoria": "Content",
       "componente": "Currency",
       "estados": "Padr\xE3o, Mascarado; varia\xE7\xE3o positiva ou negativa apenas visual.",
-      "verbalizacaoEsperada": 'Hiden true: "Valor oculto" Hiden false positive: "[Valor]" Hiden true negative: "Menos [valor]"',
+      "verbalizacaoEsperada": 'Hiden true: "Valor oculto" Hiden false positive: "[Label]" Hiden true negative: "Menos [Label]"',
       "tipo": "N\xE3o interativo",
       "foco": "N\xE3o"
     },
@@ -285,11 +322,10 @@
       "categoria": "Content",
       "componente": "Empty State",
       "estados": "Est\xE1tico; bot\xE3o interno segue Button Primary.",
-      "verbalizacaoEsperada": 'Verbaliza cada componente separadamente \u2014 o bot\xE3o vira seu pr\xF3prio card. T\xEDtulo: "[T\xEDtulo com hierarquia l\xF3gica]" Descri\xE7\xE3o: "[Leitura do conte\xFAdo]"',
+      "verbalizacaoEsperada": 'Verbaliza cada componente separadamente. T\xEDtulo: "[T\xEDtulo com hierarquia l\xF3gica]" Descri\xE7\xE3o: "[Leitura do conte\xFAdo]", Button primary: "[r\xF3tulo do bot\xE3o], bot\xE3o"',
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "sempreAprofundar": true,
-      "extracaoTexto": "duas-posicoes"
+      "extracaoTexto": "tres-posicoes"
     },
     {
       "categoria": "Content",
@@ -372,10 +408,11 @@
       "categoria": "Containers",
       "componente": "Banner Image Full",
       "estados": "Habilitado, Focus, Hover, relacionados \xE0 a\xE7\xE3o.",
-      "verbalizacaoEsperada": '"[T\xEDtulo], [Descri\xE7\xE3o],[Label],Bot\xE3o"',
+      "verbalizacaoEsperada": "[label do T\xEDtulo], [label da descri\xE7\xE3o],[r\xF3tulo do bot\xE3o], Bot\xE3o",
       "tipo": "Imagem",
       "foco": "N\xE3o",
-      "extracaoTexto": "todos"
+      "extracaoTexto": "tres-posicoes",
+      "aliasesDeNome": ["Banner Full Image"]
     },
     {
       "categoria": "Containers",
@@ -390,10 +427,10 @@
       "categoria": "Containers",
       "componente": "Cookies",
       "estados": "Vis\xEDvel e Aceito.",
-      "verbalizacaoEsperada": "Ordem l\xF3gica dos componentes com suas devidas sem\xE2nticas",
+      "verbalizacaoEsperada": "[label do T\xEDtulo], [label da descri\xE7\xE3o],[r\xF3tulo do bot\xE3o], Bot\xE3o",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "extracaoTexto": "todos"
+      "extracaoTexto": "tres-posicoes"
     },
     {
       "categoria": "Containers",
@@ -412,7 +449,8 @@
       "verbalizacaoEsperada": 'Ordem l\xF3gica dos componentes. Icon button X: "Fechar, bot\xE3o".',
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "sempreAprofundar": true
+      "ultimosDentro": ["Button Icon"],
+      "somenteFilhos": true
     },
     {
       "categoria": "Containers",
@@ -493,9 +531,10 @@
       "categoria": "Inputs",
       "componente": "Chip Filter",
       "estados": "Habilitado, Focus.",
-      "verbalizacaoEsperada": 'Label], Remover, Bot\xE3o"',
+      "verbalizacaoEsperada": "[Label], Remover, Bot\xE3o",
       "tipo": "Entrada",
-      "foco": "Sim"
+      "foco": "Sim",
+      "cardPorItem": true
     },
     {
       "categoria": "Inputs",
@@ -560,7 +599,27 @@
       "estados": "Default, Filled, Hover, Active, Error, Disabled.",
       "verbalizacaoEsperada": 'Recolhido: "[Label],[Mascara],[Helper text], campo de edi\xE7\xE3o,recolhido, bot\xE3o" Expandido: "[Label],[Mascara],[Helper text], campo de edi\xE7\xE3o, expandido, bot\xE3o"',
       "tipo": "Entrada",
-      "foco": "Sim"
+      "foco": "Sim",
+      "textosPorCamada": {
+        "label": [
+          "label",
+          "rotulo"
+        ],
+        "mascara": [
+          "mascara",
+          "mask",
+          "value",
+          "valor",
+          "placeholder"
+        ],
+        "helper text": [
+          "helper",
+          "texto de apoio",
+          "texto de ajuda",
+          "suporte",
+          "support"
+        ]
+      }
     },
     {
       "categoria": "Inputs",
@@ -568,7 +627,23 @@
       "estados": "Habilitado, Focus, Filled, Error, Disabled.",
       "verbalizacaoEsperada": '"[label], [placeholder], [helper text], Campo de edi\xE7\xE3o"',
       "tipo": "Entrada",
-      "foco": "Sim"
+      "foco": "Sim",
+      "textosPorCamada": {
+        "label": [
+          "label",
+          "rotulo"
+        ],
+        "placeholder": [
+          "placeholder"
+        ],
+        "helper text": [
+          "helper",
+          "texto de apoio",
+          "texto de ajuda",
+          "suporte",
+          "support"
+        ]
+      }
     },
     {
       "categoria": "Inputs",
@@ -576,7 +651,29 @@
       "estados": "Default, Hover, Focus, Filled, Disabled, Error, Read-only.",
       "verbalizacaoEsperada": '"[label], [placeholder], [contador], [helper text], Caixa de edi\xE7\xE3o"',
       "tipo": "Entrada",
-      "foco": "Sim"
+      "foco": "Sim",
+      "textosPorCamada": {
+        "label": [
+          "label",
+          "rotulo"
+        ],
+        "placeholder": [
+          "placeholder"
+        ],
+        "contador": [
+          "contador",
+          "counter",
+          "caracteres",
+          "character"
+        ],
+        "helper text": [
+          "helper",
+          "texto de apoio",
+          "texto de ajuda",
+          "suporte",
+          "support"
+        ]
+      }
     },
     {
       "categoria": "Inputs",
@@ -756,7 +853,7 @@
       "categoria": "Status",
       "componente": "Tag Container",
       "estados": "Est\xE1tico.",
-      "verbalizacaoEsperada": "Label",
+      "verbalizacaoEsperada": "[Label]",
       "tipo": "N\xE3o interativo",
       "foco": "N\xE3o"
     },
@@ -772,8 +869,8 @@
 
   // src/rules/accessibility-rules.ts
   function lastSegmentOf(value) {
-    var _a;
-    return (_a = value.split("/").pop()) != null ? _a : value;
+    var _a2;
+    return (_a2 = value.split("/").pop()) != null ? _a2 : value;
   }
   function normalize(value) {
     return value.trim().toLowerCase();
@@ -796,9 +893,9 @@
     "N\xE3o interativo": "nao-interativo"
   };
   function resolveMarkupType(record) {
-    var _a;
+    var _a2;
     if (!record.tipo) return UNSPECIFIED_TYPE_KEY;
-    return (_a = TIPO_PLANILHA_PARA_MARKUP_TYPE[record.tipo]) != null ? _a : UNSPECIFIED_TYPE_KEY;
+    return (_a2 = TIPO_PLANILHA_PARA_MARKUP_TYPE[record.tipo]) != null ? _a2 : UNSPECIFIED_TYPE_KEY;
   }
   function resolveFocusEligible(record) {
     return record.foco === "Sim";
@@ -823,14 +920,22 @@
   function slugify(componentName) {
     return componentName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   }
+  function buildVariantsInsideContainer(record) {
+    if (!record.verbalizacaoDentroDe) return void 0;
+    const map = {};
+    for (const container of Object.keys(record.verbalizacaoDentroDe)) {
+      map[slugify(container)] = `${slugify(record.componente)}--dentro-de-${slugify(container)}`;
+    }
+    return map;
+  }
   function buildRule(record) {
-    var _a, _b, _c;
+    var _a2, _b, _c, _d, _e;
     const states = parseVerbalizationStates(record.verbalizacaoEsperada);
     const statesMap = states.length > 0 ? states.reduce((acc, s) => {
       acc[s.label] = s.text;
       return acc;
     }, {}) : void 0;
-    const rawTemplate = (_a = record.verbalizacaoEsperada) == null ? void 0 : _a.trim();
+    const rawTemplate = (_a2 = record.verbalizacaoEsperada) == null ? void 0 : _a2.trim();
     const hasTemplate = Boolean(rawTemplate && rawTemplate.length > 0);
     return {
       key: slugify(record.componente),
@@ -839,23 +944,43 @@
       identifier: { matches: matchesComponentName(record.componente, ...(_b = record.aliasesDeNome) != null ? _b : []) },
       hasVerbalization: hasTemplate,
       extraction: [
-        record.extracaoTexto === "todos" ? "all-text" : record.extracaoTexto === "duas-posicoes" ? "first-two-texts" : "first-text"
+        record.extracaoTexto === "todos" ? "all-text" : record.extracaoTexto === "duas-posicoes" ? "first-two-texts" : record.extracaoTexto === "tres-posicoes" ? "first-three-texts" : "first-text"
       ],
       template: hasTemplate ? rawTemplate : void 0,
       states: statesMap,
       focusEligible: resolveFocusEligible(record),
       alwaysDescend: (_c = record.sempreAprofundar) != null ? _c : false,
+      childrenOnly: (_d = record.somenteFilhos) != null ? _d : false,
+      cardPerItem: (_e = record.cardPorItem) != null ? _e : false,
+      textsByLayerName: record.textosPorCamada,
+      variantsInsideContainer: buildVariantsInsideContainer(record),
+      lastInside: record.ultimosDentro,
       stateFlagAliases: record.stateFlagAliases,
       derivedStates: record.derivedStates,
       links: record.links
     };
   }
   var accessibilityRules = accessibilityRuleRecords.map(buildRule);
+  var containerVariantRules = [];
+  var _a;
+  for (const record of accessibilityRuleRecords) {
+    const variants = (_a = record.verbalizacaoDentroDe) != null ? _a : {};
+    for (const container of Object.keys(variants)) {
+      containerVariantRules.push(__spreadProps(__spreadValues({}, buildRule(__spreadProps(__spreadValues({}, record), { verbalizacaoDentroDe: void 0, verbalizacaoEsperada: variants[container] }))), {
+        key: `${slugify(record.componente)}--dentro-de-${slugify(container)}`
+      }));
+    }
+  }
+  function findRuleByKey(key) {
+    var _a2;
+    if (!key) return void 0;
+    return (_a2 = accessibilityRules.find((r) => r.key === key)) != null ? _a2 : containerVariantRules.find((r) => r.key === key);
+  }
 
   // src/main/figma-api.ts
   function getCurrentUserName() {
-    var _a, _b, _c;
-    const fullName = (_b = (_a = figma.currentUser) == null ? void 0 : _a.name) != null ? _b : "";
+    var _a2, _b, _c;
+    const fullName = (_b = (_a2 = figma.currentUser) == null ? void 0 : _a2.name) != null ? _b : "";
     return (_c = fullName.trim().split(/\s+/)[0]) != null ? _c : "";
   }
   function isValidScreenNode(node) {
@@ -918,7 +1043,20 @@
     "[IB-Leg] Navigation Bar",
     "[IB-Leg] Footer"
   ];
-  async function discoverTopLevelComponents(root, classify) {
+  function collectItems(node) {
+    const items = [];
+    if (!("children" in node)) return items;
+    for (const child of node.children) {
+      if ("visible" in child && !child.visible) continue;
+      if (child.type === "INSTANCE" || child.type === "COMPONENT") {
+        items.push(child);
+      } else if ("children" in child) {
+        items.push(...collectItems(child));
+      }
+    }
+    return items;
+  }
+  async function discoverTopLevelComponents(root, classify, inheritedParents) {
     const found = [];
     async function walk(node, insideRecognizedContainer) {
       if ("visible" in node && !node.visible) {
@@ -930,8 +1068,24 @@
       const shouldClassify = node.type === "INSTANCE" || node.type === "COMPONENT" || node.type === "TEXT" && !insideRecognizedContainer;
       let nextInsideRecognizedContainer = insideRecognizedContainer;
       if (shouldClassify) {
-        const { recognized, alwaysDescend } = await classify(node);
-        if (recognized) {
+        const { recognized, alwaysDescend, childrenOnly, cardPerItem } = await classify(
+          node
+        );
+        if (recognized && cardPerItem && (node.type === "INSTANCE" || node.type === "COMPONENT")) {
+          const items = collectItems(node);
+          if (items.length === 0) {
+            found.push(node);
+          } else {
+            for (const item of items) {
+              found.push(item);
+              inheritedParents == null ? void 0 : inheritedParents.set(item.id, node);
+            }
+          }
+          return;
+        }
+        if (recognized && childrenOnly) {
+          nextInsideRecognizedContainer = true;
+        } else if (recognized) {
           found.push(node);
           if (!alwaysDescend) {
             return;
@@ -955,10 +1109,10 @@
 
   // src/main/analysis/componentIdentity.ts
   async function resolveComponentName(node) {
-    var _a;
+    var _a2;
     if (node.type === "INSTANCE") {
       const mainComponent = await node.getMainComponentAsync();
-      return (_a = mainComponent == null ? void 0 : mainComponent.name) != null ? _a : null;
+      return (_a2 = mainComponent == null ? void 0 : mainComponent.name) != null ? _a2 : null;
     }
     return node.name;
   }
@@ -1010,7 +1164,7 @@
   var LIBRARY_NAME_CORE_APP = "Colmeia DS | Core App";
   var DEBUG_CORE_IDENTIFICATION = false;
   function logCoreIdentificationDebugInfo(mainComponent) {
-    var _a;
+    var _a2;
     if (!DEBUG_CORE_IDENTIFICATION) return;
     const parent = mainComponent.parent;
     console.log("[core-identification-debug]", {
@@ -1018,7 +1172,7 @@
       componentKey: mainComponent.key,
       remote: mainComponent.remote,
       description: mainComponent.description,
-      parentType: (_a = parent == null ? void 0 : parent.type) != null ? _a : null,
+      parentType: (_a2 = parent == null ? void 0 : parent.type) != null ? _a2 : null,
       parentName: parent && "name" in parent ? parent.name : null
     });
   }
@@ -1099,6 +1253,29 @@
     }
     return null;
   }
+  function normalizeLayerName(value) {
+    return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+  }
+  function extractTextsByLayerName(node, spec) {
+    const result = {};
+    for (const textNode of findAllTexts(node)) {
+      const layerName = normalizeLayerName(textNode.name);
+      for (const [placeholder, patterns] of Object.entries(spec)) {
+        if (result[placeholder] !== void 0) continue;
+        if (patterns.some((pattern) => layerName.includes(normalizeLayerName(pattern)))) {
+          result[placeholder] = textNode.characters;
+          break;
+        }
+      }
+    }
+    return result;
+  }
+  function listTextLayers(node) {
+    return findAllTexts(node).map((t) => ({ camada: t.name, texto: t.characters }));
+  }
+  function findFirstTextNode(node) {
+    return findFirstText(node);
+  }
   function extractFirstText(node) {
     const textNode = findFirstText(node);
     return textNode ? textNode.characters : void 0;
@@ -1124,11 +1301,20 @@
     return texts.length > 0 ? texts.join(", ") : void 0;
   }
   function extractFirstTwoTexts(node) {
-    var _a, _b;
+    var _a2, _b;
     const texts = findAllTexts(node);
     return {
-      first: (_a = texts[0]) == null ? void 0 : _a.characters,
+      first: (_a2 = texts[0]) == null ? void 0 : _a2.characters,
       second: (_b = texts[1]) == null ? void 0 : _b.characters
+    };
+  }
+  function extractFirstThreeTexts(node) {
+    var _a2, _b, _c;
+    const texts = findAllTexts(node);
+    return {
+      first: (_a2 = texts[0]) == null ? void 0 : _a2.characters,
+      second: (_b = texts[1]) == null ? void 0 : _b.characters,
+      third: (_c = texts[2]) == null ? void 0 : _c.characters
     };
   }
 
@@ -1160,12 +1346,12 @@
     14: "6"
   };
   function detectHeadingLevelFromFontSize(node) {
-    var _a;
+    var _a2;
     if (node.fontSize === figma.mixed) {
       return null;
     }
     const size = node.fontSize;
-    return (_a = FONT_SIZE_TO_HEADING_LEVEL[size]) != null ? _a : null;
+    return (_a2 = FONT_SIZE_TO_HEADING_LEVEL[size]) != null ? _a2 : null;
   }
 
   // src/main/analysis/validation.ts
@@ -1181,16 +1367,22 @@
 
   // src/main/analysis/analyzer.ts
   async function classifyComponent(node) {
-    var _a;
+    var _a2, _b, _c;
     if (node.type === "TEXT") {
       const headingLevel = detectHeadingLevelFromFontSize(node);
       return { recognized: headingLevel !== null, alwaysDescend: false };
     }
     const componentName = await resolveComponentName(node);
     const rule = findMatchingRule(accessibilityRules, { nodeName: node.name, componentName });
-    return { recognized: rule !== void 0, alwaysDescend: (_a = rule == null ? void 0 : rule.alwaysDescend) != null ? _a : false };
+    return {
+      recognized: rule !== void 0,
+      alwaysDescend: (_a2 = rule == null ? void 0 : rule.alwaysDescend) != null ? _a2 : false,
+      childrenOnly: (_b = rule == null ? void 0 : rule.childrenOnly) != null ? _b : false,
+      cardPerItem: (_c = rule == null ? void 0 : rule.cardPerItem) != null ? _c : false
+    };
   }
   var DEBUG_STATE_MATCHING = true;
+  var DEBUG_TEXT_LAYERS = true;
   function logStateDebugInfo(node, rule, variantProperties, variantValues) {
     if (!DEBUG_STATE_MATCHING || !(rule == null ? void 0 : rule.states)) return;
     console.log("[state-matching-debug]", {
@@ -1201,13 +1393,39 @@
       valoresComparados: variantValues
     });
   }
-  async function buildSpecificationItem(node, order, manuallyAdded) {
-    var _a, _b, _c;
+  async function findAncestorRules(node) {
+    const result = [];
+    let current = node.parent;
+    while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
+      if (current.type === "INSTANCE" || current.type === "COMPONENT") {
+        const name = await resolveComponentName(current);
+        const rule = findMatchingRule(accessibilityRules, { nodeName: current.name, componentName: name });
+        if (rule) result.push({ node: current, ruleKey: rule.key });
+      }
+      current = current.parent;
+    }
+    return result;
+  }
+  async function buildSpecificationItem(node, order, manuallyAdded, inheritRuleFrom) {
+    var _a2, _b, _c, _d, _e;
     const isComponentLike = node.type === "INSTANCE" || node.type === "COMPONENT";
     const isTextNode = node.type === "TEXT";
     const coreType = isComponentLike ? (await identifyCoreType(node)).coreType : "DESCONHECIDO";
     const componentName = isComponentLike ? await resolveComponentName(node) : null;
     let rule = isComponentLike ? findMatchingRule(accessibilityRules, { nodeName: node.name, componentName }) : void 0;
+    if (inheritRuleFrom) {
+      const parentComponentName = await resolveComponentName(inheritRuleFrom);
+      rule = (_a2 = findMatchingRule(accessibilityRules, { nodeName: inheritRuleFrom.name, componentName: parentComponentName })) != null ? _a2 : rule;
+    }
+    if (rule == null ? void 0 : rule.variantsInsideContainer) {
+      for (const ancestor of await findAncestorRules(node)) {
+        const variantKey = rule.variantsInsideContainer[ancestor.ruleKey];
+        if (variantKey) {
+          rule = (_b = findRuleByKey(variantKey)) != null ? _b : rule;
+          break;
+        }
+      }
+    }
     const extractedData = {};
     if (isTextNode) {
       const headingLevel = detectHeadingLevelFromFontSize(node);
@@ -1229,10 +1447,37 @@
       if (second !== void 0) {
         extractedData.text2 = second;
       }
+    } else if (rule == null ? void 0 : rule.extraction.includes("first-three-texts")) {
+      const { first, second, third } = extractFirstThreeTexts(node);
+      if (first !== void 0) {
+        extractedData.text = first;
+      }
+      if (second !== void 0) {
+        extractedData.text2 = second;
+      }
+      if (third !== void 0) {
+        extractedData.text3 = third;
+      }
     } else if (rule == null ? void 0 : rule.extraction.includes("first-text")) {
       const text = extractFirstText(node);
       if (text !== void 0) {
         extractedData.text = text;
+      }
+    }
+    if (!isTextNode && (rule == null ? void 0 : rule.textsByLayerName)) {
+      const byLayer = extractTextsByLayerName(node, rule.textsByLayerName);
+      for (const [placeholder, value] of Object.entries(byLayer)) {
+        extractedData[`camada:${placeholder}`] = value;
+      }
+      if (DEBUG_TEXT_LAYERS) {
+        console.log("[text-layers-debug]", { nodeName: node.name, ruleKey: rule.key, camadasDeTexto: listTextLayers(node), preenchidos: byLayer });
+      }
+    }
+    if (!isTextNode && (rule == null ? void 0 : rule.key) === "heading" && extractedData.nivel === void 0) {
+      const headingText = findFirstTextNode(node);
+      const level = headingText ? detectHeadingLevelFromFontSize(headingText) : null;
+      if (level) {
+        extractedData.nivel = level;
       }
     }
     const variantProperties = extractVariantProperties(node);
@@ -1244,8 +1489,8 @@
       nodeId: node.id,
       nodeName: node.name,
       nodeType: node.type,
-      markupType: (_a = rule == null ? void 0 : rule.markupType) != null ? _a : UNSPECIFIED_TYPE_KEY,
-      ruleKey: (_b = rule == null ? void 0 : rule.key) != null ? _b : null,
+      markupType: (_c = rule == null ? void 0 : rule.markupType) != null ? _c : UNSPECIFIED_TYPE_KEY,
+      ruleKey: (_d = rule == null ? void 0 : rule.key) != null ? _d : null,
       variantProperties,
       coreType,
       extractedData,
@@ -1253,18 +1498,53 @@
       order,
       manuallyAdded,
       verbalizationEdited: false,
-      focusEligible: (_c = rule == null ? void 0 : rule.focusEligible) != null ? _c : false
+      focusEligible: (_e = rule == null ? void 0 : rule.focusEligible) != null ? _e : false
     };
   }
+  async function moveLastInsideContainers(ordered) {
+    var _a2;
+    const result = [...ordered];
+    const containers = /* @__PURE__ */ new Map();
+    for (const node of result) {
+      for (const ancestor of await findAncestorRules(node)) {
+        const containerRule = findRuleByKey(ancestor.ruleKey);
+        if (!((_a2 = containerRule == null ? void 0 : containerRule.lastInside) == null ? void 0 : _a2.length)) continue;
+        let entry = containers.get(ancestor.node.id);
+        if (!entry) {
+          entry = { lastInside: containerRule.lastInside, insideIds: /* @__PURE__ */ new Set(), toMove: [] };
+          containers.set(ancestor.node.id, entry);
+        }
+        entry.insideIds.add(node.id);
+        if (node.type === "INSTANCE" || node.type === "COMPONENT") {
+          const name = await resolveComponentName(node);
+          const rule = findMatchingRule(accessibilityRules, { nodeName: node.name, componentName: name });
+          if (rule && entry.lastInside.includes(rule.label)) entry.toMove.push(node);
+        }
+      }
+    }
+    for (const entry of containers.values()) {
+      if (entry.toMove.length === 0) continue;
+      const originalFirst = Math.min(...entry.toMove.map((n) => result.indexOf(n)));
+      for (const node of entry.toMove) result.splice(result.indexOf(node), 1);
+      let insertAt = -1;
+      result.forEach((node, index) => {
+        if (entry.insideIds.has(node.id)) insertAt = index;
+      });
+      const position = insertAt === -1 ? originalFirst : insertAt + 1;
+      result.splice(position, 0, ...entry.toMove);
+    }
+    return result;
+  }
   async function analyzeScreen(screenNode, forcedContext) {
-    const discovered = await discoverTopLevelComponents(screenNode, classifyComponent);
-    const topLevelNodes = sortByReadingOrder(discovered);
+    const inheritedParents = /* @__PURE__ */ new Map();
+    const discovered = await discoverTopLevelComponents(screenNode, classifyComponent, inheritedParents);
+    const topLevelNodes = await moveLastInsideContainers(sortByReadingOrder(discovered));
     const items = [];
     let coreWebCount = 0;
     let coreAppCount = 0;
     let order = 0;
     for (const node of topLevelNodes) {
-      const item = await buildSpecificationItem(node, order, false);
+      const item = await buildSpecificationItem(node, order, false, inheritedParents.get(node.id));
       if (item.coreType === "CORE_WEB") coreWebCount += 1;
       if (item.coreType === "CORE_APP") coreAppCount += 1;
       items.push(item);
@@ -1396,9 +1676,9 @@
   var LABEL_FONT = { family: "Inter", style: "Bold" };
   var BODY_FONT = { family: "Inter", style: "Regular" };
   function typeLabelFor(markupType) {
-    var _a;
+    var _a2;
     const type = MARKUP_TYPES.find((t) => t.key === markupType);
-    return (_a = type == null ? void 0 : type.label) != null ? _a : UNSPECIFIED_TYPE_LABEL;
+    return (_a2 = type == null ? void 0 : type.label) != null ? _a2 : UNSPECIFIED_TYPE_LABEL;
   }
   async function loadFonts() {
     await Promise.all([
@@ -1534,7 +1814,7 @@
     return row;
   }
   async function generatePanel(screenNode, items) {
-    var _a, _b;
+    var _a2, _b;
     await loadFonts();
     const ordered = [...items].sort((a, b) => a.order - b.order);
     const panel = figma.createFrame();
@@ -1581,7 +1861,7 @@
         ordered[i],
         i,
         i === ordered.length - 1,
-        (_a = readingOrderByItemId.get(ordered[i].id)) != null ? _a : null,
+        (_a2 = readingOrderByItemId.get(ordered[i].id)) != null ? _a2 : null,
         (_b = focusOrderByItemId.get(ordered[i].id)) != null ? _b : null
       );
       appendSized(panel, row, { horizontal: "FILL", vertical: "HUG" });
@@ -1762,12 +2042,12 @@
         designerName: getCurrentUserName(),
         screenName: screenNode.name,
         items: ordered.map((item) => {
-          var _a, _b, _c;
+          var _a2, _b, _c;
           return {
             nodeName: item.nodeName,
-            markupTypeLabel: (_b = (_a = MARKUP_TYPES.find((t) => t.key === item.markupType)) == null ? void 0 : _a.label) != null ? _b : UNSPECIFIED_TYPE_LABEL,
+            markupTypeLabel: (_b = (_a2 = MARKUP_TYPES.find((t) => t.key === item.markupType)) == null ? void 0 : _a2.label) != null ? _b : UNSPECIFIED_TYPE_LABEL,
             verbalization: item.verbalization,
-            links: item.ruleKey ? (_c = accessibilityRules.find((r) => r.key === item.ruleKey)) == null ? void 0 : _c.links : void 0
+            links: (_c = findRuleByKey(item.ruleKey)) == null ? void 0 : _c.links
           };
         })
       };

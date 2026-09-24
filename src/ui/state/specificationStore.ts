@@ -1,6 +1,6 @@
 import { useMemo, useReducer } from "react";
 import { SpecificationItem } from "../../shared/types";
-import { accessibilityRules } from "../../rules/accessibility-rules";
+import { findRuleByKey } from "../../rules/accessibility-rules";
 import { buildStateCandidates, computeVerbalization, UNSPECIFIED_TYPE_KEY } from "../../rules/engine";
 
 type Action =
@@ -43,7 +43,7 @@ function reducer(state: SpecificationItem[], action: Action): SpecificationItem[
           return { ...item, markupType: action.markupType, verbalization: "", verbalizationEdited: false };
         }
 
-        const originalRule = item.ruleKey ? accessibilityRules.find((r) => r.key === item.ruleKey) : undefined;
+        const originalRule = findRuleByKey(item.ruleKey);
         const ruleMatchesNewType = originalRule?.markupType === action.markupType;
 
         return {

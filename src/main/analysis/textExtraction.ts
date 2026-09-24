@@ -44,6 +44,46 @@ function findFirstText(node: SceneNode): TextNode | null {
   return null;
 }
 
+function normalizeLayerName(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+/**
+ * Para cada placeholder de `spec`, o texto da primeira camada TEXT
+ * visível (e não vazia) cujo NOME contém um dos trechos listados.
+ * Cada camada preenche no máximo um placeholder (o primeiro da lista
+ * que bater), para não repetir o mesmo texto em dois lugares.
+ */
+export function extractTextsByLayerName(node: SceneNode, spec: Record<string, string[]>): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const textNode of findAllTexts(node)) {
+    const layerName = normalizeLayerName(textNode.name);
+    for (const [placeholder, patterns] of Object.entries(spec)) {
+      if (result[placeholder] !== undefined) continue;
+      if (patterns.some((pattern) => layerName.includes(normalizeLayerName(pattern)))) {
+        result[placeholder] = textNode.characters;
+        break;
+      }
+    }
+  }
+  return result;
+}
+
+/** Lista (nome da camada, texto) de todos os textos visíveis — usado só no log de diagnóstico. */
+export function listTextLayers(node: SceneNode): Array<{ camada: string; texto: string }> {
+  return findAllTexts(node).map((t) => ({ camada: t.name, texto: t.characters }));
+}
+
+/** O próprio node TEXT do primeiro texto utilizável (ex.: para ler o tamanho da fonte do Heading). */
+export function findFirstTextNode(node: SceneNode): TextNode | null {
+  return findFirstText(node);
+}
+
 /** Retorna o conteúdo textual (characters) do primeiro TEXT utilizável encontrado, ou undefined. */
 export function extractFirstText(node: SceneNode): string | undefined {
   const textNode = findFirstText(node);
@@ -103,5 +143,22 @@ export function extractFirstTwoTexts(node: SceneNode): { first?: string; second?
   return {
     first: texts[0]?.characters,
     second: texts[1]?.characters
+  };
+}
+
+/**
+ * Mesma ideia de `extractFirstTwoTexts`, com um terceiro texto — pedido
+ * do usuário pro Banner Image Full: título, descrição e rótulo do
+ * botão, cada um na sua própria posição, todos dentro de UM card só
+ * (diferente do Empty State, que virou 3 cards separados — aqui ela
+ * quer tudo junto no mesmo card, só que cada palavra pegando o texto
+ * certo em vez de todos repetirem o mesmo texto).
+ */
+export function extractFirstThreeTexts(node: SceneNode): { first?: string; second?: string; third?: string } {
+  const texts = findAllTexts(node);
+  return {
+    first: texts[0]?.characters,
+    second: texts[1]?.characters,
+    third: texts[2]?.characters
   };
 }
