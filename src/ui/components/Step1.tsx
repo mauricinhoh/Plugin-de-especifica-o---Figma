@@ -63,7 +63,8 @@ export function Step1({
   return (
     <>
       <TitleBar title="Especificação de Handoff" showBack onBack={onBack} onClose={onClose} />
-      <Stepper current={1} />
+      {/* No fluxo de tela já marcada não há etapas: só a escolha do que fazer. */}
+      {!hasExistingMarkup && <Stepper current={1} />}
       <div className="scroll-area" style={{ padding: 24 }}>
         {hasExistingMarkup ? (
           <>

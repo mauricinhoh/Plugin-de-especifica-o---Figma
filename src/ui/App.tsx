@@ -106,8 +106,16 @@ export function App() {
         // selecionado É o painel recém-gerado (ex.: a pessoa clicou
         // em "Ver no canvas") — isso não é uma nova tela, é o
         // resultado da que acabou de gerar.
+        const selectedMarkedScreen = message.valid && (message.existingMarkerCount ?? 0) > 0;
         if (screenRef.current === "done" && message.valid && message.nodeId !== lastOutputNodeIdRef.current) {
           handleNewSpecification();
+          // Tela que já tem marcadores: vai direto para "O que deseja
+          // fazer com essa tela?", sem passar pela tela inicial.
+          if (selectedMarkedScreen) setScreen("step1");
+        } else if (screenRef.current === "step0" && selectedMarkedScreen) {
+          // Mesmo atalho ao abrir o plugin (ou estando na tela inicial)
+          // com uma tela que já tem marcadores selecionada.
+          setScreen("step1");
         }
         break;
       case "analysis-result":
