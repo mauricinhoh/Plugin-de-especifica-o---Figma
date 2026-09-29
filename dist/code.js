@@ -2292,6 +2292,7 @@
   var knownNodeIds = /* @__PURE__ */ new Set();
   var stopManualSelectionListener = null;
   var lastGeneratedOutputNodeId = null;
+  var outputIsDeletedScreen = false;
   function buildComponentTypeOptions() {
     const fromMarkupTypes = MARKUP_TYPES.map((type) => ({
       key: type.key,
@@ -2303,6 +2304,7 @@
     lastAnalyzedScreenId = null;
     knownNodeIds = /* @__PURE__ */ new Set();
     lastGeneratedOutputNodeId = null;
+    outputIsDeletedScreen = false;
     setManualSelectionEnabled(false);
     clearPreviewMarker();
   }
@@ -2416,6 +2418,7 @@
       const panel = await generatePanel(screenNode, ordered);
       postToUi({ type: "generation-progress", stage: "table", done: 1, total: 1 });
       lastGeneratedOutputNodeId = panel.id;
+      outputIsDeletedScreen = false;
       for (const group of createdGroups) {
         tagAsScreenOutput(group, screenNode.id);
       }
@@ -2465,7 +2468,9 @@
       return;
     }
     lastGeneratedOutputNodeId = screenNode.id;
+    outputIsDeletedScreen = true;
     postToUi({ type: "markup-deleted", deletedCount, screenName: screenNode.name, screenId: screenNode.id });
+    figma.currentPage.selection = [];
   }
   var selectionListenerRegistered = false;
   function safely(label, fn) {
@@ -2527,7 +2532,15 @@
         });
         break;
       case "focus-generation-output":
-        if (lastGeneratedOutputNodeId) {
+        if (lastGeneratedOutputNodeId && outputIsDeletedScreen) {
+          void figma.getNodeByIdAsync(lastGeneratedOutputNodeId).then((node) => {
+            if (node && "x" in node) {
+              figma.viewport.scrollAndZoomIntoView([node]);
+            } else {
+              figma.notify("Tela n\xE3o encontrada");
+            }
+          });
+        } else if (lastGeneratedOutputNodeId) {
           void focusNode(lastGeneratedOutputNodeId).then((found) => {
             if (!found) {
               figma.notify("Painel de especifica\xE7\xF5es n\xE3o encontrado");

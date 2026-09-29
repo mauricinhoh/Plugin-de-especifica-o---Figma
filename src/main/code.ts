@@ -43,6 +43,12 @@ let manualSelectionEnabled = false;
 let knownNodeIds = new Set<string>();
 let stopManualSelectionListener: (() => void) | null = null;
 let lastGeneratedOutputNodeId: string | null = null;
+/**
+ * true na tela "Marcadores excluídos": o "Ver no canvas" só dá zoom na
+ * tela, sem selecioná-la — assim qualquer clique no canvas (inclusive
+ * na própria tela) reinicia o fluxo, como na tela de sucesso normal.
+ */
+let outputIsDeletedScreen = false;
 
 // ---------- Utilitários ----------
 
@@ -67,6 +73,7 @@ function resetFlowState(): void {
   lastAnalyzedScreenId = null;
   knownNodeIds = new Set();
   lastGeneratedOutputNodeId = null;
+  outputIsDeletedScreen = false;
   setManualSelectionEnabled(false);
   clearPreviewMarker();
 }
@@ -229,6 +236,7 @@ async function generateSpecifications(items: SpecificationItem[]): Promise<void>
     postToUi({ type: "generation-progress", stage: "table", done: 1, total: 1 });
 
     lastGeneratedOutputNodeId = panel.id;
+    outputIsDeletedScreen = false;
 
     // Liga marcadores e painel a esta tela, para o plugin reconhecer
     // depois que ela já tem uma especificação (ver existingMarkup.ts).
@@ -287,7 +295,11 @@ async function deleteExistingMarkupOfSelection(thenAnalyze: boolean): Promise<vo
   }
   // "Ver no canvas" da tela de sucesso passa a enquadrar a própria tela.
   lastGeneratedOutputNodeId = screenNode.id;
+  outputIsDeletedScreen = true;
   postToUi({ type: "markup-deleted", deletedCount, screenName: screenNode.name, screenId: screenNode.id });
+  // Tira a seleção: se a tela continuasse selecionada, clicar nela de
+  // novo não mudaria a seleção e o fluxo não reiniciaria.
+  figma.currentPage.selection = [];
 }
 
 // ---------- Roteamento de mensagens da UI ----------
@@ -362,7 +374,15 @@ figma.ui.onmessage = (message: UiToMainMessage) => {
       });
       break;
     case "focus-generation-output":
-      if (lastGeneratedOutputNodeId) {
+      if (lastGeneratedOutputNodeId && outputIsDeletedScreen) {
+        void figma.getNodeByIdAsync(lastGeneratedOutputNodeId).then((node) => {
+          if (node && "x" in node) {
+            figma.viewport.scrollAndZoomIntoView([node as SceneNode]);
+          } else {
+            figma.notify("Tela não encontrada");
+          }
+        });
+      } else if (lastGeneratedOutputNodeId) {
         void focusNode(lastGeneratedOutputNodeId).then((found) => {
           if (!found) {
             figma.notify("Painel de especificações não encontrado");

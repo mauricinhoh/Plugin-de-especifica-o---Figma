@@ -150,8 +150,9 @@ export function App() {
         break;
       case "markup-deleted":
         // Reaproveita a tela de sucesso no modo "Marcadores excluídos".
-        // outputNodeId = a própria tela: "Ver no canvas" enquadra a tela,
-        // e selecioná-la não dispara a "Nova especificação" automática.
+        // outputNodeId = a própria tela: "Ver no canvas" enquadra a tela
+        // sem selecioná-la, então qualquer seleção válida no canvas
+        // (inclusive a própria tela) reinicia o fluxo.
         setGenerationSummary({
           componentCount: message.deletedCount,
           verbalizationCount: 0,
@@ -160,7 +161,7 @@ export function App() {
           outputNodeId: message.screenId,
           mode: "deleted"
         });
-        lastOutputNodeIdRef.current = message.screenId;
+        lastOutputNodeIdRef.current = null;
         setScreen("done");
         break;
       case "usage-log":
