@@ -66,7 +66,7 @@ export interface ComponentTypeRule<TExtracted extends object = ExtractedTextData
    * onde cada posição precisa de um placeholder diferente no
    * template.
    */
-  extraction: Array<"first-text" | "all-text" | "first-two-texts" | "first-three-texts">;
+  extraction: Array<"first-text" | "all-text" | "first-two-texts" | "first-three-texts" | "item-list" | "title-description" | "header" | "tabs">;
   /**
    * Template de verbalização. Usa placeholders "(Nome)", "[Nome]" ou
    * "{Nome}" — os três estilos usados pela planilha real; ver
@@ -108,8 +108,24 @@ export interface ComponentTypeRule<TExtracted extends object = ExtractedTextData
   childrenOnly?: boolean;
   /** Contêiner de itens iguais: cada item de dentro vira card com ESTA regra (ex.: Chip Filter). */
   cardPerItem?: boolean;
+  /** Formato de cada aba quando a extração é "tabs" (ver dados: formatoAbas). */
+  tabFormat?: { selecionada: string; naoSelecionada: string; separador?: string };
+  /** Não lê textos soltos dentro deste contêiner (ver dados: ignorarTextoSolto). */
+  ignoreLooseText?: boolean;
+  /** Verbalização para quando não há título (ver dados: verbalizacaoSemTitulo). */
+  templateWithoutTitle?: string;
+  /** Extração título/descrição só com os textos do próprio componente (ver dados: somenteTextosProprios). */
+  ownTextsOnly?: boolean;
+  /** Verbalização para quando não há descrição (ver dados: verbalizacaoSemDescricao). */
+  templateWithoutDescription?: string;
+  /** Formato de cada item quando a extração é "item-list" (ver dados: formatoLista). */
+  listFormat?: { item: string; ultimo: string; separador?: string };
   /** Placeholder → trechos do nome da camada de texto que o preenchem (ver dados: textosPorCamada). */
   textsByLayerName?: Record<string, string[]>;
+  /** Placeholders dos textos do próprio componente (ver dados: textosProprios). */
+  ownTextSlots?: Record<string, string[]>;
+  /** Placeholder do texto do primeiro componente interno (ver dados: textoDoBotao). */
+  innerButtonTextPlaceholder?: string;
   /** Chave da regra-variante a usar quando dentro de cada contêiner (chave do contêiner → chave da variante). */
   variantsInsideContainer?: Record<string, string>;
   /** Rótulos de componentes que vão por último dentro deste contêiner (ex.: Drawer → Button Icon). */
@@ -349,9 +365,54 @@ export function computeVerbalization(
   if (!rule || !rule.hasVerbalization) {
     return "";
   }
-  const template = selectVerbalizationTemplate(rule, variantValues) ?? rule.template;
+  const template =
+    rule.templateWithoutTitle && extractedData.text === undefined && extractedData.text2 !== undefined
+      ? rule.templateWithoutTitle
+      : rule.templateWithoutDescription && extractedData.text !== undefined && extractedData.text2 === undefined
+        ? rule.templateWithoutDescription
+        : selectVerbalizationTemplate(rule, variantValues) ?? rule.template;
   if (!template) {
     return "";
+  }
+  // Abas (ex.: Tab): uma linha por aba, com posição e total; a aba
+  // selecionada usa o modelo "selecionada", as demais "não selecionada".
+  if (rule.tabFormat && extractedData.abas) {
+    let tabs: Array<{ label: string; selected: boolean }> = [];
+    try {
+      tabs = JSON.parse(extractedData.abas);
+    } catch {
+      tabs = [];
+    }
+    const format = rule.tabFormat;
+    const formatted = tabs
+      .map((tab, index) =>
+        resolvePlaceholders(tab.selected ? format.selecionada : format.naoSelecionada, {
+          text: tab.label,
+          posicao: String(index + 1),
+          total: String(tabs.length)
+        })
+      )
+      .join(format.separador ?? "\n");
+    return resolvePlaceholders(template, { ...extractedData, abas: formatted });
+  }
+
+  // Lista de itens (ex.: níveis do Breadcrumb): cada item é formatado
+  // com o modelo do meio, e o último com o modelo "último". Funciona
+  // com qualquer quantidade de itens.
+  if (rule.listFormat && extractedData.lista) {
+    let items: string[] = [];
+    try {
+      items = JSON.parse(extractedData.lista);
+    } catch {
+      items = [];
+    }
+    const format = rule.listFormat;
+    const formatted = items
+      .map((text, index) =>
+        resolvePlaceholders(index === items.length - 1 ? format.ultimo : format.item, { text })
+      )
+      .join(format.separador ?? ", ");
+    return resolvePlaceholders(template, { ...extractedData, niveis: formatted });
   }
   return resolvePlaceholders(template, extractedData);
 }

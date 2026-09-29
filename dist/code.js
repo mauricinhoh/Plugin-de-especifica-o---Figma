@@ -61,7 +61,16 @@
     // Só existe em `extractedData.nivel` quando o node é um TEXT solto
     // reconhecido como título; para os demais casos o placeholder
     // simplesmente não resolve (fica como está, sem inventar nível).
-    "ordem logica": (data) => data.nivel
+    "ordem logica": (data) => data.nivel,
+    // Lista já formatada item a item (ex.: níveis do Breadcrumb) — ver
+    // computeVerbalization em engine.ts.
+    niveis: (data) => data.niveis,
+    // Abas já formatadas (ex.: Tab) e, dentro de cada linha, a posição e
+    // o total — ver computeVerbalization em engine.ts. Só existem durante
+    // a montagem das abas; fora disso não resolvem.
+    abas: (data) => data.abas,
+    posicao: (data) => data.posicao,
+    total: (data) => data.total
     // Deliberadamente SEM resolver (ficam como template editável):
     // "placeholder", "conteudo preenchido", "texto de suporte",
     // "texto de apoio", "heading", "mensagem", "mensagem de erro",
@@ -159,13 +168,43 @@
     return void 0;
   }
   function computeVerbalization(rule, extractedData, variantValues = []) {
-    var _a2;
+    var _a2, _b, _c;
     if (!rule || !rule.hasVerbalization) {
       return "";
     }
-    const template = (_a2 = selectVerbalizationTemplate(rule, variantValues)) != null ? _a2 : rule.template;
+    const template = rule.templateWithoutTitle && extractedData.text === void 0 && extractedData.text2 !== void 0 ? rule.templateWithoutTitle : rule.templateWithoutDescription && extractedData.text !== void 0 && extractedData.text2 === void 0 ? rule.templateWithoutDescription : (_a2 = selectVerbalizationTemplate(rule, variantValues)) != null ? _a2 : rule.template;
     if (!template) {
       return "";
+    }
+    if (rule.tabFormat && extractedData.abas) {
+      let tabs = [];
+      try {
+        tabs = JSON.parse(extractedData.abas);
+      } catch (e) {
+        tabs = [];
+      }
+      const format = rule.tabFormat;
+      const formatted = tabs.map(
+        (tab, index) => resolvePlaceholders(tab.selected ? format.selecionada : format.naoSelecionada, {
+          text: tab.label,
+          posicao: String(index + 1),
+          total: String(tabs.length)
+        })
+      ).join((_b = format.separador) != null ? _b : "\n");
+      return resolvePlaceholders(template, __spreadProps(__spreadValues({}, extractedData), { abas: formatted }));
+    }
+    if (rule.listFormat && extractedData.lista) {
+      let items = [];
+      try {
+        items = JSON.parse(extractedData.lista);
+      } catch (e) {
+        items = [];
+      }
+      const format = rule.listFormat;
+      const formatted = items.map(
+        (text, index) => resolvePlaceholders(index === items.length - 1 ? format.ultimo : format.item, { text })
+      ).join((_c = format.separador) != null ? _c : ", ");
+      return resolvePlaceholders(template, __spreadProps(__spreadValues({}, extractedData), { niveis: formatted }));
     }
     return resolvePlaceholders(template, extractedData);
   }
@@ -211,7 +250,8 @@
       "tipo": "Bot\xE3o",
       "foco": "Sim",
       "verbalizacaoDentroDe": {
-        "Drawer": "Habilitado: \u201CFechar, bot\xE3o.\u201D\nDisabled: \u201CFechar, Indispon\xEDvel, bot\xE3o.\u201D\nFocus: \u201CFechar, bot\xE3o.\u201D"
+        "Drawer": "Habilitado: \u201CFechar, bot\xE3o.\u201D\nDisabled: \u201CFechar, Indispon\xEDvel, bot\xE3o.\u201D\nFocus: \u201CFechar, bot\xE3o.\u201D",
+        "Modal": "Fechar, Bot\xE3o"
       }
     },
     {
@@ -298,7 +338,7 @@
       "categoria": "Content",
       "componente": "Topic",
       "estados": "Est\xE1tico, sem foco, hover ou desabilitado.",
-      "verbalizacaoEsperada": "Leitura do conte\xFAdo.",
+      "verbalizacaoEsperada": "[Label]",
       "tipo": "N\xE3o interativo",
       "foco": "N\xE3o"
     },
@@ -358,7 +398,7 @@
       "verbalizacaoEsperada": "Conte\xFAdo conforme ordem l\xF3gica",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "extracaoTexto": "todos"
+      "somenteFilhos": true
     },
     {
       "categoria": "Content",
@@ -390,10 +430,15 @@
       "categoria": "Content",
       "componente": "Table",
       "estados": "Default, Linhas selecionadas, Sem dados.",
-      "verbalizacaoEsperada": "Segue a documenta\xE7\xE3o da tabela: link da documenta\xE7\xE3o",
+      "verbalizacaoEsperada": "Segue a documenta\xE7\xE3o da tabela:\nhttps://sicredi.atlassian.net/wiki/spaces/TCD/pages/556172391/Exemplos+de+especifica+es",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "links": [{ "text": "link da documenta\xE7\xE3o", "url": "https://confederacaosicredi.sharepoint.com/:w:/r/teams/nucleodeacessibilidade/Shared%20Documents/Especifica%C3%A7%C3%B5es%20Colmeia/Especificac%CC%A7%C3%B5es%20para%20tabela%20(Table).docx?d=w3d5f894400084c4c94753e09a8ad20d7&csf=1&web=1&e=gcqGDV" }]
+      "links": [
+        {
+          "text": "https://sicredi.atlassian.net/wiki/spaces/TCD/pages/556172391/Exemplos+de+especifica+es",
+          "url": "https://sicredi.atlassian.net/wiki/spaces/TCD/pages/556172391/Exemplos+de+especifica+es"
+        }
+      ]
     },
     {
       "categoria": "Containers",
@@ -421,7 +466,10 @@
       "verbalizacaoEsperada": 'Ordem l\xF3gica dos componentes. Icon button X: "Fechar, bot\xE3o".',
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "sempreAprofundar": true
+      "ultimosDentro": [
+        "Button Icon"
+      ],
+      "somenteFilhos": true
     },
     {
       "categoria": "Containers",
@@ -440,7 +488,8 @@
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
       "extracaoTexto": "todos",
-      "sempreAprofundar": true
+      "somenteFilhos": true,
+      "ignorarTextoSolto": true
     },
     {
       "categoria": "Containers",
@@ -464,34 +513,38 @@
       "categoria": "Feedback",
       "componente": "Alert",
       "estados": "Ativo e Encerrado.",
-      "verbalizacaoEsperada": 'Ordem l\xF3gica dos componentes. Icon button X: "Fechar, bot\xE3o".',
+      "verbalizacaoEsperada": "[T\xEDtulo], [Descri\xE7\xE3o], Fechar, bot\xE3o",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "extracaoTexto": "todos"
+      "extracaoTexto": "titulo-descricao",
+      "verbalizacaoSemTitulo": "[Descri\xE7\xE3o], Fechar, bot\xE3o",
+      "somenteTextosProprios": true
     },
     {
       "categoria": "Feedback",
       "componente": "Flag",
       "estados": "Estrutural; links internos herdam estados pr\xF3prios.",
-      "verbalizacaoEsperada": "\u201C[T\xEDtulo] [Description] [Label], link externo.\u201D",
+      "verbalizacaoEsperada": "[T\xEDtulo], [Descri\xE7\xE3o], Link",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "extracaoTexto": "todos"
+      "extracaoTexto": "titulo-descricao",
+      "verbalizacaoSemTitulo": "[Descri\xE7\xE3o], Link"
     },
     {
       "categoria": "Feedback",
       "componente": "Flag Cooperado",
       "estados": "Estrutural e n\xE3o interativo; links internos herdam estados.",
-      "verbalizacaoEsperada": "\u201C[T\xEDtulo] [Description] [Label], link externo.\u201D",
+      "verbalizacaoEsperada": "[T\xEDtulo], [Descri\xE7\xE3o], Link",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "extracaoTexto": "todos"
+      "extracaoTexto": "titulo-descricao",
+      "verbalizacaoSemTitulo": "[Descri\xE7\xE3o], Link"
     },
     {
       "categoria": "Feedback",
       "componente": "Toast",
       "estados": "Exibido e Oculto.",
-      "verbalizacaoEsperada": '"[label] link externo, fechar,bot\xE3o".',
+      "verbalizacaoEsperada": '"[label]. Link, Fechar, Bot\xE3o".',
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos"
     },
@@ -499,10 +552,9 @@
       "categoria": "Feedback",
       "componente": "Tooltip",
       "estados": "Inativo: Tooltip n\xE3o vis\xEDvel.\n\nAtivo: Tooltip vis\xEDvel por hover ou foco.",
-      "verbalizacaoEsperada": '"[Description]"\n',
+      "verbalizacaoEsperada": "[Label]",
       "tipo": "N\xE3o interativo",
-      "foco": "N\xE3o",
-      "extracaoTexto": "todos"
+      "foco": "N\xE3o"
     },
     {
       "categoria": "Inputs",
@@ -581,23 +633,7 @@
       "categoria": "Inputs",
       "componente": "Input Date",
       "estados": "Padr\xE3o: campo vazio e pronto para entrada.\n\nAberto: exibe o calend\xE1rio de sele\xE7\xE3o de data.\n\nFoco: realce visual e leitura de r\xF3tulo pelo leitor de tela.\n\nPreenchido: exibe a data inserida ou selecionada.\n\nErro: campo marcado com mensagem de erro associada exibida no texto de suporte.\n\nDesativado: campo inativ e com intera\xE7\xE3o bloqueada",
-      "verbalizacaoEsperada": 'Recolhido: "[Label],[Mascara],[Helper text], campo de edi\xE7\xE3o,calend\xE1rio,recolhido, bot\xE3o" Expandido: [Label],[Mascara],[Helper text], campo de edi\xE7\xE3o,expandido,bot\xE3o "',
-      "tipo": "Entrada",
-      "foco": "Sim"
-    },
-    {
-      "categoria": "Inputs",
-      "componente": "Input Password",
-      "estados": "Habilitado, Focus, Filled, Error, Disabled.",
-      "verbalizacaoEsperada": 'Olho aberto/valor oculto: "[Label],[Mascara],[Helper text], campo de edi\xE7\xE3o, mostrar senha, bot\xE3o"                                                                                                                                                             Olho fechado/valor vis\xEDvel: "[Label],[Mascara],[Helper text], campo de edi\xE7\xE3o, ocultar senha, bot\xE3o" ',
-      "tipo": "Entrada",
-      "foco": "Sim"
-    },
-    {
-      "categoria": "Inputs",
-      "componente": "Input Select",
-      "estados": "Default, Filled, Hover, Active, Error, Disabled.",
-      "verbalizacaoEsperada": 'Recolhido: "[Label],[Mascara],[Helper text], campo de edi\xE7\xE3o,recolhido, bot\xE3o" Expandido: "[Label],[Mascara],[Helper text], campo de edi\xE7\xE3o, expandido, bot\xE3o"',
+      "verbalizacaoEsperada": 'Recolhido: "[Label],[Placeholder],[Helper text], campo de edi\xE7\xE3o,calend\xE1rio,recolhido, bot\xE3o" Expandido: "[Label],[Placeholder],[Helper text], campo de edi\xE7\xE3o,expandido,bot\xE3o"',
       "tipo": "Entrada",
       "foco": "Sim",
       "textosPorCamada": {
@@ -605,17 +641,64 @@
           "label",
           "rotulo"
         ],
-        "mascara": [
-          "mascara",
-          "mask",
-          "value",
-          "valor",
+        "placeholder": [
           "placeholder"
         ],
         "helper text": [
-          "helper",
+          "help",
           "texto de apoio",
           "texto de ajuda",
+          "texto de suporte",
+          "suporte",
+          "support"
+        ]
+      }
+    },
+    {
+      "categoria": "Inputs",
+      "componente": "Input Password",
+      "estados": "Habilitado, Focus, Filled, Error, Disabled.",
+      "verbalizacaoEsperada": 'Olho aberto/valor oculto: "[Label],[Placeholder],[Helper text], campo de edi\xE7\xE3o, mostrar senha, bot\xE3o" Olho fechado/valor vis\xEDvel: "[Label],[Placeholder],[Helper text], campo de edi\xE7\xE3o, ocultar senha, bot\xE3o"',
+      "tipo": "Entrada",
+      "foco": "Sim",
+      "textosPorCamada": {
+        "label": [
+          "label",
+          "rotulo"
+        ],
+        "placeholder": [
+          "placeholder"
+        ],
+        "helper text": [
+          "help",
+          "texto de apoio",
+          "texto de ajuda",
+          "texto de suporte",
+          "suporte",
+          "support"
+        ]
+      }
+    },
+    {
+      "categoria": "Inputs",
+      "componente": "Input Select",
+      "estados": "Default, Filled, Hover, Active, Error, Disabled.",
+      "verbalizacaoEsperada": 'Recolhido: "[Label],[Placeholder],[Helper text], campo de edi\xE7\xE3o,recolhido, bot\xE3o" Expandido: "[Label],[Placeholder],[Helper text], campo de edi\xE7\xE3o, expandido, bot\xE3o"',
+      "tipo": "Entrada",
+      "foco": "Sim",
+      "textosPorCamada": {
+        "label": [
+          "label",
+          "rotulo"
+        ],
+        "placeholder": [
+          "placeholder"
+        ],
+        "helper text": [
+          "help",
+          "texto de apoio",
+          "texto de ajuda",
+          "texto de suporte",
           "suporte",
           "support"
         ]
@@ -637,9 +720,10 @@
           "placeholder"
         ],
         "helper text": [
-          "helper",
+          "help",
           "texto de apoio",
           "texto de ajuda",
+          "texto de suporte",
           "suporte",
           "support"
         ]
@@ -667,9 +751,10 @@
           "character"
         ],
         "helper text": [
-          "helper",
+          "help",
           "texto de apoio",
           "texto de ajuda",
+          "texto de suporte",
           "suporte",
           "support"
         ]
@@ -681,7 +766,8 @@
       "estados": "Herda do seletor interno: Hover, Focus, Checked, Unchecked, Disabled etc.",
       "verbalizacaoEsperada": "Ordem l\xF3gica dos componentes com suas devidas sem\xE2nticas",
       "tipo": "Entrada",
-      "foco": "Sim"
+      "foco": "Sim",
+      "somenteFilhos": true
     },
     {
       "categoria": "Inputs",
@@ -689,7 +775,8 @@
       "estados": "Padr\xE3o.",
       "verbalizacaoEsperada": "Ordem l\xF3gica dos componentes.",
       "tipo": "Estrutura",
-      "foco": "Apenas elementos interativos"
+      "foco": "Apenas elementos interativos",
+      "somenteFilhos": true
     },
     {
       "categoria": "Inputs",
@@ -697,7 +784,8 @@
       "estados": "Padr\xE3o.",
       "verbalizacaoEsperada": "Ordem l\xF3gica dos componentes.",
       "tipo": "Estrutura",
-      "foco": "Apenas elementos interativos"
+      "foco": "Apenas elementos interativos",
+      "somenteFilhos": true
     },
     {
       "categoria": "Inputs",
@@ -719,9 +807,19 @@
       "categoria": "Inputs",
       "componente": "Search",
       "estados": "Habilitado/Focus, Hover, Filled;",
-      "verbalizacaoEsperada": '"[Placeholder],campo de busca,[r\xF3tulo], bot\xE3o"',
+      "verbalizacaoEsperada": "[Placeholder], Campo de Busca, Bot\xE3o",
       "tipo": "Entrada",
-      "foco": "Sim"
+      "foco": "Sim",
+      "textosPorCamada": {
+        "placeholder": [
+          "placeholder",
+          "value",
+          "valor",
+          "conteudo",
+          "texto",
+          "text"
+        ]
+      }
     },
     {
       "categoria": "Inputs",
@@ -735,9 +833,31 @@
       "categoria": "Inputs",
       "componente": "Uploader",
       "estados": "Default: campo est\xE1 habilitado e aguardando o envio do arquivo.\n\nActive: campo recebeu o foco e est\xE1 com destaque visual.\n\nLoading: upload em andamento.\n\nCompleted: upload finalizado.\n\nError: falha no envio ou valida\xE7\xE3o.",
-      "verbalizacaoEsperada": 'Default: "[Label],[Descri\xE7\xE3o], [helper text],[Label do bot\xE3o] bot\xE3o.  Loading: "Label], Carregando"\nError:"[Label],[helper text],excluir arquivo, bot\xE3o. Complete:"[Label],[helper text],[r\xF3tulo acess\xEDvel], bot\xE3o. ',
+      "verbalizacaoEsperada": 'Default: "[Label], [Descri\xE7\xE3o], [helper text], [Label do bot\xE3o] bot\xE3o."\nLoading: "[Label], Carregando"\nError: "[Label], [helper text], excluir arquivo, bot\xE3o."\nComplete: "[Label], [helper text], Remover arquivo, bot\xE3o."',
       "tipo": "Entrada",
-      "foco": "Sim"
+      "foco": "Sim",
+      "textosProprios": {
+        "label": [
+          "label",
+          "rotulo",
+          "titulo",
+          "title"
+        ],
+        "descricao": [
+          "descri"
+        ],
+        "helper text": [
+          "help",
+          "suporte",
+          "support",
+          "apoio"
+        ]
+      },
+      "textoDoBotao": "label do botao",
+      "stateFlagAliases": {
+        "Completed": "Complete",
+        "Active": "Default"
+      }
     },
     {
       "categoria": "Navigation",
@@ -759,16 +879,21 @@
       "categoria": "Navigation",
       "componente": "Breadcrumb",
       "estados": "Links habilitados; p\xE1gina atual.",
-      "verbalizacaoEsperada": ' "[Label] link, [Label] link,[Label] p\xE1gina atual"\n',
+      "verbalizacaoEsperada": "[n\xEDveis]",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "extracaoTexto": "todos"
+      "extracaoTexto": "lista",
+      "formatoLista": {
+        "item": "[Label] Link",
+        "ultimo": "[Label] P\xE1gina atual",
+        "separador": ", "
+      }
     },
     {
       "categoria": "Navigation",
       "componente": "Carousel Nav",
       "estados": "Herda de Page Indicator e Button Icon.",
-      "verbalizacaoEsperada": "O leitor de tela anuncia os bot\xF5es como controles de navega\xE7\xE3o.\n\nExemplo: \u201CCarrossel. 3 itens. Item 1 de 3. Pr\xF3ximo item, bot\xE3o.\u201D",
+      "verbalizacaoEsperada": "O leitor de tela anuncia os bot\xF5es como controles de navega\xE7\xE3o.\n\nExemplo: \u201CCarrossel. 3 itens. Item 1 de 3. Pr\xF3ximo, bot\xE3o.\u201D",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos"
     },
@@ -785,11 +910,12 @@
       "categoria": "Navigation",
       "componente": "Header Product",
       "estados": "Estrutural; elementos internos possuem estados pr\xF3prios.",
-      "verbalizacaoEsperada": '"[T\xEDtulo], [N\xEDvel], [Descri\xE7\xE3o], [Label acess\xEDvel] bot\xE3o. Flow: "[Alt-text]"',
+      "verbalizacaoEsperada": '"[T\xEDtulo], T\xEDtulo de n\xEDvel [ordem l\xF3gica], [Descri\xE7\xE3o]". Flow: "[Alt-text]"',
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "extracaoTexto": "todos",
-      "sempreAprofundar": true
+      "extracaoTexto": "cabecalho",
+      "sempreAprofundar": true,
+      "verbalizacaoSemDescricao": '"[T\xEDtulo], T\xEDtulo de n\xEDvel [ordem l\xF3gica]". Flow: "[Alt-text]"'
     },
     {
       "categoria": "Navigation",
@@ -798,7 +924,7 @@
       "verbalizacaoEsperada": "Conte\xFAdo conforme ordem l\xF3gica\n",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "extracaoTexto": "todos"
+      "somenteFilhos": true
     },
     {
       "categoria": "Navigation",
@@ -812,10 +938,15 @@
       "categoria": "Navigation",
       "componente": "Tab",
       "estados": "Selecionada e N\xE3o selecionada.",
-      "verbalizacaoEsperada": 'Selecionada:"[R\xF3tulo], guia selecionado, [Posi\xE7\xE3o]" N\xE3o seleciona:"[R\xF3tulo], guia n\xE3o selecionado, [Posi\xE7\xE3o]"',
+      "verbalizacaoEsperada": "[abas]",
       "tipo": "Bot\xE3o",
       "foco": "Sim",
-      "extracaoTexto": "todos"
+      "extracaoTexto": "abas",
+      "formatoAbas": {
+        "selecionada": "[Label], Guia selecionado, Posi\xE7\xE3o [Posi\xE7\xE3o] de [Total]",
+        "naoSelecionada": "N\xE3o selecionado: [Label], Guia n\xE3o selecionado, Posi\xE7\xE3o [Posi\xE7\xE3o] de [Total]",
+        "separador": "\n"
+      }
     },
     {
       "categoria": "Status",
@@ -861,7 +992,7 @@
       "categoria": "Status",
       "componente": "Tag Icon",
       "estados": "Est\xE1tico e n\xE3o interativo.",
-      "verbalizacaoEsperada": "Label",
+      "verbalizacaoEsperada": "[Label]",
       "tipo": "N\xE3o interativo",
       "foco": "N\xE3o"
     }
@@ -929,7 +1060,7 @@
     return map;
   }
   function buildRule(record) {
-    var _a2, _b, _c, _d, _e;
+    var _a2, _b, _c, _d, _e, _f, _g;
     const states = parseVerbalizationStates(record.verbalizacaoEsperada);
     const statesMap = states.length > 0 ? states.reduce((acc, s) => {
       acc[s.label] = s.text;
@@ -944,7 +1075,7 @@
       identifier: { matches: matchesComponentName(record.componente, ...(_b = record.aliasesDeNome) != null ? _b : []) },
       hasVerbalization: hasTemplate,
       extraction: [
-        record.extracaoTexto === "todos" ? "all-text" : record.extracaoTexto === "duas-posicoes" ? "first-two-texts" : record.extracaoTexto === "tres-posicoes" ? "first-three-texts" : "first-text"
+        record.extracaoTexto === "todos" ? "all-text" : record.extracaoTexto === "duas-posicoes" ? "first-two-texts" : record.extracaoTexto === "tres-posicoes" ? "first-three-texts" : record.extracaoTexto === "lista" ? "item-list" : record.extracaoTexto === "titulo-descricao" ? "title-description" : record.extracaoTexto === "cabecalho" ? "header" : record.extracaoTexto === "abas" ? "tabs" : "first-text"
       ],
       template: hasTemplate ? rawTemplate : void 0,
       states: statesMap,
@@ -952,7 +1083,15 @@
       alwaysDescend: (_c = record.sempreAprofundar) != null ? _c : false,
       childrenOnly: (_d = record.somenteFilhos) != null ? _d : false,
       cardPerItem: (_e = record.cardPorItem) != null ? _e : false,
+      ignoreLooseText: (_f = record.ignorarTextoSolto) != null ? _f : false,
+      listFormat: record.formatoLista,
+      tabFormat: record.formatoAbas,
+      templateWithoutTitle: record.verbalizacaoSemTitulo,
+      ownTextsOnly: (_g = record.somenteTextosProprios) != null ? _g : false,
+      templateWithoutDescription: record.verbalizacaoSemDescricao,
       textsByLayerName: record.textosPorCamada,
+      ownTextSlots: record.textosProprios,
+      innerButtonTextPlaceholder: record.textoDoBotao,
       variantsInsideContainer: buildVariantsInsideContainer(record),
       lastInside: record.ultimosDentro,
       stateFlagAliases: record.stateFlagAliases,
@@ -1068,7 +1207,7 @@
       const shouldClassify = node.type === "INSTANCE" || node.type === "COMPONENT" || node.type === "TEXT" && !insideRecognizedContainer;
       let nextInsideRecognizedContainer = insideRecognizedContainer;
       if (shouldClassify) {
-        const { recognized, alwaysDescend, childrenOnly, cardPerItem } = await classify(
+        const { recognized, alwaysDescend, childrenOnly, cardPerItem, ignoreLooseText } = await classify(
           node
         );
         if (recognized && cardPerItem && (node.type === "INSTANCE" || node.type === "COMPONENT")) {
@@ -1084,7 +1223,9 @@
           return;
         }
         if (recognized && childrenOnly) {
-          nextInsideRecognizedContainer = true;
+          if (ignoreLooseText) {
+            nextInsideRecognizedContainer = true;
+          }
         } else if (recognized) {
           found.push(node);
           if (!alwaysDescend) {
@@ -1273,6 +1414,115 @@
   function listTextLayers(node) {
     return findAllTexts(node).map((t) => ({ camada: t.name, texto: t.characters }));
   }
+  function extractTextList(node) {
+    return findAllTexts(node).map((t) => t.characters.trim()).filter((text) => !/^[>/›»|\-–—•·]+$/.test(text));
+  }
+  var DESCRIPTION_FONT_SIZE = 14;
+  function extractTitleAndDescription(node, ownTextsOnly = false) {
+    var _a2, _b;
+    const texts = ownTextsOnly ? findOwnTexts(node) : findAllTexts(node);
+    const descriptionIndex = texts.findIndex((t) => t.fontSize === DESCRIPTION_FONT_SIZE);
+    if (descriptionIndex === -1) {
+      return { title: (_a2 = texts[0]) == null ? void 0 : _a2.characters, description: (_b = texts[1]) == null ? void 0 : _b.characters };
+    }
+    return {
+      title: descriptionIndex > 0 ? texts[0].characters : void 0,
+      description: texts[descriptionIndex].characters
+    };
+  }
+  function findOwnTexts(node) {
+    const result = [];
+    if (!("children" in node)) return result;
+    for (const child of node.children) {
+      if ("visible" in child && child.visible === false) continue;
+      if (child.type === "TEXT") {
+        if (child.characters.trim().length > 0) result.push(child);
+      } else if (child.type !== "INSTANCE" && "children" in child) {
+        result.push(...findOwnTexts(child));
+      }
+    }
+    return result;
+  }
+  var SELECTED_TAB_VALUES = ["select", "selected", "selecionado", "selecionada", "ativo", "ativa", "active"];
+  function collectTabItems(node) {
+    const items = [];
+    if (!("children" in node)) return items;
+    for (const child of node.children) {
+      if ("visible" in child && child.visible === false) continue;
+      if (child.type === "INSTANCE" || child.type === "COMPONENT") {
+        items.push(child);
+      } else if ("children" in child) {
+        items.push(...collectTabItems(child));
+      }
+    }
+    return items;
+  }
+  function isSelectedTab(item) {
+    if (item.type !== "INSTANCE" || !item.componentProperties) return false;
+    for (const [name, property] of Object.entries(item.componentProperties)) {
+      const value = normalizeLayerName(String(property.value));
+      if (SELECTED_TAB_VALUES.includes(value)) return true;
+      const propertyName = normalizeLayerName(name.split("#")[0]);
+      if (value === "true" && SELECTED_TAB_VALUES.includes(propertyName)) return true;
+    }
+    return false;
+  }
+  function extractTabs(node) {
+    const items = collectTabItems(node).map((item) => {
+      var _a2, _b;
+      return { item, label: (_b = (_a2 = findFirstText(item)) == null ? void 0 : _a2.characters.trim()) != null ? _b : "" };
+    }).filter((entry) => entry.label.length > 0);
+    if (items.length === 0) {
+      return findAllTexts(node).map((t) => ({ label: t.characters.trim(), selected: false }));
+    }
+    const position = (n) => {
+      var _a2;
+      return (_a2 = n.absoluteBoundingBox) != null ? _a2 : { x: 0, y: 0 };
+    };
+    items.sort((a, b) => position(a.item).x - position(b.item).x || position(a.item).y - position(b.item).y);
+    return items.map(({ item, label }) => ({
+      label,
+      selected: isSelectedTab(item),
+      propriedades: item.type === "INSTANCE" ? item.componentProperties : void 0
+    }));
+  }
+  function extractOwnTextSlots(node, spec) {
+    const own = findOwnTexts(node);
+    const result = {};
+    const used = /* @__PURE__ */ new Set();
+    own.forEach((textNode, index) => {
+      const layerName = normalizeLayerName(textNode.name);
+      for (const [slot, patterns] of Object.entries(spec)) {
+        if (result[slot] !== void 0) continue;
+        if (patterns.some((pattern) => layerName.includes(normalizeLayerName(pattern)))) {
+          result[slot] = textNode.characters;
+          used.add(index);
+          break;
+        }
+      }
+    });
+    const remaining = own.filter((_, index) => !used.has(index));
+    for (const slot of Object.keys(spec)) {
+      if (result[slot] === void 0 && remaining.length > 0) {
+        result[slot] = remaining.shift().characters;
+      }
+    }
+    return result;
+  }
+  function findInnerInstanceText(node) {
+    if (!("children" in node)) return void 0;
+    for (const child of node.children) {
+      if ("visible" in child && child.visible === false) continue;
+      if (child.type === "INSTANCE") {
+        const text = findFirstText(child);
+        if (text) return text.characters;
+      } else if ("children" in child) {
+        const found = findInnerInstanceText(child);
+        if (found !== void 0) return found;
+      }
+    }
+    return void 0;
+  }
   function findFirstTextNode(node) {
     return findFirstText(node);
   }
@@ -1367,9 +1617,16 @@
 
   // src/main/analysis/analyzer.ts
   async function classifyComponent(node) {
-    var _a2, _b, _c;
+    var _a2, _b, _c, _d;
     if (node.type === "TEXT") {
       const headingLevel = detectHeadingLevelFromFontSize(node);
+      if (headingLevel === null && DEBUG_TEXT_LAYERS && node.characters.trim().length > 0) {
+        console.log("[texto-solto-ignorado-debug]", {
+          texto: node.characters,
+          camada: node.name,
+          tamanhoDaFonte: node.fontSize === figma.mixed ? "misto" : node.fontSize
+        });
+      }
       return { recognized: headingLevel !== null, alwaysDescend: false };
     }
     const componentName = await resolveComponentName(node);
@@ -1378,7 +1635,8 @@
       recognized: rule !== void 0,
       alwaysDescend: (_a2 = rule == null ? void 0 : rule.alwaysDescend) != null ? _a2 : false,
       childrenOnly: (_b = rule == null ? void 0 : rule.childrenOnly) != null ? _b : false,
-      cardPerItem: (_c = rule == null ? void 0 : rule.cardPerItem) != null ? _c : false
+      cardPerItem: (_c = rule == null ? void 0 : rule.cardPerItem) != null ? _c : false,
+      ignoreLooseText: (_d = rule == null ? void 0 : rule.ignoreLooseText) != null ? _d : false
     };
   }
   var DEBUG_STATE_MATCHING = true;
@@ -1439,6 +1697,39 @@
       if (text !== void 0) {
         extractedData.text = text;
       }
+    } else if (rule == null ? void 0 : rule.extraction.includes("tabs")) {
+      const tabs = extractTabs(node);
+      if (tabs.length > 0) {
+        extractedData.abas = JSON.stringify(tabs.map(({ label, selected }) => ({ label, selected })));
+        extractedData.text = tabs.map((t) => t.label).join(", ");
+      }
+      if (DEBUG_TEXT_LAYERS) {
+        console.log("[tab-debug]", { nodeName: node.name, abas: tabs });
+      }
+    } else if (rule == null ? void 0 : rule.extraction.includes("header")) {
+      const ownTexts = findOwnTexts(node);
+      if (ownTexts[0]) {
+        extractedData.text = ownTexts[0].characters;
+        const level = detectHeadingLevelFromFontSize(ownTexts[0]);
+        if (level) extractedData.nivel = level;
+      }
+      if (ownTexts[1]) {
+        extractedData.text2 = ownTexts[1].characters;
+      }
+    } else if (rule == null ? void 0 : rule.extraction.includes("title-description")) {
+      const { title, description } = extractTitleAndDescription(node, rule.ownTextsOnly);
+      if (title !== void 0) {
+        extractedData.text = title;
+      }
+      if (description !== void 0) {
+        extractedData.text2 = description;
+      }
+    } else if (rule == null ? void 0 : rule.extraction.includes("item-list")) {
+      const list = extractTextList(node);
+      if (list.length > 0) {
+        extractedData.lista = JSON.stringify(list);
+        extractedData.text = list.join(", ");
+      }
     } else if (rule == null ? void 0 : rule.extraction.includes("first-two-texts")) {
       const { first, second } = extractFirstTwoTexts(node);
       if (first !== void 0) {
@@ -1462,6 +1753,21 @@
       const text = extractFirstText(node);
       if (text !== void 0) {
         extractedData.text = text;
+      }
+    }
+    if (!isTextNode && (rule == null ? void 0 : rule.ownTextSlots)) {
+      const slots = extractOwnTextSlots(node, rule.ownTextSlots);
+      for (const [placeholder, value] of Object.entries(slots)) {
+        extractedData[`camada:${placeholder}`] = value;
+      }
+      if (DEBUG_TEXT_LAYERS) {
+        console.log("[own-texts-debug]", { nodeName: node.name, ruleKey: rule.key, camadasDeTexto: listTextLayers(node), preenchidos: slots });
+      }
+    }
+    if (!isTextNode && (rule == null ? void 0 : rule.innerButtonTextPlaceholder)) {
+      const buttonText = findInnerInstanceText(node);
+      if (buttonText !== void 0) {
+        extractedData[`camada:${rule.innerButtonTextPlaceholder}`] = buttonText;
       }
     }
     if (!isTextNode && (rule == null ? void 0 : rule.textsByLayerName)) {
@@ -1501,6 +1807,30 @@
       focusEligible: (_e = rule == null ? void 0 : rule.focusEligible) != null ? _e : false
     };
   }
+  function placeContainersBeforeContents(ordered) {
+    const result = [...ordered];
+    const ids = new Set(result.map((n) => n.id));
+    for (const container of ordered) {
+      let firstInside = -1;
+      result.forEach((node, index) => {
+        if (firstInside !== -1 || node.id === container.id) return;
+        let parent = node.parent;
+        while (parent && parent.type !== "PAGE" && parent.type !== "DOCUMENT") {
+          if (parent.id === container.id) {
+            firstInside = index;
+            return;
+          }
+          parent = parent.parent;
+        }
+      });
+      const containerIndex = result.indexOf(container);
+      if (firstInside !== -1 && containerIndex > firstInside && ids.has(container.id)) {
+        result.splice(containerIndex, 1);
+        result.splice(firstInside, 0, container);
+      }
+    }
+    return result;
+  }
   async function moveLastInsideContainers(ordered) {
     var _a2;
     const result = [...ordered];
@@ -1538,7 +1868,7 @@
   async function analyzeScreen(screenNode, forcedContext) {
     const inheritedParents = /* @__PURE__ */ new Map();
     const discovered = await discoverTopLevelComponents(screenNode, classifyComponent, inheritedParents);
-    const topLevelNodes = await moveLastInsideContainers(sortByReadingOrder(discovered));
+    const topLevelNodes = await moveLastInsideContainers(placeContainersBeforeContents(sortByReadingOrder(discovered)));
     const items = [];
     let coreWebCount = 0;
     let coreAppCount = 0;
@@ -1777,7 +2107,7 @@
       appendSized(textColumn, focusLine, { horizontal: "FILL" });
     }
     appendSized(row, header, { horizontal: "FILL", vertical: "HUG" });
-    const verbalizationLabel = createPlainText("Verbaliza\xE7\xE3o esperada:", LABEL_FONT, 12, TEXT_MUTED);
+    const verbalizationLabel = createPlainText("Verbaliza\xE7\xE3o:", LABEL_FONT, 12, TEXT_MUTED);
     appendSized(row, verbalizationLabel, { horizontal: "FILL" });
     const verbalizationText = createPlainText(
       item.verbalization.length > 0 ? item.verbalization : "\u2014",

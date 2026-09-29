@@ -79,6 +79,155 @@ export function listTextLayers(node: SceneNode): Array<{ camada: string; texto: 
   return findAllTexts(node).map((t) => ({ camada: t.name, texto: t.characters }));
 }
 
+/**
+ * Cada texto visível do componente como um item de lista (ex.: os
+ * níveis do Breadcrumb). Ignora textos que são só separador (">", "/",
+ * "›", "»", "|"), caso o separador seja uma camada de texto.
+ */
+export function extractTextList(node: SceneNode): string[] {
+  return findAllTexts(node)
+    .map((t) => t.characters.trim())
+    .filter((text) => !/^[>/›»|\-–—•·]+$/.test(text));
+}
+
+/** Tamanho da fonte da descrição nos componentes com título opcional (ex.: Flag). */
+const DESCRIPTION_FONT_SIZE = 14;
+
+/**
+ * Título (opcional) e descrição de componentes como a Flag. A
+ * descrição é o PRIMEIRO texto de 14px; o título é o texto que vem
+ * antes dela, se houver. Textos depois da descrição (ex.: o link) são
+ * ignorados. Sem nenhum texto de 14px, cai na posição (1º título,
+ * 2º descrição).
+ */
+export function extractTitleAndDescription(
+  node: SceneNode,
+  ownTextsOnly = false
+): { title?: string; description?: string } {
+  const texts = ownTextsOnly ? findOwnTexts(node) : findAllTexts(node);
+  const descriptionIndex = texts.findIndex((t) => t.fontSize === DESCRIPTION_FONT_SIZE);
+  if (descriptionIndex === -1) {
+    return { title: texts[0]?.characters, description: texts[1]?.characters };
+  }
+  return {
+    title: descriptionIndex > 0 ? texts[0].characters : undefined,
+    description: texts[descriptionIndex].characters
+  };
+}
+
+/**
+ * Textos visíveis do PRÓPRIO componente: não entra em instâncias
+ * internas (ex.: os botões do Header Product), que têm card próprio.
+ */
+export function findOwnTexts(node: SceneNode): TextNode[] {
+  const result: TextNode[] = [];
+  if (!("children" in node)) return result;
+  for (const child of node.children) {
+    if ("visible" in child && child.visible === false) continue;
+    if (child.type === "TEXT") {
+      if (child.characters.trim().length > 0) result.push(child);
+    } else if (child.type !== "INSTANCE" && "children" in child) {
+      result.push(...findOwnTexts(child));
+    }
+  }
+  return result;
+}
+
+/** Valores de variante que indicam a aba selecionada (sem acento/maiúscula). */
+const SELECTED_TAB_VALUES = ["select", "selected", "selecionado", "selecionada", "ativo", "ativa", "active"];
+
+/** Abas visíveis mais próximas dentro do componente (atravessa frames de layout). */
+function collectTabItems(node: SceneNode): (InstanceNode | ComponentNode)[] {
+  const items: (InstanceNode | ComponentNode)[] = [];
+  if (!("children" in node)) return items;
+  for (const child of node.children) {
+    if ("visible" in child && child.visible === false) continue;
+    if (child.type === "INSTANCE" || child.type === "COMPONENT") {
+      items.push(child);
+    } else if ("children" in child) {
+      items.push(...collectTabItems(child));
+    }
+  }
+  return items;
+}
+
+function isSelectedTab(item: InstanceNode | ComponentNode): boolean {
+  if (item.type !== "INSTANCE" || !item.componentProperties) return false;
+  for (const [name, property] of Object.entries(item.componentProperties)) {
+    const value = normalizeLayerName(String(property.value));
+    if (SELECTED_TAB_VALUES.includes(value)) return true;
+    // Propriedade booleana tipo "Selected: True".
+    const propertyName = normalizeLayerName(name.split("#")[0]);
+    if (value === "true" && SELECTED_TAB_VALUES.includes(propertyName)) return true;
+  }
+  return false;
+}
+
+/**
+ * Abas do componente Tab (2 a 7): texto de cada aba e se ela está no
+ * estado "Select", na ordem da esquerda para a direita (depois de cima
+ * para baixo). Sem abas-instância dentro, usa os textos, sem seleção.
+ */
+export function extractTabs(node: SceneNode): Array<{ label: string; selected: boolean; propriedades?: unknown }> {
+  const items = collectTabItems(node)
+    .map((item) => ({ item, label: findFirstText(item)?.characters.trim() ?? "" }))
+    .filter((entry) => entry.label.length > 0);
+  if (items.length === 0) {
+    return findAllTexts(node).map((t) => ({ label: t.characters.trim(), selected: false }));
+  }
+  const position = (n: SceneNode) => n.absoluteBoundingBox ?? { x: 0, y: 0 };
+  items.sort((a, b) => position(a.item).x - position(b.item).x || position(a.item).y - position(b.item).y);
+  return items.map(({ item, label }) => ({
+    label,
+    selected: isSelectedTab(item),
+    propriedades: item.type === "INSTANCE" ? item.componentProperties : undefined
+  }));
+}
+
+/**
+ * Textos do PRÓPRIO componente em cada placeholder: primeiro pelo nome
+ * da camada; os que não baterem, pela ordem dos textos restantes.
+ */
+export function extractOwnTextSlots(node: SceneNode, spec: Record<string, string[]>): Record<string, string> {
+  const own = findOwnTexts(node);
+  const result: Record<string, string> = {};
+  const used = new Set<number>();
+  own.forEach((textNode, index) => {
+    const layerName = normalizeLayerName(textNode.name);
+    for (const [slot, patterns] of Object.entries(spec)) {
+      if (result[slot] !== undefined) continue;
+      if (patterns.some((pattern) => layerName.includes(normalizeLayerName(pattern)))) {
+        result[slot] = textNode.characters;
+        used.add(index);
+        break;
+      }
+    }
+  });
+  const remaining = own.filter((_, index) => !used.has(index));
+  for (const slot of Object.keys(spec)) {
+    if (result[slot] === undefined && remaining.length > 0) {
+      result[slot] = remaining.shift()!.characters;
+    }
+  }
+  return result;
+}
+
+/** Texto do primeiro componente interno visível (ex.: o botão do Uploader). */
+export function findInnerInstanceText(node: SceneNode): string | undefined {
+  if (!("children" in node)) return undefined;
+  for (const child of node.children) {
+    if ("visible" in child && child.visible === false) continue;
+    if (child.type === "INSTANCE") {
+      const text = findFirstText(child);
+      if (text) return text.characters;
+    } else if ("children" in child) {
+      const found = findInnerInstanceText(child);
+      if (found !== undefined) return found;
+    }
+  }
+  return undefined;
+}
+
 /** O próprio node TEXT do primeiro texto utilizável (ex.: para ler o tamanho da fonte do Heading). */
 export function findFirstTextNode(node: SceneNode): TextNode | null {
   return findFirstText(node);

@@ -116,6 +116,47 @@ export interface AccessibilityRuleRecord {
    */
   cardPorItem?: boolean;
   /**
+   * NÃO vem da planilha — campo de extensão. Usado com extracaoTexto
+   * "abas" (ex.: Tab com 2 a 7 abas): uma linha por aba, na ordem da
+   * esquerda para a direita. [Label] = texto da aba, [Posição] = posição
+   * dela, [Total] = total de abas. A aba no estado "Select" usa
+   * `selecionada`; as demais usam `naoSelecionada`. O resultado entra
+   * no placeholder [abas].
+   */
+  formatoAbas?: { selecionada: string; naoSelecionada: string; separador?: string };
+  /**
+   * NÃO vem da planilha — campo de extensão. Com somenteFilhos: não lê
+   * textos soltos dentro deste contêiner — só os componentes
+   * reconhecidos viram cards (ex.: Fixed Bar → só os botões).
+   */
+  ignorarTextoSolto?: boolean;
+  /**
+   * NÃO vem da planilha — campo de extensão. Verbalização usada quando
+   * o componente NÃO tem título (extração "titulo-descricao" não achou
+   * título). Ex.: Flag sem título → "[Descrição], Link".
+   */
+  verbalizacaoSemTitulo?: string;
+  /**
+   * NÃO vem da planilha — campo de extensão. Na extração
+   * "titulo-descricao", lê só os textos do PRÓPRIO componente, sem
+   * entrar em componentes internos (ex.: o "x" do Button Icon do Alert
+   * não pode virar título nem descrição).
+   */
+  somenteTextosProprios?: boolean;
+  /**
+   * NÃO vem da planilha — campo de extensão. Verbalização usada quando
+   * o componente NÃO tem descrição (ex.: Header Product só com título).
+   */
+  verbalizacaoSemDescricao?: string;
+  /**
+   * NÃO vem da planilha — campo de extensão. Usado com extracaoTexto
+   * "lista": cada texto do componente é um item (ex.: cada nível do
+   * Breadcrumb, de 2 a 6). `item` formata os itens do meio, `ultimo`
+   * formata o último; [Label] é o texto do item. O resultado entra no
+   * placeholder [níveis] da verbalização.
+   */
+  formatoLista?: { item: string; ultimo: string; separador?: string };
+  /**
    * NÃO vem da planilha — campo de extensão. Preenche cada placeholder
    * com o texto da CAMADA de mesmo papel dentro do componente, achada
    * pelo NOME da camada (não pela posição). Chave = nome do placeholder
@@ -127,6 +168,21 @@ export interface AccessibilityRuleRecord {
    * texto, como antes).
    */
   textosPorCamada?: Record<string, string[]>;
+  /**
+   * NÃO vem da planilha — campo de extensão. Preenche placeholders com
+   * os textos do PRÓPRIO componente (sem entrar em componentes
+   * internos, ex.: o botão do Uploader). Primeiro pelo nome da camada
+   * (trechos listados); o que não bater é preenchido pela ORDEM dos
+   * textos, na ordem das chaves. Ex.: Uploader → label, descrição,
+   * helper text.
+   */
+  textosProprios?: Record<string, string[]>;
+  /**
+   * NÃO vem da planilha — campo de extensão. Placeholder preenchido com
+   * o texto do primeiro componente interno (ex.: o botão do Uploader →
+   * "label do botão").
+   */
+  textoDoBotao?: string;
   /**
    * NÃO vem da planilha — campo de extensão. Verbalização diferente
    * quando ESTE componente está dentro de um contêiner específico
@@ -155,7 +211,7 @@ export interface AccessibilityRuleRecord {
    * mesmo card) — posição fixa, não relacionada a tamanho de fonte.
    * Default: "primeiro".
    */
-  extracaoTexto?: "primeiro" | "todos" | "duas-posicoes" | "tres-posicoes";
+  extracaoTexto?: "primeiro" | "todos" | "duas-posicoes" | "tres-posicoes" | "lista" | "titulo-descricao" | "cabecalho" | "abas";
   /**
    * NÃO vem da planilha — campo de extensão. Traduz o NOME de uma
    * propriedade booleana do Figma (quando "true") para o rótulo de
@@ -205,7 +261,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "tipo": "Botão",
     "foco": "Sim",
     "verbalizacaoDentroDe": {
-      "Drawer": "Habilitado: “Fechar, botão.”\nDisabled: “Fechar, Indisponível, botão.”\nFocus: “Fechar, botão.”"
+      "Drawer": "Habilitado: “Fechar, botão.”\nDisabled: “Fechar, Indisponível, botão.”\nFocus: “Fechar, botão.”",
+      "Modal": "Fechar, Botão"
     }
   },
   {
@@ -292,7 +349,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Content",
     "componente": "Topic",
     "estados": "Estático, sem foco, hover ou desabilitado.",
-    "verbalizacaoEsperada": "Leitura do conteúdo.",
+    "verbalizacaoEsperada": "[Label]",
     "tipo": "Não interativo",
     "foco": "Não"
   },
@@ -352,7 +409,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "verbalizacaoEsperada": "Conteúdo conforme ordem lógica",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "extracaoTexto": "todos"
+    "somenteFilhos": true
   },
   {
     "categoria": "Content",
@@ -384,10 +441,15 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Content",
     "componente": "Table",
     "estados": "Default, Linhas selecionadas, Sem dados.",
-    "verbalizacaoEsperada": "Segue a documentação da tabela: link da documentação",
+    "verbalizacaoEsperada": "Segue a documentação da tabela:\nhttps://sicredi.atlassian.net/wiki/spaces/TCD/pages/556172391/Exemplos+de+especifica+es",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "links": [{"text": "link da documentação", "url": "https://confederacaosicredi.sharepoint.com/:w:/r/teams/nucleodeacessibilidade/Shared%20Documents/Especifica%C3%A7%C3%B5es%20Colmeia/Especificac%CC%A7%C3%B5es%20para%20tabela%20(Table).docx?d=w3d5f894400084c4c94753e09a8ad20d7&csf=1&web=1&e=gcqGDV"}]
+    "links": [
+      {
+        "text": "https://sicredi.atlassian.net/wiki/spaces/TCD/pages/556172391/Exemplos+de+especifica+es",
+        "url": "https://sicredi.atlassian.net/wiki/spaces/TCD/pages/556172391/Exemplos+de+especifica+es"
+      }
+    ]
   },
   {
     "categoria": "Containers",
@@ -415,7 +477,10 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "verbalizacaoEsperada": "Ordem lógica dos componentes. Icon button X: \"Fechar, botão\".",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "sempreAprofundar": true
+    "ultimosDentro": [
+      "Button Icon"
+    ],
+    "somenteFilhos": true
   },
   {
     "categoria": "Containers",
@@ -434,7 +499,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
     "extracaoTexto": "todos",
-    "sempreAprofundar": true
+    "somenteFilhos": true,
+    "ignorarTextoSolto": true
   },
   {
     "categoria": "Containers",
@@ -458,34 +524,38 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Feedback",
     "componente": "Alert",
     "estados": "Ativo e Encerrado.",
-    "verbalizacaoEsperada": "Ordem lógica dos componentes. Icon button X: \"Fechar, botão\".",
+    "verbalizacaoEsperada": "[Título], [Descrição], Fechar, botão",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "extracaoTexto": "todos"
+    "extracaoTexto": "titulo-descricao",
+    "verbalizacaoSemTitulo": "[Descrição], Fechar, botão",
+    "somenteTextosProprios": true
   },
   {
     "categoria": "Feedback",
     "componente": "Flag",
     "estados": "Estrutural; links internos herdam estados próprios.",
-    "verbalizacaoEsperada": "“[Título] [Description] [Label], link externo.”",
+    "verbalizacaoEsperada": "[Título], [Descrição], Link",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "extracaoTexto": "todos"
+    "extracaoTexto": "titulo-descricao",
+    "verbalizacaoSemTitulo": "[Descrição], Link"
   },
   {
     "categoria": "Feedback",
     "componente": "Flag Cooperado",
     "estados": "Estrutural e não interativo; links internos herdam estados.",
-    "verbalizacaoEsperada": "“[Título] [Description] [Label], link externo.”",
+    "verbalizacaoEsperada": "[Título], [Descrição], Link",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "extracaoTexto": "todos"
+    "extracaoTexto": "titulo-descricao",
+    "verbalizacaoSemTitulo": "[Descrição], Link"
   },
   {
     "categoria": "Feedback",
     "componente": "Toast",
     "estados": "Exibido e Oculto.",
-    "verbalizacaoEsperada": "\"[label] link externo, fechar,botão\".",
+    "verbalizacaoEsperada": "\"[label]. Link, Fechar, Botão\".",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos"
   },
@@ -493,10 +563,9 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Feedback",
     "componente": "Tooltip",
     "estados": "Inativo: Tooltip não visível.\n\nAtivo: Tooltip visível por hover ou foco.",
-    "verbalizacaoEsperada": "\"[Description]\"\n",
+    "verbalizacaoEsperada": "[Label]",
     "tipo": "Não interativo",
-    "foco": "Não",
-    "extracaoTexto": "todos"
+    "foco": "Não"
   },
   {
     "categoria": "Inputs",
@@ -575,23 +644,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Input Date",
     "estados": "Padrão: campo vazio e pronto para entrada.\n\nAberto: exibe o calendário de seleção de data.\n\nFoco: realce visual e leitura de rótulo pelo leitor de tela.\n\nPreenchido: exibe a data inserida ou selecionada.\n\nErro: campo marcado com mensagem de erro associada exibida no texto de suporte.\n\nDesativado: campo inativ e com interação bloqueada",
-    "verbalizacaoEsperada": "Recolhido: \"[Label],[Mascara],[Helper text], campo de edição,calendário,recolhido, botão\" Expandido: [Label],[Mascara],[Helper text], campo de edição,expandido,botão \"",
-    "tipo": "Entrada",
-    "foco": "Sim"
-  },
-  {
-    "categoria": "Inputs",
-    "componente": "Input Password",
-    "estados": "Habilitado, Focus, Filled, Error, Disabled.",
-    "verbalizacaoEsperada": "Olho aberto/valor oculto: \"[Label],[Mascara],[Helper text], campo de edição, mostrar senha, botão\"                                                                                                                                                             Olho fechado/valor visível: \"[Label],[Mascara],[Helper text], campo de edição, ocultar senha, botão\" ",
-    "tipo": "Entrada",
-    "foco": "Sim"
-  },
-  {
-    "categoria": "Inputs",
-    "componente": "Input Select",
-    "estados": "Default, Filled, Hover, Active, Error, Disabled.",
-    "verbalizacaoEsperada": "Recolhido: \"[Label],[Mascara],[Helper text], campo de edição,recolhido, botão\" Expandido: \"[Label],[Mascara],[Helper text], campo de edição, expandido, botão\"",
+    "verbalizacaoEsperada": "Recolhido: \"[Label],[Placeholder],[Helper text], campo de edição,calendário,recolhido, botão\" Expandido: \"[Label],[Placeholder],[Helper text], campo de edição,expandido,botão\"",
     "tipo": "Entrada",
     "foco": "Sim",
     "textosPorCamada": {
@@ -599,17 +652,64 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
         "label",
         "rotulo"
       ],
-      "mascara": [
-        "mascara",
-        "mask",
-        "value",
-        "valor",
+      "placeholder": [
         "placeholder"
       ],
       "helper text": [
-        "helper",
+        "help",
         "texto de apoio",
         "texto de ajuda",
+        "texto de suporte",
+        "suporte",
+        "support"
+      ]
+    }
+  },
+  {
+    "categoria": "Inputs",
+    "componente": "Input Password",
+    "estados": "Habilitado, Focus, Filled, Error, Disabled.",
+    "verbalizacaoEsperada": "Olho aberto/valor oculto: \"[Label],[Placeholder],[Helper text], campo de edição, mostrar senha, botão\" Olho fechado/valor visível: \"[Label],[Placeholder],[Helper text], campo de edição, ocultar senha, botão\"",
+    "tipo": "Entrada",
+    "foco": "Sim",
+    "textosPorCamada": {
+      "label": [
+        "label",
+        "rotulo"
+      ],
+      "placeholder": [
+        "placeholder"
+      ],
+      "helper text": [
+        "help",
+        "texto de apoio",
+        "texto de ajuda",
+        "texto de suporte",
+        "suporte",
+        "support"
+      ]
+    }
+  },
+  {
+    "categoria": "Inputs",
+    "componente": "Input Select",
+    "estados": "Default, Filled, Hover, Active, Error, Disabled.",
+    "verbalizacaoEsperada": "Recolhido: \"[Label],[Placeholder],[Helper text], campo de edição,recolhido, botão\" Expandido: \"[Label],[Placeholder],[Helper text], campo de edição, expandido, botão\"",
+    "tipo": "Entrada",
+    "foco": "Sim",
+    "textosPorCamada": {
+      "label": [
+        "label",
+        "rotulo"
+      ],
+      "placeholder": [
+        "placeholder"
+      ],
+      "helper text": [
+        "help",
+        "texto de apoio",
+        "texto de ajuda",
+        "texto de suporte",
         "suporte",
         "support"
       ]
@@ -631,9 +731,10 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
         "placeholder"
       ],
       "helper text": [
-        "helper",
+        "help",
         "texto de apoio",
         "texto de ajuda",
+        "texto de suporte",
         "suporte",
         "support"
       ]
@@ -661,9 +762,10 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
         "character"
       ],
       "helper text": [
-        "helper",
+        "help",
         "texto de apoio",
         "texto de ajuda",
+        "texto de suporte",
         "suporte",
         "support"
       ]
@@ -675,7 +777,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "estados": "Herda do seletor interno: Hover, Focus, Checked, Unchecked, Disabled etc.",
     "verbalizacaoEsperada": "Ordem lógica dos componentes com suas devidas semânticas",
     "tipo": "Entrada",
-    "foco": "Sim"
+    "foco": "Sim",
+    "somenteFilhos": true
   },
   {
     "categoria": "Inputs",
@@ -683,7 +786,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "estados": "Padrão.",
     "verbalizacaoEsperada": "Ordem lógica dos componentes.",
     "tipo": "Estrutura",
-    "foco": "Apenas elementos interativos"
+    "foco": "Apenas elementos interativos",
+    "somenteFilhos": true
   },
   {
     "categoria": "Inputs",
@@ -691,7 +795,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "estados": "Padrão.",
     "verbalizacaoEsperada": "Ordem lógica dos componentes.",
     "tipo": "Estrutura",
-    "foco": "Apenas elementos interativos"
+    "foco": "Apenas elementos interativos",
+    "somenteFilhos": true
   },
   {
     "categoria": "Inputs",
@@ -713,9 +818,19 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Search",
     "estados": "Habilitado/Focus, Hover, Filled;",
-    "verbalizacaoEsperada": "\"[Placeholder],campo de busca,[rótulo], botão\"",
+    "verbalizacaoEsperada": "[Placeholder], Campo de Busca, Botão",
     "tipo": "Entrada",
-    "foco": "Sim"
+    "foco": "Sim",
+    "textosPorCamada": {
+      "placeholder": [
+        "placeholder",
+        "value",
+        "valor",
+        "conteudo",
+        "texto",
+        "text"
+      ]
+    }
   },
   {
     "categoria": "Inputs",
@@ -729,9 +844,31 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Uploader",
     "estados": "Default: campo está habilitado e aguardando o envio do arquivo.\n\nActive: campo recebeu o foco e está com destaque visual.\n\nLoading: upload em andamento.\n\nCompleted: upload finalizado.\n\nError: falha no envio ou validação.",
-    "verbalizacaoEsperada": "Default: \"[Label],[Descrição], [helper text],[Label do botão] botão.  Loading: \"Label], Carregando\"\nError:\"[Label],[helper text],excluir arquivo, botão. Complete:\"[Label],[helper text],[rótulo acessível], botão. ",
+    "verbalizacaoEsperada": "Default: \"[Label], [Descrição], [helper text], [Label do botão] botão.\"\nLoading: \"[Label], Carregando\"\nError: \"[Label], [helper text], excluir arquivo, botão.\"\nComplete: \"[Label], [helper text], Remover arquivo, botão.\"",
     "tipo": "Entrada",
-    "foco": "Sim"
+    "foco": "Sim",
+    "textosProprios": {
+      "label": [
+        "label",
+        "rotulo",
+        "titulo",
+        "title"
+      ],
+      "descricao": [
+        "descri"
+      ],
+      "helper text": [
+        "help",
+        "suporte",
+        "support",
+        "apoio"
+      ]
+    },
+    "textoDoBotao": "label do botao",
+    "stateFlagAliases": {
+      "Completed": "Complete",
+      "Active": "Default"
+    }
   },
   {
     "categoria": "Navigation",
@@ -753,16 +890,21 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Navigation",
     "componente": "Breadcrumb",
     "estados": "Links habilitados; página atual.",
-    "verbalizacaoEsperada": " \"[Label] link, [Label] link,[Label] página atual\"\n",
+    "verbalizacaoEsperada": "[níveis]",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "extracaoTexto": "todos"
+    "extracaoTexto": "lista",
+    "formatoLista": {
+      "item": "[Label] Link",
+      "ultimo": "[Label] Página atual",
+      "separador": ", "
+    }
   },
   {
     "categoria": "Navigation",
     "componente": "Carousel Nav",
     "estados": "Herda de Page Indicator e Button Icon.",
-    "verbalizacaoEsperada": "O leitor de tela anuncia os botões como controles de navegação.\n\nExemplo: “Carrossel. 3 itens. Item 1 de 3. Próximo item, botão.”",
+    "verbalizacaoEsperada": "O leitor de tela anuncia os botões como controles de navegação.\n\nExemplo: “Carrossel. 3 itens. Item 1 de 3. Próximo, botão.”",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos"
   },
@@ -779,11 +921,12 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Navigation",
     "componente": "Header Product",
     "estados": "Estrutural; elementos internos possuem estados próprios.",
-    "verbalizacaoEsperada": "\"[Título], [Nível], [Descrição], [Label acessível] botão. Flow: \"[Alt-text]\"",
+    "verbalizacaoEsperada": "\"[Título], Título de nível [ordem lógica], [Descrição]\". Flow: \"[Alt-text]\"",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "extracaoTexto": "todos",
-    "sempreAprofundar": true
+    "extracaoTexto": "cabecalho",
+    "sempreAprofundar": true,
+    "verbalizacaoSemDescricao": "\"[Título], Título de nível [ordem lógica]\". Flow: \"[Alt-text]\""
   },
   {
     "categoria": "Navigation",
@@ -792,7 +935,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "verbalizacaoEsperada": "Conteúdo conforme ordem lógica\n",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "extracaoTexto": "todos"
+    "somenteFilhos": true
   },
   {
     "categoria": "Navigation",
@@ -806,10 +949,15 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Navigation",
     "componente": "Tab",
     "estados": "Selecionada e Não selecionada.",
-    "verbalizacaoEsperada": "Selecionada:\"[Rótulo], guia selecionado, [Posição]\" Não seleciona:\"[Rótulo], guia não selecionado, [Posição]\"",
+    "verbalizacaoEsperada": "[abas]",
     "tipo": "Botão",
     "foco": "Sim",
-    "extracaoTexto": "todos"
+    "extracaoTexto": "abas",
+    "formatoAbas": {
+      "selecionada": "[Label], Guia selecionado, Posição [Posição] de [Total]",
+      "naoSelecionada": "Não selecionado: [Label], Guia não selecionado, Posição [Posição] de [Total]",
+      "separador": "\n"
+    }
   },
   {
     "categoria": "Status",
@@ -855,7 +1003,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Status",
     "componente": "Tag Icon",
     "estados": "Estático e não interativo.",
-    "verbalizacaoEsperada": "Label",
+    "verbalizacaoEsperada": "[Label]",
     "tipo": "Não interativo",
     "foco": "Não"
   }

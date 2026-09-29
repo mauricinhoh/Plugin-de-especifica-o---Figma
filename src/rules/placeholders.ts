@@ -80,7 +80,16 @@ const PLACEHOLDER_RESOLVERS: Record<string, PlaceholderResolver> = {
   // Só existe em `extractedData.nivel` quando o node é um TEXT solto
   // reconhecido como título; para os demais casos o placeholder
   // simplesmente não resolve (fica como está, sem inventar nível).
-  "ordem logica": (data) => data.nivel
+  "ordem logica": (data) => data.nivel,
+  // Lista já formatada item a item (ex.: níveis do Breadcrumb) — ver
+  // computeVerbalization em engine.ts.
+  niveis: (data) => data.niveis,
+  // Abas já formatadas (ex.: Tab) e, dentro de cada linha, a posição e
+  // o total — ver computeVerbalization em engine.ts. Só existem durante
+  // a montagem das abas; fora disso não resolvem.
+  abas: (data) => data.abas,
+  posicao: (data) => data.posicao,
+  total: (data) => data.total
   // Deliberadamente SEM resolver (ficam como template editável):
   // "placeholder", "conteudo preenchido", "texto de suporte",
   // "texto de apoio", "heading", "mensagem", "mensagem de erro",

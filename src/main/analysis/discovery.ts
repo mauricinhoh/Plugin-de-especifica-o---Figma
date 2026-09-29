@@ -32,7 +32,13 @@ const IGNORED_COMPONENT_NAMES = [
  */
 export type ComponentClassifier = (
   node: InstanceNode | ComponentNode | TextNode
-) => Promise<{ recognized: boolean; alwaysDescend: boolean; childrenOnly?: boolean; cardPerItem?: boolean }>;
+) => Promise<{
+  recognized: boolean;
+  alwaysDescend: boolean;
+  childrenOnly?: boolean;
+  cardPerItem?: boolean;
+  ignoreLooseText?: boolean;
+}>;
 
 /**
  * Percorre a árvore a partir do node da tela selecionada e decide,
@@ -126,7 +132,7 @@ export async function discoverTopLevelComponents(
     let nextInsideRecognizedContainer = insideRecognizedContainer;
 
     if (shouldClassify) {
-      const { recognized, alwaysDescend, childrenOnly, cardPerItem } = await classify(
+      const { recognized, alwaysDescend, childrenOnly, cardPerItem, ignoreLooseText } = await classify(
         node as InstanceNode | ComponentNode | TextNode
       );
       if (recognized && cardPerItem && (node.type === "INSTANCE" || node.type === "COMPONENT")) {
@@ -145,9 +151,16 @@ export async function discoverTopLevelComponents(
         return;
       }
       if (recognized && childrenOnly) {
-        // Reconhecido, mas SEM card próprio (ex.: Button Group): só
-        // desce, e cada componente reconhecido lá dentro vira seu card.
-        nextInsideRecognizedContainer = true;
+        // Reconhecido, mas SEM card próprio (ex.: Button Group, Drawer):
+        // só desce, e cada componente reconhecido lá dentro vira seu
+        // card. NÃO marca "dentro de contêiner reconhecido": como esse
+        // contêiner não tem card, nada captura os textos soltos dele —
+        // eles precisam continuar sendo lidos (regra do título solto).
+        // Exceção: contêineres marcados para ignorar texto solto (ex.:
+        // Fixed Bar — só os botões viram cards).
+        if (ignoreLooseText) {
+          nextInsideRecognizedContainer = true;
+        }
       } else if (recognized) {
         found.push(node as InstanceNode | ComponentNode | TextNode);
         if (!alwaysDescend) {

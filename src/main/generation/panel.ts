@@ -183,7 +183,7 @@ async function createEntryRow(
   appendSized(row, header, { horizontal: "FILL", vertical: "HUG" });
 
   // Verbalização esperada, abaixo do cabeçalho.
-  const verbalizationLabel = createPlainText("Verbalização esperada:", LABEL_FONT, 12, TEXT_MUTED);
+  const verbalizationLabel = createPlainText("Verbalização:", LABEL_FONT, 12, TEXT_MUTED);
   appendSized(row, verbalizationLabel, { horizontal: "FILL" });
 
   const verbalizationText = createPlainText(

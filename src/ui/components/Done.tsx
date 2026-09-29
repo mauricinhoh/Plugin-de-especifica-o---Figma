@@ -1,4 +1,5 @@
 import React from "react";
+import { SHOW_DOCX_DOWNLOAD } from "../featureFlags";
 import { TitleBar } from "./TitleBar";
 import { Button } from "./Button";
 import { Icon } from "./Icon";
@@ -73,9 +74,11 @@ export function Done({ summary, onViewOnCanvas, onNewSpecification, onClose, onD
         <Button variant="primary" fullWidth onClick={onViewOnCanvas}>
           Ver no canvas
         </Button>
-        <Button variant="secondary" fullWidth onClick={onDownloadDocx} icon={<Icon name="download" size={15} />}>
-          Baixar histórico (.docx)
-        </Button>
+        {SHOW_DOCX_DOWNLOAD && (
+          <Button variant="secondary" fullWidth onClick={onDownloadDocx} icon={<Icon name="download" size={15} />}>
+            Baixar histórico (.docx)
+          </Button>
+        )}
         <Button variant="secondary" fullWidth onClick={onNewSpecification}>
           Nova especificação
         </Button>

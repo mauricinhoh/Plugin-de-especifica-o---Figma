@@ -50,7 +50,7 @@ export function Card({
   const bodyId = `card-body-${item.id}`;
   const selectedOption = options.find((o) => o.key === item.markupType);
   const isDesignerNotes = item.markupType === DESIGNER_NOTES_MARKUP_TYPE;
-  const verbalizationLabel = isDesignerNotes ? "Escreva sua observação" : "Verbalização esperada";
+  const verbalizationLabel = isDesignerNotes ? "Escreva sua observação" : "Verbalização";
   const overLimit = item.verbalization.length > CHAR_LIMIT;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 

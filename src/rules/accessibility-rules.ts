@@ -207,7 +207,15 @@ function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<Extracted
           ? "first-two-texts"
           : record.extracaoTexto === "tres-posicoes"
             ? "first-three-texts"
-            : "first-text"
+            : record.extracaoTexto === "lista"
+              ? "item-list"
+              : record.extracaoTexto === "titulo-descricao"
+                ? "title-description"
+                : record.extracaoTexto === "cabecalho"
+                  ? "header"
+                  : record.extracaoTexto === "abas"
+                    ? "tabs"
+                    : "first-text"
     ],
     template: hasTemplate ? rawTemplate : undefined,
     states: statesMap,
@@ -215,7 +223,15 @@ function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<Extracted
     alwaysDescend: record.sempreAprofundar ?? false,
     childrenOnly: record.somenteFilhos ?? false,
     cardPerItem: record.cardPorItem ?? false,
+    ignoreLooseText: record.ignorarTextoSolto ?? false,
+    listFormat: record.formatoLista,
+    tabFormat: record.formatoAbas,
+    templateWithoutTitle: record.verbalizacaoSemTitulo,
+    ownTextsOnly: record.somenteTextosProprios ?? false,
+    templateWithoutDescription: record.verbalizacaoSemDescricao,
     textsByLayerName: record.textosPorCamada,
+    ownTextSlots: record.textosProprios,
+    innerButtonTextPlaceholder: record.textoDoBotao,
     variantsInsideContainer: buildVariantsInsideContainer(record),
     lastInside: record.ultimosDentro,
     stateFlagAliases: record.stateFlagAliases,

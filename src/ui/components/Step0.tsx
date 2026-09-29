@@ -1,4 +1,5 @@
 import React from "react";
+import { SHOW_DOCX_DOWNLOAD } from "../featureFlags";
 import { TitleBar } from "./TitleBar";
 import { ChoiceCard, Button } from "./Button";
 import { Icon } from "./Icon";
@@ -63,7 +64,7 @@ export function Step0({
           />
         </div>
 
-        {hasUsageHistory && (
+        {SHOW_DOCX_DOWNLOAD && hasUsageHistory && (
           <div style={{ marginTop: 16 }}>
             <Button variant="secondary" fullWidth onClick={onDownloadDocx} icon={<Icon name="download" size={15} />}>
               Baixar histórico desta página (.docx)

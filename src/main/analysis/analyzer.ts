@@ -16,7 +16,13 @@ import {
   extractFirstThreeTexts,
   extractFirstTwoTexts,
   extractTextsByLayerName,
+  extractOwnTextSlots,
+  findInnerInstanceText,
+  extractTextList,
+  extractTabs,
+  extractTitleAndDescription,
   findFirstTextNode,
+  findOwnTexts,
   listTextLayers
 } from "./textExtraction";
 import { extractVariantProperties } from "./stateExtraction";
@@ -39,9 +45,24 @@ import { findCoreIncompatibilities } from "./validation";
  */
 async function classifyComponent(
   node: InstanceNode | ComponentNode | TextNode
-): Promise<{ recognized: boolean; alwaysDescend: boolean; childrenOnly?: boolean; cardPerItem?: boolean }> {
+): Promise<{
+  recognized: boolean;
+  alwaysDescend: boolean;
+  childrenOnly?: boolean;
+  cardPerItem?: boolean;
+  ignoreLooseText?: boolean;
+}> {
   if (node.type === "TEXT") {
     const headingLevel = detectHeadingLevelFromFontSize(node);
+    if (headingLevel === null && DEBUG_TEXT_LAYERS && node.characters.trim().length > 0) {
+      // Texto solto ignorado porque o tamanho não está na tabela de
+      // títulos — mostra o tamanho real para ajustar a tabela.
+      console.log("[texto-solto-ignorado-debug]", {
+        texto: node.characters,
+        camada: node.name,
+        tamanhoDaFonte: node.fontSize === figma.mixed ? "misto" : node.fontSize
+      });
+    }
     return { recognized: headingLevel !== null, alwaysDescend: false };
   }
   const componentName = await resolveComponentName(node);
@@ -50,7 +71,8 @@ async function classifyComponent(
     recognized: rule !== undefined,
     alwaysDescend: rule?.alwaysDescend ?? false,
     childrenOnly: rule?.childrenOnly ?? false,
-    cardPerItem: rule?.cardPerItem ?? false
+    cardPerItem: rule?.cardPerItem ?? false,
+    ignoreLooseText: rule?.ignoreLooseText ?? false
   };
 }
 
@@ -175,6 +197,44 @@ async function buildSpecificationItem(
     if (text !== undefined) {
       extractedData.text = text;
     }
+  } else if (rule?.extraction.includes("tabs")) {
+    const tabs = extractTabs(node);
+    if (tabs.length > 0) {
+      extractedData.abas = JSON.stringify(tabs.map(({ label, selected }) => ({ label, selected })));
+      extractedData.text = tabs.map((t) => t.label).join(", ");
+    }
+    if (DEBUG_TEXT_LAYERS) {
+      // Se nenhuma aba sair como selecionada, este log mostra as
+      // propriedades reais de cada aba no Figma para ajustar a regra.
+      console.log("[tab-debug]", { nodeName: node.name, abas: tabs });
+    }
+  } else if (rule?.extraction.includes("header")) {
+    // Cabeçalho (ex.: Header Product): 1º texto próprio = título (com
+    // nível pelo tamanho da fonte), 2º = descrição. Textos de botões e
+    // outras instâncias internas ficam de fora (têm card próprio).
+    const ownTexts = findOwnTexts(node);
+    if (ownTexts[0]) {
+      extractedData.text = ownTexts[0].characters;
+      const level = detectHeadingLevelFromFontSize(ownTexts[0]);
+      if (level) extractedData.nivel = level;
+    }
+    if (ownTexts[1]) {
+      extractedData.text2 = ownTexts[1].characters;
+    }
+  } else if (rule?.extraction.includes("title-description")) {
+    const { title, description } = extractTitleAndDescription(node, rule.ownTextsOnly);
+    if (title !== undefined) {
+      extractedData.text = title;
+    }
+    if (description !== undefined) {
+      extractedData.text2 = description;
+    }
+  } else if (rule?.extraction.includes("item-list")) {
+    const list = extractTextList(node);
+    if (list.length > 0) {
+      extractedData.lista = JSON.stringify(list);
+      extractedData.text = list.join(", ");
+    }
   } else if (rule?.extraction.includes("first-two-texts")) {
     const { first, second } = extractFirstTwoTexts(node);
     if (first !== undefined) {
@@ -203,6 +263,23 @@ async function buildSpecificationItem(
 
   // Textos achados pelo NOME da camada (ex.: Label, Placeholder, Helper
   // text dos Inputs) — cada um vai para o seu placeholder.
+  // Textos do próprio componente + texto do botão interno (ex.: Uploader).
+  if (!isTextNode && rule?.ownTextSlots) {
+    const slots = extractOwnTextSlots(node, rule.ownTextSlots);
+    for (const [placeholder, value] of Object.entries(slots)) {
+      extractedData[`camada:${placeholder}`] = value;
+    }
+    if (DEBUG_TEXT_LAYERS) {
+      console.log("[own-texts-debug]", { nodeName: node.name, ruleKey: rule.key, camadasDeTexto: listTextLayers(node), preenchidos: slots });
+    }
+  }
+  if (!isTextNode && rule?.innerButtonTextPlaceholder) {
+    const buttonText = findInnerInstanceText(node);
+    if (buttonText !== undefined) {
+      extractedData[`camada:${rule.innerButtonTextPlaceholder}`] = buttonText;
+    }
+  }
+
   if (!isTextNode && rule?.textsByLayerName) {
     const byLayer = extractTextsByLayerName(node, rule.textsByLayerName);
     for (const [placeholder, value] of Object.entries(byLayer)) {
@@ -260,6 +337,38 @@ async function buildSpecificationItem(
  * DEPOIS da ordenação espacial: os itens marcados são tirados de onde
  * caíram e recolocados logo após o último item daquele contêiner.
  */
+/**
+ * Um componente que tem card E itens com card dentro dele (ex.: Header
+ * Product com botões) é lido ANTES do que está dentro dele. A ordem
+ * espacial usa o centro de cada elemento, e o centro de um contêiner
+ * alto fica abaixo dos itens do topo — sem isso, o título do Header
+ * Product viria depois dos botões.
+ */
+function placeContainersBeforeContents<T extends SceneNode>(ordered: T[]): T[] {
+  const result = [...ordered];
+  const ids = new Set(result.map((n) => n.id));
+  for (const container of ordered) {
+    let firstInside = -1;
+    result.forEach((node, index) => {
+      if (firstInside !== -1 || node.id === container.id) return;
+      let parent = node.parent;
+      while (parent && parent.type !== "PAGE" && parent.type !== "DOCUMENT") {
+        if (parent.id === container.id) {
+          firstInside = index;
+          return;
+        }
+        parent = parent.parent;
+      }
+    });
+    const containerIndex = result.indexOf(container);
+    if (firstInside !== -1 && containerIndex > firstInside && ids.has(container.id)) {
+      result.splice(containerIndex, 1);
+      result.splice(firstInside, 0, container);
+    }
+  }
+  return result;
+}
+
 async function moveLastInsideContainers<T extends SceneNode>(ordered: T[]): Promise<T[]> {
   const result = [...ordered];
 
@@ -310,7 +419,7 @@ export async function analyzeScreen(
   // Numeração pela posição real no canvas (leitura em "Z"), não pela
   // ordem das camadas no arquivo — pedido explícito após testes reais
   // com arquivos organizados de forma inconsistente nas camadas.
-  const topLevelNodes = await moveLastInsideContainers(sortByReadingOrder(discovered));
+  const topLevelNodes = await moveLastInsideContainers(placeContainersBeforeContents(sortByReadingOrder(discovered)));
 
   const items: SpecificationItem[] = [];
   let coreWebCount = 0;
