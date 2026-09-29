@@ -237,7 +237,7 @@
       "categoria": "Action",
       "componente": "Button Group",
       "estados": "Habilitado, Foco, Desabilitado e Loading. O grupo em si n\xE3o possui estados pr\xF3prios.",
-      "verbalizacaoEsperada": "Default: \u201C[Label], Bot\xE3o\u201D.\nBot\xE3o desabilitado: \u201C[Label], indispon\xEDvel, bot\xE3o\u201D.\nHabilitado: \u201C[Label], Bot\xE3o\u201D.\nLoading: \u201CCarregando\u201D ",
+      "verbalizacaoEsperada": "Default: \u201C[Label], Bot\xE3o\u201D.\nBot\xE3o desabilitado: \u201C[Label], Indispon\xEDvel, Bot\xE3o\u201D.\nHabilitado: \u201C[Label], Bot\xE3o\u201D.\nLoading: \u201CCarregando\u201D ",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
       "somenteFilhos": true
@@ -246,11 +246,11 @@
       "categoria": "Action",
       "componente": "Button Icon",
       "estados": "Habilitado, Disabled, Focus, Hover.",
-      "verbalizacaoEsperada": "Habilitado: \u201C[Label], bot\xE3o.\u201D\nDisabled: \u201C[Label], Indispon\xEDvel, bot\xE3o.\u201D\nFocus: \u201C[Label], bot\xE3o.\u201D\n",
+      "verbalizacaoEsperada": "Habilitado: \u201C[Label], Bot\xE3o.\u201D\nDisabled: \u201C[Label], Indispon\xEDvel, Bot\xE3o.\u201D\nFocus: \u201C[Label], Bot\xE3o.\u201D\n",
       "tipo": "Bot\xE3o",
       "foco": "Sim",
       "verbalizacaoDentroDe": {
-        "Drawer": "Habilitado: \u201CFechar, bot\xE3o.\u201D\nDisabled: \u201CFechar, Indispon\xEDvel, bot\xE3o.\u201D\nFocus: \u201CFechar, bot\xE3o.\u201D",
+        "Drawer": "Habilitado: \u201CFechar, Bot\xE3o.\u201D\nDisabled: \u201CFechar, Indispon\xEDvel, Bot\xE3o.\u201D\nFocus: \u201CFechar, Bot\xE3o.\u201D",
         "Modal": "Fechar, Bot\xE3o"
       }
     },
@@ -258,7 +258,7 @@
       "categoria": "Action",
       "componente": "Button Mini",
       "estados": "Habilitado, Disabled, Focus, Hover.",
-      "verbalizacaoEsperada": "Habilitado: \u201C[Label], bot\xE3o.\u201D\nDisabled: \u201C[Label] Indispon\xEDvel, bot\xE3o.\u201D\nFocus: \u201C[Label], bot\xE3o.\u201D",
+      "verbalizacaoEsperada": "Habilitado: \u201C[Label], Bot\xE3o.\u201D\nDisabled: \u201C[Label] Indispon\xEDvel, Bot\xE3o.\u201D\nFocus: \u201C[Label], Bot\xE3o.\u201D",
       "tipo": "Bot\xE3o",
       "foco": "Sim"
     },
@@ -266,7 +266,7 @@
       "categoria": "Action",
       "componente": "Button Primary",
       "estados": "Habilitado, Hover, Focus, Loading, Disabled.",
-      "verbalizacaoEsperada": "Habilitado/Focus: \u201C[Label], bot\xE3o\u201D.\nLoading macOS: \u201Ccarregando\u201D.\nLoading Windows: \u201C[Carregando]\u201D.\nDisabled macOS: \u201C[Label], Escurecido, Bot\xE3o\u201D.\nDisabled Windows: \u201C[Label]Indispon\xEDvel, bot\xE3o\u201D.",
+      "verbalizacaoEsperada": "Habilitado/Focus: \u201C[Label], Bot\xE3o\u201D.\nLoading macOS: \u201CCarregando\u201D.\nLoading Windows: \u201C[Carregando]\u201D.\nDisabled macOS: \u201C[Label], Escurecido, Bot\xE3o\u201D.\nDisabled Windows: \u201C[Label] Indispon\xEDvel, Bot\xE3o\u201D.",
       "tipo": "Bot\xE3o",
       "foco": "Sim"
     },
@@ -274,7 +274,7 @@
       "categoria": "Action",
       "componente": "Button Secondary",
       "estados": "Habilitado, Hover, Focus, Loading, Disabled.",
-      "verbalizacaoEsperada": "Habilitado/Focus: \u201C[Label], bot\xE3o\u201D.\nLoading macOS: \u201Ccarregando\u201D.\nLoading Windows: \u201C[Carregando]\u201D.\nDisabled macOS: \u201C[Label], Escurecido, Bot\xE3o\u201D.\nDisabled Windows: \u201C[Label]Indispon\xEDvel, bot\xE3o\u201D.",
+      "verbalizacaoEsperada": "Habilitado/Focus: \u201C[Label], Bot\xE3o\u201D.\nLoading macOS: \u201CCarregando\u201D.\nLoading Windows: \u201C[Carregando]\u201D.\nDisabled macOS: \u201C[Label], Escurecido, Bot\xE3o\u201D.\nDisabled Windows: \u201C[Label] Indispon\xEDvel, Bot\xE3o\u201D.",
       "tipo": "Bot\xE3o",
       "foco": "Sim"
     },
@@ -282,7 +282,7 @@
       "categoria": "Action",
       "componente": "Shortcut",
       "estados": "Habilitado, Focus, Hover, Disabled.",
-      "verbalizacaoEsperada": "Habilitado/Focus: \u201C[Label], link.\u201D\nDisabled: \u201C[Label], indispon\xEDvel, Link.\u201D",
+      "verbalizacaoEsperada": "Habilitado/Focus: \u201C[Label], Link.\u201D\nDisabled: \u201C[Label], Indispon\xEDvel, Link.\u201D",
       "tipo": "Link",
       "foco": "Sim"
     },
@@ -298,7 +298,7 @@
       "categoria": "Action",
       "componente": "Link Icon",
       "estados": "Habilitado, Focus, Hover.",
-      "verbalizacaoEsperada": "Habilitado/Focus: \u201C[Label], link.\u201D\nExterno: \u201C[Label], link externo.\u201D",
+      "verbalizacaoEsperada": "Habilitado/Focus: \u201C[Label], Link.\u201D\nExterno: \u201C[Label], Link externo.\u201D",
       "tipo": "Link",
       "foco": "Sim"
     },
@@ -346,7 +346,7 @@
       "categoria": "Content",
       "componente": "Brand",
       "estados": "Est\xE1tico; quando usado como link, possui intera\xE7\xE3o.",
-      "verbalizacaoEsperada": 'Quando ilustrativo: "Logo Sicredi." Quando link: "Tela inicial do Internet banking do Sicredi, link"',
+      "verbalizacaoEsperada": 'Quando ilustrativo: "Logo Sicredi." Quando link: "Tela inicial do Internet banking do Sicredi, Link"',
       "tipo": "Imagem",
       "foco": "N\xE3o"
     },
@@ -362,7 +362,7 @@
       "categoria": "Content",
       "componente": "Empty State",
       "estados": "Est\xE1tico; bot\xE3o interno segue Button Primary.",
-      "verbalizacaoEsperada": 'Verbaliza cada componente separadamente. T\xEDtulo: "[T\xEDtulo com hierarquia l\xF3gica]" Descri\xE7\xE3o: "[Leitura do conte\xFAdo]", Button primary: "[r\xF3tulo do bot\xE3o], bot\xE3o"',
+      "verbalizacaoEsperada": 'Verbaliza cada componente separadamente. T\xEDtulo: "[T\xEDtulo com hierarquia l\xF3gica]" Descri\xE7\xE3o: "[Leitura do conte\xFAdo]", Button primary: "[r\xF3tulo do bot\xE3o], Bot\xE3o"',
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
       "extracaoTexto": "tres-posicoes"
@@ -453,17 +453,19 @@
       "categoria": "Containers",
       "componente": "Banner Image Full",
       "estados": "Habilitado, Focus, Hover, relacionados \xE0 a\xE7\xE3o.",
-      "verbalizacaoEsperada": "[label do T\xEDtulo], [label da descri\xE7\xE3o],[r\xF3tulo do bot\xE3o], Bot\xE3o",
+      "verbalizacaoEsperada": "[label do T\xEDtulo], [label da descri\xE7\xE3o], [r\xF3tulo do bot\xE3o], Bot\xE3o",
       "tipo": "Imagem",
       "foco": "N\xE3o",
       "extracaoTexto": "tres-posicoes",
-      "aliasesDeNome": ["Banner Full Image"]
+      "aliasesDeNome": [
+        "Banner Full Image"
+      ]
     },
     {
       "categoria": "Containers",
       "componente": "Modal",
       "estados": "Aberto e Fechado; tipos Default, Danger e Positive.",
-      "verbalizacaoEsperada": 'Ordem l\xF3gica dos componentes. Icon button X: "Fechar, bot\xE3o".',
+      "verbalizacaoEsperada": 'Ordem l\xF3gica dos componentes. Icon button X: "Fechar, Bot\xE3o".',
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
       "ultimosDentro": [
@@ -475,7 +477,7 @@
       "categoria": "Containers",
       "componente": "Cookies",
       "estados": "Vis\xEDvel e Aceito.",
-      "verbalizacaoEsperada": "[label do T\xEDtulo], [label da descri\xE7\xE3o],[r\xF3tulo do bot\xE3o], Bot\xE3o",
+      "verbalizacaoEsperada": "[label do T\xEDtulo], [label da descri\xE7\xE3o], [r\xF3tulo do bot\xE3o], Bot\xE3o",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
       "extracaoTexto": "tres-posicoes"
@@ -495,17 +497,19 @@
       "categoria": "Containers",
       "componente": "Drawer",
       "estados": "Aberto e Fechado.",
-      "verbalizacaoEsperada": 'Ordem l\xF3gica dos componentes. Icon button X: "Fechar, bot\xE3o".',
+      "verbalizacaoEsperada": 'Ordem l\xF3gica dos componentes. Icon button X: "Fechar, Bot\xE3o".',
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "ultimosDentro": ["Button Icon"],
+      "ultimosDentro": [
+        "Button Icon"
+      ],
       "somenteFilhos": true
     },
     {
       "categoria": "Containers",
       "componente": "Card Review",
       "estados": "Default, Ativo e Enviado.",
-      "verbalizacaoEsperada": 'Ordem l\xF3gica dos componentes. Contador de caracteres verbalizado antes do conte\xFAdo do input. Cada estrela verbaliza posi\xE7\xE3o e total de estrelas, exemplo "Uma estrela,bot\xE3o de op\xE7\xE3o, n\xE3o marcado, 1 de 5"',
+      "verbalizacaoEsperada": 'Ordem l\xF3gica dos componentes. Contador de caracteres verbalizado antes do conte\xFAdo do input. Cada estrela verbaliza posi\xE7\xE3o e total de estrelas, exemplo "Uma estrela, Bot\xE3o de op\xE7\xE3o, N\xE3o marcado, 1 de 5"',
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos"
     },
@@ -513,11 +517,11 @@
       "categoria": "Feedback",
       "componente": "Alert",
       "estados": "Ativo e Encerrado.",
-      "verbalizacaoEsperada": "[T\xEDtulo], [Descri\xE7\xE3o], Fechar, bot\xE3o",
+      "verbalizacaoEsperada": "[T\xEDtulo], [Descri\xE7\xE3o], Fechar, Bot\xE3o",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
       "extracaoTexto": "titulo-descricao",
-      "verbalizacaoSemTitulo": "[Descri\xE7\xE3o], Fechar, bot\xE3o",
+      "verbalizacaoSemTitulo": "[Descri\xE7\xE3o], Fechar, Bot\xE3o",
       "somenteTextosProprios": true
     },
     {
@@ -560,7 +564,7 @@
       "categoria": "Inputs",
       "componente": "Checkbox",
       "estados": "Marcado, Desmarcado, Parcialmente marcado, Desabilitado.",
-      "verbalizacaoEsperada": "Marcado: \u201C[Label], caixa de sele\xE7\xE3o, marcado.\u201D\nDesmarcado: \u201C[texto da label], caixa de sele\xE7\xE3o, n\xE3o marcado.\u201D\nParcialmente marcado: \u201C{r\xF3tulo}, caixa de sele\xE7\xE3o parcialmente marcada.\u201D\nDesabilitado: \u201C{r\xF3tulo}, caixa de sele\xE7\xE3o desabilitada.\u201D",
+      "verbalizacaoEsperada": "Marcado: \u201C[Label], Caixa de sele\xE7\xE3o, Marcado.\u201D\nDesmarcado: \u201C[texto da label], Caixa de sele\xE7\xE3o, N\xE3o marcado.\u201D\nParcialmente marcado: \u201C{r\xF3tulo}, Caixa de sele\xE7\xE3o parcialmente marcada.\u201D\nDesabilitado: \u201C{r\xF3tulo}, Caixa de sele\xE7\xE3o desabilitada.\u201D",
       "tipo": "Entrada",
       "foco": "Sim",
       "stateFlagAliases": {
@@ -592,7 +596,7 @@
       "categoria": "Inputs",
       "componente": "Chip Select",
       "estados": "Habilitado, Focus, Hover.",
-      "verbalizacaoEsperada": 'Desmarcado:"[texto da label], caixa de sele\xE7\xE3o, n\xE3o marcado". Marcado: "[Label], caixa de sele\xE7\xE3o, marcado".',
+      "verbalizacaoEsperada": 'Desmarcado:"[texto da label], Caixa de sele\xE7\xE3o, N\xE3o marcado". Marcado: "[Label], Caixa de sele\xE7\xE3o, Marcado".',
       "tipo": "Entrada",
       "foco": "Sim"
     },
@@ -600,7 +604,7 @@
       "categoria": "Inputs",
       "componente": "Date Picker",
       "estados": "Default: exibe o valor padr\xE3o ou o valor selecionado pelo usu\xE1rio\n\nHover: componente recebeu foco com mouse, alterando visualmente seu estilo\n\nSelected: componente est\xE1 com sua lista de op\xE7\xF5es aberta, tendo o mesmo estilo visual do Hover",
-      "verbalizacaoEsperada": 'Para o campo de ano: "Anterior, bot\xE3o", "Dois mil e vinte dois","Pr\xF3ximo, bot\xE3o". Para o campo de m\xEAs: "Anterior, bot\xE3o", "Fevereiro","Pr\xF3ximo, bot\xE3o". Os dias s\xE3o anunciados juntamente com o m\xEAs e o ano e dia da semana.\n',
+      "verbalizacaoEsperada": 'Para o campo de ano: "Anterior, Bot\xE3o", "Dois mil e vinte dois", "Pr\xF3ximo, Bot\xE3o". Para o campo de m\xEAs: "Anterior, Bot\xE3o", "Fevereiro", "Pr\xF3ximo, Bot\xE3o". Os dias s\xE3o anunciados juntamente com o m\xEAs e o ano e dia da semana.\n',
       "tipo": "Entrada",
       "foco": "Sim"
     },
@@ -617,7 +621,7 @@
       "categoria": "Inputs",
       "componente": "Input Code",
       "estados": "enabled, focus, hover, filled.",
-      "verbalizacaoEsperada": 'Quando vazio: Label acess\xEDvel "informe o c\xF3digo, [posi\xE7\xE3o], campo de edi\xE7\xE3o". Quando preenchido: Label acess\xEDvel "informe o c\xF3digo, marcador, [posi\xE7\xE3o], campo de edi\xE7\xE3o".\n',
+      "verbalizacaoEsperada": 'Quando vazio: Label acess\xEDvel "Informe o c\xF3digo, [posi\xE7\xE3o], Campo de edi\xE7\xE3o". Quando preenchido: Label acess\xEDvel "Informe o c\xF3digo, Marcador, [posi\xE7\xE3o], Campo de edi\xE7\xE3o".\n',
       "tipo": "Entrada",
       "foco": "Sim"
     },
@@ -625,7 +629,7 @@
       "categoria": "Inputs",
       "componente": "Input Code Number",
       "estados": "habilitado, focus, hover e preenchido;",
-      "verbalizacaoEsperada": "Ao focar em cada um dos bot\xF5es leitor anuncia: \u201C6 ou 1, bot\xE3o\u201D.\nFeedback din\xE2mico:\nQuando uma tecla \xE9 acionada, o campo de senha atualiza\u2028 \u201Cx d\xEDgitos inseridos\u201D\nBot\xE3o Limpar:\nDeve anunciar \u201CCaracteres apagados\u201D ap\xF3s a\xE7\xE3o.",
+      "verbalizacaoEsperada": "Ao focar em cada um dos bot\xF5es leitor anuncia: \u201C6 ou 1, Bot\xE3o\u201D.\nFeedback din\xE2mico:\nQuando uma tecla \xE9 acionada, o campo de senha atualiza\u2028 \u201Cx d\xEDgitos inseridos\u201D\nBot\xE3o Limpar:\nDeve anunciar \u201CCaracteres apagados\u201D ap\xF3s a\xE7\xE3o.",
       "tipo": "Entrada",
       "foco": "Sim"
     },
@@ -633,7 +637,7 @@
       "categoria": "Inputs",
       "componente": "Input Date",
       "estados": "Padr\xE3o: campo vazio e pronto para entrada.\n\nAberto: exibe o calend\xE1rio de sele\xE7\xE3o de data.\n\nFoco: realce visual e leitura de r\xF3tulo pelo leitor de tela.\n\nPreenchido: exibe a data inserida ou selecionada.\n\nErro: campo marcado com mensagem de erro associada exibida no texto de suporte.\n\nDesativado: campo inativ e com intera\xE7\xE3o bloqueada",
-      "verbalizacaoEsperada": 'Recolhido: "[Label],[Placeholder],[Helper text], campo de edi\xE7\xE3o,calend\xE1rio,recolhido, bot\xE3o" Expandido: "[Label],[Placeholder],[Helper text], campo de edi\xE7\xE3o,expandido,bot\xE3o"',
+      "verbalizacaoEsperada": 'Recolhido: "[Label], [Placeholder], [Helper text], Campo de edi\xE7\xE3o, Calend\xE1rio, Recolhido, Bot\xE3o" Expandido: "[Label], [Placeholder], [Helper text], Campo de edi\xE7\xE3o, Expandido, Bot\xE3o"',
       "tipo": "Entrada",
       "foco": "Sim",
       "textosPorCamada": {
@@ -658,7 +662,7 @@
       "categoria": "Inputs",
       "componente": "Input Password",
       "estados": "Habilitado, Focus, Filled, Error, Disabled.",
-      "verbalizacaoEsperada": 'Olho aberto/valor oculto: "[Label],[Placeholder],[Helper text], campo de edi\xE7\xE3o, mostrar senha, bot\xE3o" Olho fechado/valor vis\xEDvel: "[Label],[Placeholder],[Helper text], campo de edi\xE7\xE3o, ocultar senha, bot\xE3o"',
+      "verbalizacaoEsperada": 'Olho aberto/valor oculto: "[Label], [Placeholder], [Helper text], Campo de edi\xE7\xE3o, Mostrar senha, Bot\xE3o" Olho fechado/valor vis\xEDvel: "[Label], [Placeholder], [Helper text], Campo de edi\xE7\xE3o, Ocultar senha, Bot\xE3o"',
       "tipo": "Entrada",
       "foco": "Sim",
       "textosPorCamada": {
@@ -683,7 +687,7 @@
       "categoria": "Inputs",
       "componente": "Input Select",
       "estados": "Default, Filled, Hover, Active, Error, Disabled.",
-      "verbalizacaoEsperada": 'Recolhido: "[Label],[Placeholder],[Helper text], campo de edi\xE7\xE3o,recolhido, bot\xE3o" Expandido: "[Label],[Placeholder],[Helper text], campo de edi\xE7\xE3o, expandido, bot\xE3o"',
+      "verbalizacaoEsperada": 'Recolhido: "[Label], [Placeholder], [Helper text], Campo de edi\xE7\xE3o, Recolhido, Bot\xE3o" Expandido: "[Label], [Placeholder], [Helper text], Campo de edi\xE7\xE3o, Expandido, Bot\xE3o"',
       "tipo": "Entrada",
       "foco": "Sim",
       "textosPorCamada": {
@@ -791,7 +795,7 @@
       "categoria": "Inputs",
       "componente": "Radio Button",
       "estados": "Selecionado, N\xE3o selecionado, Desabilitado.",
-      "verbalizacaoEsperada": 'N\xE3o marcado: "[Label], bot\xE3o de op\xE7\xE3o, n\xE3o marcado, [posi\xE7\xE3o]." Marcado: [Label], bot\xE3o de op\xE7\xE3o, marcado, [posi\xE7\xE3o].',
+      "verbalizacaoEsperada": 'N\xE3o marcado: "[Label], Bot\xE3o de op\xE7\xE3o, N\xE3o marcado, [posi\xE7\xE3o]." Marcado: "[Label], Bot\xE3o de op\xE7\xE3o, Marcado, [posi\xE7\xE3o]."',
       "tipo": "Entrada",
       "foco": "Sim"
     },
@@ -799,7 +803,7 @@
       "categoria": "Inputs",
       "componente": "Rate Input",
       "estados": "Default, Selecionado, Desabilitado.",
-      "verbalizacaoEsperada": 'Cada estrela verbaliza posi\xE7\xE3o e total de estrelas, exemplo "Uma estrela,bot\xE3o de op\xE7\xE3o, n\xE3o marcado, 1 de 5"',
+      "verbalizacaoEsperada": 'Cada estrela verbaliza posi\xE7\xE3o e total de estrelas, exemplo "Uma estrela, Bot\xE3o de op\xE7\xE3o, N\xE3o marcado, 1 de 5"',
       "tipo": "Entrada",
       "foco": "Sim"
     },
@@ -825,7 +829,7 @@
       "categoria": "Inputs",
       "componente": "Switch",
       "estados": "Ligado, Desligado, Desabilitado; Default, Selected, Hover, Focus.",
-      "verbalizacaoEsperada": 'Pressionado: [Label], bot\xE3o de alternancia, pressionado" N\xE3o pressionado: [Label], bot\xE3o de alternancia, n\xE3o pressionado"',
+      "verbalizacaoEsperada": 'Pressionado: "[Label], Bot\xE3o de alternancia, Pressionado" N\xE3o pressionado: "[Label], Bot\xE3o de alternancia, N\xE3o pressionado"',
       "tipo": "Entrada",
       "foco": "Sim"
     },
@@ -833,7 +837,7 @@
       "categoria": "Inputs",
       "componente": "Uploader",
       "estados": "Default: campo est\xE1 habilitado e aguardando o envio do arquivo.\n\nActive: campo recebeu o foco e est\xE1 com destaque visual.\n\nLoading: upload em andamento.\n\nCompleted: upload finalizado.\n\nError: falha no envio ou valida\xE7\xE3o.",
-      "verbalizacaoEsperada": 'Default: "[Label], [Descri\xE7\xE3o], [helper text], [Label do bot\xE3o] bot\xE3o."\nLoading: "[Label], Carregando"\nError: "[Label], [helper text], excluir arquivo, bot\xE3o."\nComplete: "[Label], [helper text], Remover arquivo, bot\xE3o."',
+      "verbalizacaoEsperada": 'Default: "[Label], [Descri\xE7\xE3o], [helper text], [Label do bot\xE3o] bot\xE3o."\nLoading: "[Label], Carregando"\nError: "[Label], [helper text], Excluir arquivo, Bot\xE3o."\nComplete: "[Label], [helper text], Remover arquivo, Bot\xE3o."',
       "tipo": "Entrada",
       "foco": "Sim",
       "textosProprios": {
@@ -893,7 +897,7 @@
       "categoria": "Navigation",
       "componente": "Carousel Nav",
       "estados": "Herda de Page Indicator e Button Icon.",
-      "verbalizacaoEsperada": "O leitor de tela anuncia os bot\xF5es como controles de navega\xE7\xE3o.\n\nExemplo: \u201CCarrossel. 3 itens. Item 1 de 3. Pr\xF3ximo, bot\xE3o.\u201D",
+      "verbalizacaoEsperada": "O leitor de tela anuncia os bot\xF5es como controles de navega\xE7\xE3o.\n\nExemplo: \u201CCarrossel. 3 itens. Item 1 de 3. Pr\xF3ximo, Bot\xE3o.\u201D",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos"
     },

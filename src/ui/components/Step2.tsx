@@ -243,6 +243,8 @@ export function Step2({
                 onDrop={handleDrop}
                 isDragging={dragIndex === realIndex}
                 isDropTarget={overIndex === realIndex && dragIndex !== null && dragIndex !== realIndex}
+                total={items.length}
+                onMoveTo={onReorder}
               />
             );
           })}

@@ -233,7 +233,7 @@ export function Step1({
         >
           <Icon name="info" size={15} color="var(--color-text-muted)" />
           <span style={{ fontSize: "12.5px", lineHeight: 1.45, color: "#3C4438" }}>
-            A análise considera os componentes e instâncias de nível mais alto dentro da tela selecionada.
+            Vamos encontrar os componentes e títulos da tela. Você revisa tudo antes de gerar a especificação.
           </span>
         </div>
       </div>

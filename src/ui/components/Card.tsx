@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ComponentTypeOption, SpecificationItem } from "../../shared/types";
 import { Icon } from "./Icon";
 
@@ -17,9 +17,12 @@ interface CardProps {
   onDrop: () => void;
   isDragging: boolean;
   isDropTarget: boolean;
+  /** Quantidade total de cards — limite para a posição digitada. */
+  total: number;
+  /** Move o card para outra posição (índices começando em 0). */
+  onMoveTo: (fromIndex: number, toIndex: number) => void;
 }
 
-const CHAR_LIMIT = 240;
 /**
  * Precisa bater com a key "notas-designer" de rules/markupTypes.ts
  * (categoria "Notas do designer"). Usado só para trocar o rótulo do
@@ -45,14 +48,41 @@ export function Card({
   onDragOver,
   onDrop,
   isDragging,
-  isDropTarget
+  isDropTarget,
+  total,
+  onMoveTo
 }: CardProps) {
   const bodyId = `card-body-${item.id}`;
   const selectedOption = options.find((o) => o.key === item.markupType);
   const isDesignerNotes = item.markupType === DESIGNER_NOTES_MARKUP_TYPE;
   const verbalizationLabel = isDesignerNotes ? "Escreva sua observação" : "Verbalização";
-  const overLimit = item.verbalization.length > CHAR_LIMIT;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const displayNumber = String(index + 1).padStart(2, "0");
+
+  // Posição editável (card aberto): digita o número e aperta Enter para
+  // mover o card; Esc ou sair do campo desfaz. Arrastar continua valendo.
+  const [positionDraft, setPositionDraft] = useState(displayNumber);
+  useEffect(() => setPositionDraft(displayNumber), [displayNumber]);
+
+  // Depois de mudar de posição, mantém o card aberto visível na lista.
+  useEffect(() => {
+    if (isExpanded) rootRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function applyPosition() {
+    const typed = parseInt(positionDraft, 10);
+    if (Number.isNaN(typed)) {
+      setPositionDraft(displayNumber);
+      return;
+    }
+    const target = Math.min(Math.max(typed, 1), total) - 1;
+    if (target === index) {
+      setPositionDraft(displayNumber);
+    } else {
+      onMoveTo(index, target);
+    }
+  }
 
   // Auto-cresce o textarea até ~120px conforme o conteúdo, tanto ao
   // digitar quanto ao expandir o card com um texto já preenchido.
@@ -73,6 +103,7 @@ export function Card({
 
   return (
     <div
+      ref={rootRef}
       style={{
         position: "relative",
         border: `1px solid ${isExpanded ? "var(--color-primary)" : isDetached ? "var(--color-warning-border)" : "var(--color-border)"}`,
@@ -146,18 +177,56 @@ export function Card({
           <Icon name="grip" size={12} color={isDetached ? "#D8C48A" : "#B0B8A6"} />
         </span>
 
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 900,
-            fontVariantNumeric: "tabular-nums",
-            padding: "3px 6px",
-            borderRadius: 6,
-            ...chipColor
-          }}
-        >
-          {String(index + 1).padStart(2, "0")}
-        </span>
+        {isExpanded ? (
+          <input
+            type="text"
+            inputMode="numeric"
+            value={positionDraft}
+            aria-label={`Posição do card, de 1 a ${total}. Digite e aperte Enter para mover`}
+            title="Digite a nova posição e aperte Enter"
+            onClick={(e) => e.stopPropagation()}
+            onFocus={(e) => e.currentTarget.select()}
+            onChange={(e) => setPositionDraft(e.target.value.replace(/\D/g, "").slice(0, 3))}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") {
+                e.preventDefault();
+                applyPosition();
+                e.currentTarget.blur();
+              } else if (e.key === "Escape") {
+                setPositionDraft(displayNumber);
+                e.currentTarget.blur();
+              }
+            }}
+            onBlur={() => setPositionDraft(displayNumber)}
+            style={{
+              width: 34,
+              fontSize: 11,
+              fontWeight: 900,
+              fontFamily: "inherit",
+              fontVariantNumeric: "tabular-nums",
+              textAlign: "center",
+              padding: "3px 2px",
+              borderRadius: 6,
+              border: "1px solid var(--color-primary)",
+              outline: "none",
+              ...chipColor
+            }}
+          />
+        ) : (
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 900,
+              fontVariantNumeric: "tabular-nums",
+              padding: "3px 6px",
+              borderRadius: 6,
+              ...chipColor
+            }}
+          >
+            {displayNumber}
+          </span>
+        )}
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
@@ -297,10 +366,10 @@ export function Card({
                 fontSize: "10.5px",
                 fontWeight: 700,
                 fontVariantNumeric: "tabular-nums",
-                color: overLimit ? "var(--color-danger)" : "#B0B8A6"
+                color: "#B0B8A6"
               }}
             >
-              {item.verbalization.length}/{CHAR_LIMIT}
+              {item.verbalization.length} {item.verbalization.length === 1 ? "caractere" : "caracteres"}
             </span>
           </div>
 

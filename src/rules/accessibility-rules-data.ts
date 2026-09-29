@@ -248,7 +248,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Action",
     "componente": "Button Group",
     "estados": "Habilitado, Foco, Desabilitado e Loading. O grupo em si não possui estados próprios.",
-    "verbalizacaoEsperada": "Default: “[Label], Botão”.\nBotão desabilitado: “[Label], indisponível, botão”.\nHabilitado: “[Label], Botão”.\nLoading: “Carregando” ",
+    "verbalizacaoEsperada": "Default: “[Label], Botão”.\nBotão desabilitado: “[Label], Indisponível, Botão”.\nHabilitado: “[Label], Botão”.\nLoading: “Carregando” ",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
     "somenteFilhos": true
@@ -257,11 +257,11 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Action",
     "componente": "Button Icon",
     "estados": "Habilitado, Disabled, Focus, Hover.",
-    "verbalizacaoEsperada": "Habilitado: “[Label], botão.”\nDisabled: “[Label], Indisponível, botão.”\nFocus: “[Label], botão.”\n",
+    "verbalizacaoEsperada": "Habilitado: “[Label], Botão.”\nDisabled: “[Label], Indisponível, Botão.”\nFocus: “[Label], Botão.”\n",
     "tipo": "Botão",
     "foco": "Sim",
     "verbalizacaoDentroDe": {
-      "Drawer": "Habilitado: “Fechar, botão.”\nDisabled: “Fechar, Indisponível, botão.”\nFocus: “Fechar, botão.”",
+      "Drawer": "Habilitado: “Fechar, Botão.”\nDisabled: “Fechar, Indisponível, Botão.”\nFocus: “Fechar, Botão.”",
       "Modal": "Fechar, Botão"
     }
   },
@@ -269,7 +269,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Action",
     "componente": "Button Mini",
     "estados": "Habilitado, Disabled, Focus, Hover.",
-    "verbalizacaoEsperada": "Habilitado: “[Label], botão.”\nDisabled: “[Label] Indisponível, botão.”\nFocus: “[Label], botão.”",
+    "verbalizacaoEsperada": "Habilitado: “[Label], Botão.”\nDisabled: “[Label] Indisponível, Botão.”\nFocus: “[Label], Botão.”",
     "tipo": "Botão",
     "foco": "Sim"
   },
@@ -277,7 +277,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Action",
     "componente": "Button Primary",
     "estados": "Habilitado, Hover, Focus, Loading, Disabled.",
-    "verbalizacaoEsperada": "Habilitado/Focus: “[Label], botão”.\nLoading macOS: “carregando”.\nLoading Windows: “[Carregando]”.\nDisabled macOS: “[Label], Escurecido, Botão”.\nDisabled Windows: “[Label]Indisponível, botão”.",
+    "verbalizacaoEsperada": "Habilitado/Focus: “[Label], Botão”.\nLoading macOS: “Carregando”.\nLoading Windows: “[Carregando]”.\nDisabled macOS: “[Label], Escurecido, Botão”.\nDisabled Windows: “[Label] Indisponível, Botão”.",
     "tipo": "Botão",
     "foco": "Sim"
   },
@@ -285,7 +285,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Action",
     "componente": "Button Secondary",
     "estados": "Habilitado, Hover, Focus, Loading, Disabled.",
-    "verbalizacaoEsperada": "Habilitado/Focus: “[Label], botão”.\nLoading macOS: “carregando”.\nLoading Windows: “[Carregando]”.\nDisabled macOS: “[Label], Escurecido, Botão”.\nDisabled Windows: “[Label]Indisponível, botão”.",
+    "verbalizacaoEsperada": "Habilitado/Focus: “[Label], Botão”.\nLoading macOS: “Carregando”.\nLoading Windows: “[Carregando]”.\nDisabled macOS: “[Label], Escurecido, Botão”.\nDisabled Windows: “[Label] Indisponível, Botão”.",
     "tipo": "Botão",
     "foco": "Sim"
   },
@@ -293,7 +293,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Action",
     "componente": "Shortcut",
     "estados": "Habilitado, Focus, Hover, Disabled.",
-    "verbalizacaoEsperada": "Habilitado/Focus: “[Label], link.”\nDisabled: “[Label], indisponível, Link.”",
+    "verbalizacaoEsperada": "Habilitado/Focus: “[Label], Link.”\nDisabled: “[Label], Indisponível, Link.”",
     "tipo": "Link",
     "foco": "Sim"
   },
@@ -309,7 +309,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Action",
     "componente": "Link Icon",
     "estados": "Habilitado, Focus, Hover.",
-    "verbalizacaoEsperada": "Habilitado/Focus: “[Label], link.”\nExterno: “[Label], link externo.”",
+    "verbalizacaoEsperada": "Habilitado/Focus: “[Label], Link.”\nExterno: “[Label], Link externo.”",
     "tipo": "Link",
     "foco": "Sim"
   },
@@ -357,7 +357,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Content",
     "componente": "Brand",
     "estados": "Estático; quando usado como link, possui interação.",
-    "verbalizacaoEsperada": "Quando ilustrativo: \"Logo Sicredi.\" Quando link: \"Tela inicial do Internet banking do Sicredi, link\"",
+    "verbalizacaoEsperada": "Quando ilustrativo: \"Logo Sicredi.\" Quando link: \"Tela inicial do Internet banking do Sicredi, Link\"",
     "tipo": "Imagem",
     "foco": "Não"
   },
@@ -373,7 +373,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Content",
     "componente": "Empty State",
     "estados": "Estático; botão interno segue Button Primary.",
-    "verbalizacaoEsperada": "Verbaliza cada componente separadamente. Título: \"[Título com hierarquia lógica]\" Descrição: \"[Leitura do conteúdo]\", Button primary: \"[rótulo do botão], botão\"",
+    "verbalizacaoEsperada": "Verbaliza cada componente separadamente. Título: \"[Título com hierarquia lógica]\" Descrição: \"[Leitura do conteúdo]\", Button primary: \"[rótulo do botão], Botão\"",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
     "extracaoTexto": "tres-posicoes"
@@ -464,17 +464,19 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Containers",
     "componente": "Banner Image Full",
     "estados": "Habilitado, Focus, Hover, relacionados à ação.",
-    "verbalizacaoEsperada": "[label do Título], [label da descrição],[rótulo do botão], Botão",
+    "verbalizacaoEsperada": "[label do Título], [label da descrição], [rótulo do botão], Botão",
     "tipo": "Imagem",
     "foco": "Não",
     "extracaoTexto": "tres-posicoes",
-    "aliasesDeNome": ["Banner Full Image"]
+    "aliasesDeNome": [
+      "Banner Full Image"
+    ]
   },
   {
     "categoria": "Containers",
     "componente": "Modal",
     "estados": "Aberto e Fechado; tipos Default, Danger e Positive.",
-    "verbalizacaoEsperada": "Ordem lógica dos componentes. Icon button X: \"Fechar, botão\".",
+    "verbalizacaoEsperada": "Ordem lógica dos componentes. Icon button X: \"Fechar, Botão\".",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
     "ultimosDentro": [
@@ -486,7 +488,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Containers",
     "componente": "Cookies",
     "estados": "Visível e Aceito.",
-    "verbalizacaoEsperada": "[label do Título], [label da descrição],[rótulo do botão], Botão",
+    "verbalizacaoEsperada": "[label do Título], [label da descrição], [rótulo do botão], Botão",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
     "extracaoTexto": "tres-posicoes"
@@ -506,17 +508,19 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Containers",
     "componente": "Drawer",
     "estados": "Aberto e Fechado.",
-    "verbalizacaoEsperada": "Ordem lógica dos componentes. Icon button X: \"Fechar, botão\".",
+    "verbalizacaoEsperada": "Ordem lógica dos componentes. Icon button X: \"Fechar, Botão\".",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "ultimosDentro": ["Button Icon"],
+    "ultimosDentro": [
+      "Button Icon"
+    ],
     "somenteFilhos": true
   },
   {
     "categoria": "Containers",
     "componente": "Card Review",
     "estados": "Default, Ativo e Enviado.",
-    "verbalizacaoEsperada": "Ordem lógica dos componentes. Contador de caracteres verbalizado antes do conteúdo do input. Cada estrela verbaliza posição e total de estrelas, exemplo \"Uma estrela,botão de opção, não marcado, 1 de 5\"",
+    "verbalizacaoEsperada": "Ordem lógica dos componentes. Contador de caracteres verbalizado antes do conteúdo do input. Cada estrela verbaliza posição e total de estrelas, exemplo \"Uma estrela, Botão de opção, Não marcado, 1 de 5\"",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos"
   },
@@ -524,11 +528,11 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Feedback",
     "componente": "Alert",
     "estados": "Ativo e Encerrado.",
-    "verbalizacaoEsperada": "[Título], [Descrição], Fechar, botão",
+    "verbalizacaoEsperada": "[Título], [Descrição], Fechar, Botão",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
     "extracaoTexto": "titulo-descricao",
-    "verbalizacaoSemTitulo": "[Descrição], Fechar, botão",
+    "verbalizacaoSemTitulo": "[Descrição], Fechar, Botão",
     "somenteTextosProprios": true
   },
   {
@@ -571,7 +575,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Checkbox",
     "estados": "Marcado, Desmarcado, Parcialmente marcado, Desabilitado.",
-    "verbalizacaoEsperada": "Marcado: “[Label], caixa de seleção, marcado.”\nDesmarcado: “[texto da label], caixa de seleção, não marcado.”\nParcialmente marcado: “{rótulo}, caixa de seleção parcialmente marcada.”\nDesabilitado: “{rótulo}, caixa de seleção desabilitada.”",
+    "verbalizacaoEsperada": "Marcado: “[Label], Caixa de seleção, Marcado.”\nDesmarcado: “[texto da label], Caixa de seleção, Não marcado.”\nParcialmente marcado: “{rótulo}, Caixa de seleção parcialmente marcada.”\nDesabilitado: “{rótulo}, Caixa de seleção desabilitada.”",
     "tipo": "Entrada",
     "foco": "Sim",
     "stateFlagAliases": {
@@ -603,7 +607,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Chip Select",
     "estados": "Habilitado, Focus, Hover.",
-    "verbalizacaoEsperada": "Desmarcado:\"[texto da label], caixa de seleção, não marcado\". Marcado: \"[Label], caixa de seleção, marcado\".",
+    "verbalizacaoEsperada": "Desmarcado:\"[texto da label], Caixa de seleção, Não marcado\". Marcado: \"[Label], Caixa de seleção, Marcado\".",
     "tipo": "Entrada",
     "foco": "Sim"
   },
@@ -611,7 +615,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Date Picker",
     "estados": "Default: exibe o valor padrão ou o valor selecionado pelo usuário\n\nHover: componente recebeu foco com mouse, alterando visualmente seu estilo\n\nSelected: componente está com sua lista de opções aberta, tendo o mesmo estilo visual do Hover",
-    "verbalizacaoEsperada": "Para o campo de ano: \"Anterior, botão\", \"Dois mil e vinte dois\",\"Próximo, botão\". Para o campo de mês: \"Anterior, botão\", \"Fevereiro\",\"Próximo, botão\". Os dias são anunciados juntamente com o mês e o ano e dia da semana.\n",
+    "verbalizacaoEsperada": "Para o campo de ano: \"Anterior, Botão\", \"Dois mil e vinte dois\", \"Próximo, Botão\". Para o campo de mês: \"Anterior, Botão\", \"Fevereiro\", \"Próximo, Botão\". Os dias são anunciados juntamente com o mês e o ano e dia da semana.\n",
     "tipo": "Entrada",
     "foco": "Sim"
   },
@@ -628,7 +632,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Input Code",
     "estados": "enabled, focus, hover, filled.",
-    "verbalizacaoEsperada": "Quando vazio: Label acessível \"informe o código, [posição], campo de edição\". Quando preenchido: Label acessível \"informe o código, marcador, [posição], campo de edição\".\n",
+    "verbalizacaoEsperada": "Quando vazio: Label acessível \"Informe o código, [posição], Campo de edição\". Quando preenchido: Label acessível \"Informe o código, Marcador, [posição], Campo de edição\".\n",
     "tipo": "Entrada",
     "foco": "Sim"
   },
@@ -636,7 +640,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Input Code Number",
     "estados": "habilitado, focus, hover e preenchido;",
-    "verbalizacaoEsperada": "Ao focar em cada um dos botões leitor anuncia: “6 ou 1, botão”.\nFeedback dinâmico:\nQuando uma tecla é acionada, o campo de senha atualiza  “x dígitos inseridos”\nBotão Limpar:\nDeve anunciar “Caracteres apagados” após ação.",
+    "verbalizacaoEsperada": "Ao focar em cada um dos botões leitor anuncia: “6 ou 1, Botão”.\nFeedback dinâmico:\nQuando uma tecla é acionada, o campo de senha atualiza  “x dígitos inseridos”\nBotão Limpar:\nDeve anunciar “Caracteres apagados” após ação.",
     "tipo": "Entrada",
     "foco": "Sim"
   },
@@ -644,7 +648,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Input Date",
     "estados": "Padrão: campo vazio e pronto para entrada.\n\nAberto: exibe o calendário de seleção de data.\n\nFoco: realce visual e leitura de rótulo pelo leitor de tela.\n\nPreenchido: exibe a data inserida ou selecionada.\n\nErro: campo marcado com mensagem de erro associada exibida no texto de suporte.\n\nDesativado: campo inativ e com interação bloqueada",
-    "verbalizacaoEsperada": "Recolhido: \"[Label],[Placeholder],[Helper text], campo de edição,calendário,recolhido, botão\" Expandido: \"[Label],[Placeholder],[Helper text], campo de edição,expandido,botão\"",
+    "verbalizacaoEsperada": "Recolhido: \"[Label], [Placeholder], [Helper text], Campo de edição, Calendário, Recolhido, Botão\" Expandido: \"[Label], [Placeholder], [Helper text], Campo de edição, Expandido, Botão\"",
     "tipo": "Entrada",
     "foco": "Sim",
     "textosPorCamada": {
@@ -669,7 +673,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Input Password",
     "estados": "Habilitado, Focus, Filled, Error, Disabled.",
-    "verbalizacaoEsperada": "Olho aberto/valor oculto: \"[Label],[Placeholder],[Helper text], campo de edição, mostrar senha, botão\" Olho fechado/valor visível: \"[Label],[Placeholder],[Helper text], campo de edição, ocultar senha, botão\"",
+    "verbalizacaoEsperada": "Olho aberto/valor oculto: \"[Label], [Placeholder], [Helper text], Campo de edição, Mostrar senha, Botão\" Olho fechado/valor visível: \"[Label], [Placeholder], [Helper text], Campo de edição, Ocultar senha, Botão\"",
     "tipo": "Entrada",
     "foco": "Sim",
     "textosPorCamada": {
@@ -694,7 +698,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Input Select",
     "estados": "Default, Filled, Hover, Active, Error, Disabled.",
-    "verbalizacaoEsperada": "Recolhido: \"[Label],[Placeholder],[Helper text], campo de edição,recolhido, botão\" Expandido: \"[Label],[Placeholder],[Helper text], campo de edição, expandido, botão\"",
+    "verbalizacaoEsperada": "Recolhido: \"[Label], [Placeholder], [Helper text], Campo de edição, Recolhido, Botão\" Expandido: \"[Label], [Placeholder], [Helper text], Campo de edição, Expandido, Botão\"",
     "tipo": "Entrada",
     "foco": "Sim",
     "textosPorCamada": {
@@ -802,7 +806,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Radio Button",
     "estados": "Selecionado, Não selecionado, Desabilitado.",
-    "verbalizacaoEsperada": "Não marcado: \"[Label], botão de opção, não marcado, [posição].\" Marcado: [Label], botão de opção, marcado, [posição].",
+    "verbalizacaoEsperada": "Não marcado: \"[Label], Botão de opção, Não marcado, [posição].\" Marcado: \"[Label], Botão de opção, Marcado, [posição].\"",
     "tipo": "Entrada",
     "foco": "Sim"
   },
@@ -810,7 +814,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Rate Input",
     "estados": "Default, Selecionado, Desabilitado.",
-    "verbalizacaoEsperada": "Cada estrela verbaliza posição e total de estrelas, exemplo \"Uma estrela,botão de opção, não marcado, 1 de 5\"",
+    "verbalizacaoEsperada": "Cada estrela verbaliza posição e total de estrelas, exemplo \"Uma estrela, Botão de opção, Não marcado, 1 de 5\"",
     "tipo": "Entrada",
     "foco": "Sim"
   },
@@ -836,7 +840,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Switch",
     "estados": "Ligado, Desligado, Desabilitado; Default, Selected, Hover, Focus.",
-    "verbalizacaoEsperada": "Pressionado: [Label], botão de alternancia, pressionado\" Não pressionado: [Label], botão de alternancia, não pressionado\"",
+    "verbalizacaoEsperada": "Pressionado: \"[Label], Botão de alternancia, Pressionado\" Não pressionado: \"[Label], Botão de alternancia, Não pressionado\"",
     "tipo": "Entrada",
     "foco": "Sim"
   },
@@ -844,7 +848,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Uploader",
     "estados": "Default: campo está habilitado e aguardando o envio do arquivo.\n\nActive: campo recebeu o foco e está com destaque visual.\n\nLoading: upload em andamento.\n\nCompleted: upload finalizado.\n\nError: falha no envio ou validação.",
-    "verbalizacaoEsperada": "Default: \"[Label], [Descrição], [helper text], [Label do botão] botão.\"\nLoading: \"[Label], Carregando\"\nError: \"[Label], [helper text], excluir arquivo, botão.\"\nComplete: \"[Label], [helper text], Remover arquivo, botão.\"",
+    "verbalizacaoEsperada": "Default: \"[Label], [Descrição], [helper text], [Label do botão] botão.\"\nLoading: \"[Label], Carregando\"\nError: \"[Label], [helper text], Excluir arquivo, Botão.\"\nComplete: \"[Label], [helper text], Remover arquivo, Botão.\"",
     "tipo": "Entrada",
     "foco": "Sim",
     "textosProprios": {
@@ -904,7 +908,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Navigation",
     "componente": "Carousel Nav",
     "estados": "Herda de Page Indicator e Button Icon.",
-    "verbalizacaoEsperada": "O leitor de tela anuncia os botões como controles de navegação.\n\nExemplo: “Carrossel. 3 itens. Item 1 de 3. Próximo, botão.”",
+    "verbalizacaoEsperada": "O leitor de tela anuncia os botões como controles de navegação.\n\nExemplo: “Carrossel. 3 itens. Item 1 de 3. Próximo, Botão.”",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos"
   },
