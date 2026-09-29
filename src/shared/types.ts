@@ -119,6 +119,12 @@ export interface GenerationSummary {
   warningCount: number;
   screenName: string;
   outputNodeId: string;
+  /**
+   * "deleted": a tela de sucesso está sendo reaproveitada para
+   * "Marcadores excluídos" (componentCount = marcadores excluídos,
+   * outputNodeId = a própria tela). Ausente = especificação gerada.
+   */
+  mode?: "deleted";
 }
 
 /**

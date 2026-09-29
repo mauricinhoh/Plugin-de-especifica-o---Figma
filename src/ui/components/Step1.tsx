@@ -14,6 +14,12 @@ interface Step1Props {
   onBack: () => void;
   onClose: () => void;
   onStartAnalysis: () => void;
+  /** Marcadores de uma especificação anterior desta tela (0 = não tem). */
+  existingMarkerCount: number;
+  /** "Gerar nova especificação": exclui as marcações e segue para a análise. */
+  onRegenerate: () => void;
+  /** "Excluir marcações na tela": só exclui. */
+  onDeleteMarkup: () => void;
 }
 
 const CHIPS = ["Frame", "Grupo", "Auto layout"];
@@ -33,18 +39,24 @@ export function Step1({
   selectedLayerCount,
   onBack,
   onClose,
-  onStartAnalysis
+  onStartAnalysis,
+  existingMarkerCount,
+  onRegenerate,
+  onDeleteMarkup
 }: Step1Props) {
+  // Tela que já tem marcações: a Etapa 1 pergunta o que fazer com ela.
+  const hasExistingMarkup = selectionValid && existingMarkerCount > 0;
+
   useEffect(() => {
     function handleKeydown(event: KeyboardEvent) {
       if (event.key !== "Enter") return;
       if (isTypingTarget(document.activeElement)) return;
-      if (!selectionValid) return;
+      if (!selectionValid || hasExistingMarkup) return;
       onStartAnalysis();
     }
     window.addEventListener("keydown", handleKeydown);
     return () => window.removeEventListener("keydown", handleKeydown);
-  }, [selectionValid, onStartAnalysis]);
+  }, [selectionValid, hasExistingMarkup, onStartAnalysis]);
 
   const metaDims = selectedWidth !== undefined && selectedHeight !== undefined;
 
@@ -53,10 +65,24 @@ export function Step1({
       <TitleBar title="Especificação de Handoff" showBack onBack={onBack} onClose={onClose} />
       <Stepper current={1} />
       <div className="scroll-area" style={{ padding: 24 }}>
-        <h2 style={{ fontSize: 21, fontWeight: 900, letterSpacing: "-.025em", margin: 0 }}>Selecione uma tela</h2>
-        <p style={{ marginTop: 6, fontSize: "13.5px", lineHeight: 1.45, color: "var(--color-text-muted)" }}>
-          Escolha no canvas o frame que você quer especificar.
-        </p>
+        {hasExistingMarkup ? (
+          <>
+            <h2 style={{ fontSize: 21, fontWeight: 900, letterSpacing: "-.025em", margin: 0 }}>
+              O que deseja fazer com essa tela {selectedNodeName}?
+            </h2>
+            <p style={{ marginTop: 6, fontSize: "13.5px", lineHeight: 1.45, color: "var(--color-text-muted)" }}>
+              Ela já tem {existingMarkerCount} {existingMarkerCount === 1 ? "marcador" : "marcadores"} de uma
+              especificação anterior.
+            </p>
+          </>
+        ) : (
+          <>
+            <h2 style={{ fontSize: 21, fontWeight: 900, letterSpacing: "-.025em", margin: 0 }}>Selecione uma tela</h2>
+            <p style={{ marginTop: 6, fontSize: "13.5px", lineHeight: 1.45, color: "var(--color-text-muted)" }}>
+              Escolha no canvas o frame que você quer especificar.
+            </p>
+          </>
+        )}
 
         {!selectionValid ? (
           <>
@@ -219,23 +245,25 @@ export function Step1({
           </div>
         )}
 
-        <div
-          style={{
-            marginTop: 14,
-            padding: "12px 14px",
-            borderRadius: 10,
-            background: "var(--color-surface-muted)",
-            border: "1px solid var(--color-border)",
-            display: "flex",
-            gap: 10,
-            alignItems: "flex-start"
-          }}
-        >
-          <Icon name="info" size={15} color="var(--color-text-muted)" />
-          <span style={{ fontSize: "12.5px", lineHeight: 1.45, color: "#3C4438" }}>
-            Vamos encontrar os componentes e títulos da tela. Você revisa tudo antes de gerar a especificação.
-          </span>
-        </div>
+        {!hasExistingMarkup && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: "12px 14px",
+              borderRadius: 10,
+              background: "var(--color-surface-muted)",
+              border: "1px solid var(--color-border)",
+              display: "flex",
+              gap: 10,
+              alignItems: "flex-start"
+            }}
+          >
+            <Icon name="info" size={15} color="var(--color-text-muted)" />
+            <span style={{ fontSize: "12.5px", lineHeight: 1.45, color: "#3C4438" }}>
+              Vamos encontrar os componentes e títulos da tela. Você revisa tudo antes de gerar a especificação.
+            </span>
+          </div>
+        )}
       </div>
 
       <div
@@ -248,16 +276,27 @@ export function Step1({
           gap: 9
         }}
       >
-        <Button
-          variant="primary"
-          fullWidth
-          disabled={!selectionValid}
-          onClick={onStartAnalysis}
-          iconRight={<Icon name="arrow-right" size={16} color="#fff" />}
-        >
-          Começar especificação
-        </Button>
-        {selectionValid && (
+        {hasExistingMarkup ? (
+          <>
+            <Button variant="primary" fullWidth onClick={onRegenerate}>
+              Gerar nova especificação
+            </Button>
+            <Button variant="secondary" fullWidth onClick={onDeleteMarkup}>
+              Excluir marcações na tela
+            </Button>
+          </>
+        ) : (
+          <Button
+            variant="primary"
+            fullWidth
+            disabled={!selectionValid}
+            onClick={onStartAnalysis}
+            iconRight={<Icon name="arrow-right" size={16} color="#fff" />}
+          >
+            Começar especificação
+          </Button>
+        )}
+        {selectionValid && !hasExistingMarkup && (
           <div
             style={{
               textAlign: "center",

@@ -1998,6 +1998,7 @@
   // src/main/generation/panel.ts
   var PANEL_WIDTH = 440;
   var PANEL_GAP_FROM_SCREEN = 80;
+  var PANEL_NAME = "Especifica\xE7\xE3o de Acessibilidade";
   var PANEL_BG = { r: 24 / 255, g: 27 / 255, b: 24 / 255 };
   var BADGE_BLUE = { r: 51 / 255, g: 108 / 255, b: 255 / 255 };
   var TEXT_WHITE = { r: 1, g: 1, b: 1 };
@@ -2152,7 +2153,7 @@
     await loadFonts();
     const ordered = [...items].sort((a, b) => a.order - b.order);
     const panel = figma.createFrame();
-    panel.name = "Especifica\xE7\xE3o de Acessibilidade";
+    panel.name = PANEL_NAME;
     panel.layoutMode = "VERTICAL";
     panel.itemSpacing = 0;
     panel.paddingTop = 32;
@@ -2207,6 +2208,57 @@
     }
     figma.currentPage.appendChild(panel);
     return panel;
+  }
+
+  // src/main/generation/existingMarkup.ts
+  var SCREEN_ID_KEY = "handoffScreenId";
+  var MARKER_NAME_PATTERN = /^Marcação \d+/;
+  var PANEL_POSITION_TOLERANCE = 1;
+  function tagAsScreenOutput(node, screenId) {
+    node.setPluginData(SCREEN_ID_KEY, screenId);
+  }
+  function intersects(a, b) {
+    return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+  }
+  function findExistingMarkup(screen) {
+    const markers = [];
+    let panel = null;
+    const bounds = screen.absoluteBoundingBox;
+    if (!bounds) return { markers, panel };
+    for (const child of figma.currentPage.children) {
+      if (child.id === screen.id) continue;
+      const owner = child.getPluginData(SCREEN_ID_KEY);
+      const isMarker = child.type === "GROUP" && MARKER_NAME_PATTERN.test(child.name);
+      const isPanel = child.type === "FRAME" && child.name === PANEL_NAME;
+      if (!isMarker && !isPanel) continue;
+      if (owner) {
+        if (owner !== screen.id) continue;
+        if (isMarker) markers.push(child);
+        else if (!panel) panel = child;
+        continue;
+      }
+      const childBounds = child.absoluteBoundingBox;
+      if (!childBounds) continue;
+      if (isMarker && intersects(childBounds, bounds)) {
+        markers.push(child);
+      } else if (isPanel && !panel && Math.abs(childBounds.y - bounds.y) <= PANEL_POSITION_TOLERANCE && Math.abs(childBounds.x - (bounds.x + bounds.width + PANEL_GAP_FROM_SCREEN)) <= PANEL_POSITION_TOLERANCE) {
+        panel = child;
+      }
+    }
+    return { markers, panel };
+  }
+  function countExistingMarkers(screen) {
+    return findExistingMarkup(screen).markers.length;
+  }
+  function deleteExistingMarkup(screen) {
+    const { markers, panel } = findExistingMarkup(screen);
+    for (const marker of markers) {
+      if (!marker.removed) marker.remove();
+    }
+    if (panel && !panel.removed) {
+      panel.remove();
+    }
+    return markers.length;
   }
 
   // src/main/generation/previewMarker.ts
@@ -2267,7 +2319,8 @@
         nodeType: node.type,
         width: bounds ? bounds.width : void 0,
         height: bounds ? bounds.height : void 0,
-        layerCount: countDescendants(node)
+        layerCount: countDescendants(node),
+        existingMarkerCount: countExistingMarkers(node)
       });
     } else {
       postToUi({ type: "selection-state", valid: false, nodeId: null, nodeName: null });
@@ -2356,13 +2409,17 @@
       postToUi({ type: "generation-progress", stage: "reading-order", done: 0, total: 1 });
       const ordered = [...items].sort((a, b) => a.order - b.order);
       postToUi({ type: "generation-progress", stage: "reading-order", done: 1, total: 1 });
-      const { missingNodeErrors } = await generateMarkers(ordered, (done, total) => {
+      const { createdGroups, missingNodeErrors } = await generateMarkers(ordered, (done, total) => {
         postToUi({ type: "generation-progress", stage: "markers", done, total });
       });
       postToUi({ type: "generation-progress", stage: "table", done: 0, total: 1 });
       const panel = await generatePanel(screenNode, ordered);
       postToUi({ type: "generation-progress", stage: "table", done: 1, total: 1 });
       lastGeneratedOutputNodeId = panel.id;
+      for (const group of createdGroups) {
+        tagAsScreenOutput(group, screenNode.id);
+      }
+      tagAsScreenOutput(panel, screenNode.id);
       const summary = {
         componentCount: ordered.length,
         verbalizationCount: ordered.filter((item) => item.verbalization.trim().length > 0).length,
@@ -2394,6 +2451,21 @@
         message: "N\xE3o foi poss\xEDvel concluir a gera\xE7\xE3o. Os itens da lista foram preservados."
       });
     }
+  }
+  async function deleteExistingMarkupOfSelection(thenAnalyze) {
+    const selection = getCurrentSelection();
+    if (selection.length !== 1 || !isValidScreenNode(selection[0])) {
+      postToUi({ type: "analysis-error", message: "Selecione um \xFAnico frame, grupo ou auto layout." });
+      return;
+    }
+    const screenNode = selection[0];
+    const deletedCount = deleteExistingMarkup(screenNode);
+    if (thenAnalyze) {
+      await runAnalysis();
+      return;
+    }
+    lastGeneratedOutputNodeId = screenNode.id;
+    postToUi({ type: "markup-deleted", deletedCount, screenName: screenNode.name, screenId: screenNode.id });
   }
   var selectionListenerRegistered = false;
   function safely(label, fn) {
@@ -2462,6 +2534,9 @@
             }
           });
         }
+        break;
+      case "delete-existing-markup":
+        void deleteExistingMarkupOfSelection(message.thenAnalyze);
         break;
       case "reset-flow":
         resetFlowState();

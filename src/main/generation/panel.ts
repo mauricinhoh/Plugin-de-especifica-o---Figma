@@ -5,7 +5,8 @@ import { DECORATIVE_MARKUP_TYPE, MARKUP_TYPES } from "../../rules/markupTypes";
 import { UNSPECIFIED_TYPE_LABEL } from "../../rules/engine";
 
 const PANEL_WIDTH = 440;
-const PANEL_GAP_FROM_SCREEN = 80;
+export const PANEL_GAP_FROM_SCREEN = 80;
+export const PANEL_NAME = "Especificação de Acessibilidade";
 
 // Paleta escura, inspirada na referência ("Legendas"): fundo quase
 // preto com leve matiz, badge numerado em azul, título branco e
@@ -253,7 +254,7 @@ export async function generatePanel(screenNode: SceneNode, items: SpecificationI
   const ordered = [...items].sort((a, b) => a.order - b.order);
 
   const panel = figma.createFrame();
-  panel.name = "Especificação de Acessibilidade";
+  panel.name = PANEL_NAME;
   panel.layoutMode = "VERTICAL";
   panel.itemSpacing = 0;
   panel.paddingTop = 32;

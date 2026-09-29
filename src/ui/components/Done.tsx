@@ -16,6 +16,8 @@ interface DoneProps {
 
 export function Done({ summary, onViewOnCanvas, onNewSpecification, onClose, onDownloadDocx }: DoneProps) {
   const reducedMotion = usePrefersReducedMotion();
+  // Tela de sucesso reaproveitada para "Excluir marcações na tela".
+  const isDeletion = summary.mode === "deleted";
 
   return (
     <>
@@ -48,18 +50,22 @@ export function Done({ summary, onViewOnCanvas, onNewSpecification, onClose, onD
         </div>
 
         <h2 style={{ marginTop: 22, fontSize: 22, fontWeight: 900, letterSpacing: "-.025em", margin: "22px 0 0" }}>
-          Especificação pronta
+          {isDeletion ? "Marcadores excluídos" : "Especificação pronta"}
         </h2>
         <p style={{ marginTop: 8, fontSize: 13.5, lineHeight: 1.5, color: "var(--color-text-muted)", maxWidth: 270 }}>
-          {summary.componentCount} componentes especificados ao lado de{" "}
+          {isDeletion
+            ? `${summary.componentCount} ${summary.componentCount === 1 ? "marcador excluído" : "marcadores excluídos"} de `
+            : `${summary.componentCount} componentes especificados ao lado de `}
           <strong style={{ fontWeight: 800, color: "var(--color-text-dark)" }}>{summary.screenName}</strong>.
         </p>
 
-        <div style={{ marginTop: 22, display: "flex", gap: 8 }}>
-          <StatBlock label="Componentes" value={summary.componentCount} />
-          <StatBlock label="Verbalizações" value={summary.verbalizationCount} />
-          {summary.warningCount > 0 && <StatBlock label="Alertas" value={summary.warningCount} warning />}
-        </div>
+        {!isDeletion && (
+          <div style={{ marginTop: 22, display: "flex", gap: 8 }}>
+            <StatBlock label="Componentes" value={summary.componentCount} />
+            <StatBlock label="Verbalizações" value={summary.verbalizationCount} />
+            {summary.warningCount > 0 && <StatBlock label="Alertas" value={summary.warningCount} warning />}
+          </div>
+        )}
       </div>
 
       <div

@@ -35,6 +35,13 @@ export type UiToMainMessage =
   | { type: "focus-node"; nodeId: string }
   /** Seleciona e enquadra o painel de especificações recém-gerado. */
   | { type: "focus-generation-output" }
+  /**
+   * Exclui os marcadores e o painel da tela selecionada (quando ela já
+   * tem uma especificação). `thenAnalyze`: depois de excluir, roda a
+   * análise normal ("Gerar nova especificação"); senão, só exclui
+   * ("Excluir marcações na tela").
+   */
+  | { type: "delete-existing-markup"; thenAnalyze: boolean }
   /** Volta ao estado inicial: limpa seleção manual, item list etc. */
   | { type: "reset-flow" }
   | { type: "close-plugin" };
@@ -54,6 +61,8 @@ export type MainToUiMessage =
       height?: number;
       /** Contagem recursiva de descendentes, cortada em 5000 nós por segurança. */
       layerCount?: number;
+      /** Marcadores de uma especificação anterior desta tela (0 quando não tem). */
+      existingMarkerCount?: number;
     }
   | { type: "component-type-options"; domain: "accessibility"; options: ComponentTypeOption[] }
   | { type: "analysis-result"; result: ScreenAnalysisResult }
@@ -66,6 +75,8 @@ export type MainToUiMessage =
   | { type: "generation-progress"; stage: GenerationStage; done: number; total: number }
   | { type: "generation-error"; message: string }
   | { type: "generation-complete"; summary: GenerationSummary }
+  /** Marcadores (e painel) excluídos pelo botão "Excluir marcações na tela". */
+  | { type: "markup-deleted"; deletedCount: number; screenName: string; screenId: string }
   /** Histórico acumulado de execuções nesta página — enviado ao abrir
    * o plugin e depois de cada geração, para alimentar o botão
    * "Baixar histórico (.docx)". */

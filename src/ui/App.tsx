@@ -27,6 +27,7 @@ interface SelectionMeta {
   width?: number;
   height?: number;
   layerCount?: number;
+  existingMarkerCount?: number;
 }
 
 const CONTEXT_BADGE: Record<ScreenContext, string> = { WEB: "Web", APLICATIVO: "Aplicativo" };
@@ -95,7 +96,8 @@ export function App() {
           nodeType: message.nodeType,
           width: message.width,
           height: message.height,
-          layerCount: message.layerCount
+          layerCount: message.layerCount,
+          existingMarkerCount: message.existingMarkerCount
         });
         // Pedido do usuário: na tela de sucesso, selecionar outro
         // Frame/Grupo válido no canvas é tratado exatamente como
@@ -136,6 +138,21 @@ export function App() {
       case "generation-complete":
         setGenerationSummary(message.summary);
         lastOutputNodeIdRef.current = message.summary.outputNodeId;
+        setScreen("done");
+        break;
+      case "markup-deleted":
+        // Reaproveita a tela de sucesso no modo "Marcadores excluídos".
+        // outputNodeId = a própria tela: "Ver no canvas" enquadra a tela,
+        // e selecioná-la não dispara a "Nova especificação" automática.
+        setGenerationSummary({
+          componentCount: message.deletedCount,
+          verbalizationCount: 0,
+          warningCount: 0,
+          screenName: message.screenName,
+          outputNodeId: message.screenId,
+          mode: "deleted"
+        });
+        lastOutputNodeIdRef.current = message.screenId;
         setScreen("done");
         break;
       case "usage-log":
@@ -260,9 +277,12 @@ export function App() {
           selectedWidth={selectionMeta.width}
           selectedHeight={selectionMeta.height}
           selectedLayerCount={selectionMeta.layerCount}
+          existingMarkerCount={selectionMeta.existingMarkerCount ?? 0}
           onBack={() => setScreen("step0")}
           onClose={handleClose}
           onStartAnalysis={() => postToMain({ type: "start-analysis" })}
+          onRegenerate={() => postToMain({ type: "delete-existing-markup", thenAnalyze: true })}
+          onDeleteMarkup={() => postToMain({ type: "delete-existing-markup", thenAnalyze: false })}
         />
       )}
 

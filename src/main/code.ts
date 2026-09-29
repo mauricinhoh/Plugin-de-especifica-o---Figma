@@ -20,6 +20,7 @@ import { analyzeScreen, buildManualItem } from "./analysis/analyzer";
 import { appendUsageLogEntry, getUsageLog } from "./analysis/usageLog";
 import { generateMarkers } from "./generation/markers";
 import { generatePanel } from "./generation/panel";
+import { countExistingMarkers, deleteExistingMarkup, tagAsScreenOutput } from "./generation/existingMarkup";
 import { clearPreviewMarker, showPreviewMarker } from "./generation/previewMarker";
 
 const UI_WIDTH = 420;
@@ -83,7 +84,8 @@ function sendSelectionState(): void {
       nodeType: node.type,
       width: bounds ? bounds.width : undefined,
       height: bounds ? bounds.height : undefined,
-      layerCount: countDescendants(node)
+      layerCount: countDescendants(node),
+      existingMarkerCount: countExistingMarkers(node)
     });
   } else {
     postToUi({ type: "selection-state", valid: false, nodeId: null, nodeName: null });
@@ -212,7 +214,7 @@ async function generateSpecifications(items: SpecificationItem[]): Promise<void>
     const ordered = [...items].sort((a, b) => a.order - b.order);
     postToUi({ type: "generation-progress", stage: "reading-order", done: 1, total: 1 });
 
-    const { missingNodeErrors } = await generateMarkers(ordered, (done, total) => {
+    const { createdGroups, missingNodeErrors } = await generateMarkers(ordered, (done, total) => {
       postToUi({ type: "generation-progress", stage: "markers", done, total });
     });
 
@@ -227,6 +229,13 @@ async function generateSpecifications(items: SpecificationItem[]): Promise<void>
     postToUi({ type: "generation-progress", stage: "table", done: 1, total: 1 });
 
     lastGeneratedOutputNodeId = panel.id;
+
+    // Liga marcadores e painel a esta tela, para o plugin reconhecer
+    // depois que ela já tem uma especificação (ver existingMarkup.ts).
+    for (const group of createdGroups) {
+      tagAsScreenOutput(group, screenNode.id);
+    }
+    tagAsScreenOutput(panel, screenNode.id);
 
     const summary: GenerationSummary = {
       componentCount: ordered.length,
@@ -258,6 +267,27 @@ async function generateSpecifications(items: SpecificationItem[]): Promise<void>
       message: "Não foi possível concluir a geração. Os itens da lista foram preservados."
     });
   }
+}
+
+/**
+ * "Gerar nova especificação" / "Excluir marcações na tela" (Etapa 1,
+ * quando a tela selecionada já tem marcações).
+ */
+async function deleteExistingMarkupOfSelection(thenAnalyze: boolean): Promise<void> {
+  const selection = getCurrentSelection();
+  if (selection.length !== 1 || !isValidScreenNode(selection[0])) {
+    postToUi({ type: "analysis-error", message: "Selecione um único frame, grupo ou auto layout." });
+    return;
+  }
+  const screenNode = selection[0];
+  const deletedCount = deleteExistingMarkup(screenNode);
+  if (thenAnalyze) {
+    await runAnalysis();
+    return;
+  }
+  // "Ver no canvas" da tela de sucesso passa a enquadrar a própria tela.
+  lastGeneratedOutputNodeId = screenNode.id;
+  postToUi({ type: "markup-deleted", deletedCount, screenName: screenNode.name, screenId: screenNode.id });
 }
 
 // ---------- Roteamento de mensagens da UI ----------
@@ -339,6 +369,9 @@ figma.ui.onmessage = (message: UiToMainMessage) => {
           }
         });
       }
+      break;
+    case "delete-existing-markup":
+      void deleteExistingMarkupOfSelection(message.thenAnalyze);
       break;
     case "reset-flow":
       resetFlowState();
