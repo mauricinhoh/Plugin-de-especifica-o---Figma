@@ -15,7 +15,10 @@ import {
   AllVariantsCheck,
   CardDiagnosis,
   ElementInfo,
+  GenerationRequest,
+  GenerationResult,
   MappingResult,
+  PageTagStatus,
   SetupSelection,
   TagSelectionState,
   TestCardResult
@@ -48,11 +51,19 @@ export type TagUiToMainMessage =
   /** Fase 4: liga/desliga o acompanhamento da seleção (listener próprio do tagueamento). */
   | { type: "tag:watch-selection"; enabled: boolean }
   /** Fase 4: mapeia o frame selecionado ("tela") ou a página inteira ("pagina"), conforme setup.modo. */
-  | { type: "tag:run-mapping"; setup: SetupSelection }
+  | { type: "tag:run-mapping"; setup: SetupSelection; skipTagged?: boolean }
   /** Fase 4: seleciona e enquadra um node no canvas. */
   | { type: "tag:focus-node"; nodeId: string }
   /** Fase 6: pede os dados do elemento escolhido para um evento manual. */
-  | { type: "tag:element-info"; nodeId: string };
+  | { type: "tag:element-info"; nodeId: string }
+  /** Fase 7: gera os cards e marcadores no canvas. */
+  | { type: "tag:generate"; request: GenerationRequest }
+  /** Fase 7: exclui o tagueamento gerado de uma tela ("Excluir marcadores"). */
+  | { type: "tag:delete-output"; frameId: string }
+  /** Fase 7: quantos frames da página já têm tagueamento (antes da página inteira). */
+  | { type: "tag:page-tag-status" }
+  /** Fase 7: enquadra vários nodes (ex.: os grupos gerados). */
+  | { type: "tag:focus-nodes"; nodeIds: string[] };
 
 // ---------- Main -> UI ----------
 
@@ -72,7 +83,12 @@ export type TagMainToUiMessage =
   | { type: "tag:mapping-progress"; done: number; total: number }
   | { type: "tag:mapping-result"; result: MappingResult }
   | { type: "tag:mapping-error"; message: string }
-  | { type: "tag:element-info-result"; info: ElementInfo | null };
+  | { type: "tag:element-info-result"; info: ElementInfo | null }
+  | { type: "tag:generation-progress"; done: number; total: number }
+  | { type: "tag:generation-result"; result: GenerationResult }
+  | { type: "tag:generation-error"; message: string }
+  | { type: "tag:output-deleted"; frameName: string; cards: number }
+  | { type: "tag:page-tag-status-result"; status: PageTagStatus };
 
 /** true quando a mensagem pertence ao tagueamento (prefixo "tag:"). */
 export function isTagMessageType(type: unknown): boolean {

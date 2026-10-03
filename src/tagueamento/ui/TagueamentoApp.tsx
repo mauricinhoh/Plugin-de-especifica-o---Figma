@@ -4,7 +4,9 @@ import {
   AllVariantsCheck,
   CardDiagnosis,
   ElementInfo,
+  GenerationResult,
   MappingResult,
+  PageTagStatus,
   SetupSelection,
   TagSelectionState,
   TestCardResult
@@ -17,7 +19,9 @@ import { FrameSelect } from "./screens/FrameSelect";
 import { MappingProgress } from "./screens/MappingProgress";
 import { Review } from "./screens/Review";
 import { ReviewSummary } from "./screens/ReviewSummary";
-import { initialReviewState, reviewReducer } from "./state/reviewStore";
+import { buildGenerationRequest, initialReviewState, reviewReducer } from "./state/reviewStore";
+import { Done, Generating } from "./screens/Generation";
+import { PageTaggedChoice } from "./screens/PageTaggedChoice";
 import { FormsStatus } from "./components/SetupBar";
 
 /**
@@ -34,9 +38,20 @@ import { FormsStatus } from "./components/SetupBar";
  * Fase 4: seleção de frame (tela por tela) ou página inteira → mapeamento.
  * Fase 6: revisão editável (Tela X de N, Pular revisão, evento manual) → resumo,
  *         com a geração bloqueada enquanto houver pendência.
+ * Fase 7: geração dos cards e marcadores, tela já tagueada (refazer/excluir),
+ *         pergunta única na página inteira, telas de geração e de sucesso.
  */
 
-type TagScreen = "setup" | "frame" | "mapping" | "review" | "summary" | "diagnostic";
+type TagScreen =
+  | "setup"
+  | "frame"
+  | "pageChoice"
+  | "mapping"
+  | "review"
+  | "summary"
+  | "generating"
+  | "done"
+  | "diagnostic";
 
 /** Se o main thread não responder com a última escolha, abre o setup vazio depois deste tempo. */
 const LAST_SETUP_TIMEOUT_MS = 800;
@@ -68,6 +83,13 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
   const [review, dispatchReview] = useReducer(reviewReducer, null);
   const [reviewScreen, setReviewScreen] = useState(0);
   const [elementInfo, setElementInfo] = useState<ElementInfo | null>(null);
+
+  // Geração (Fase 7)
+  const [pageStatus, setPageStatus] = useState<PageTagStatus | null>(null);
+  const [generationProgress, setGenerationProgress] = useState({ done: 0, total: 0 });
+  const [generation, setGeneration] = useState<GenerationResult | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [deleted, setDeleted] = useState<{ frameName: string; cards: number } | null>(null);
 
   // Diagnóstico (Fase 2)
   const [diagnosis, setDiagnosis] = useState<CardDiagnosis | null>(null);
@@ -121,6 +143,30 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
           setCheckingAllVariants(false);
           setAllVariants(message.result);
           break;
+        case "tag:page-tag-status-result":
+          setPageStatus(message.status);
+          break;
+        case "tag:generation-progress":
+          setGenerationProgress({ done: message.done, total: message.total });
+          break;
+        case "tag:generation-result":
+          setGeneration(message.result);
+          setGenerationError(null);
+          setDeleted(null);
+          setScreen("done");
+          break;
+        case "tag:generation-error":
+          setGenerationError(message.message);
+          setGeneration(null);
+          setDeleted(null);
+          setScreen("done");
+          break;
+        case "tag:output-deleted":
+          setDeleted({ frameName: message.frameName, cards: message.cards });
+          setGeneration(null);
+          setGenerationError(null);
+          setScreen("done");
+          break;
         default:
           break;
       }
@@ -152,12 +198,32 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
 
   const closePlugin = () => postToTagMain({ type: "tag:close-plugin" });
 
-  function startMapping(selectionSetup: SetupSelection) {
+  function startMapping(selectionSetup: SetupSelection, skipTagged = false) {
     setMapping(null);
     setMappingError(null);
     setMappingProgress(null);
     setScreen("mapping");
-    postToTagMain({ type: "tag:run-mapping", setup: selectionSetup });
+    postToTagMain({ type: "tag:run-mapping", setup: selectionSetup, skipTagged });
+  }
+
+  // Página inteira: antes de mapear, vê se alguma tela já tem tagueamento (pergunta uma vez).
+  function startPageMode(selectionSetup: SetupSelection) {
+    setPageStatus(null);
+    setScreen("pageChoice");
+    postToTagMain({ type: "tag:page-tag-status" });
+  }
+
+  useEffect(() => {
+    if (screen !== "pageChoice" || !pageStatus || !setup) return;
+    if (pageStatus.tagged.length === 0) startMapping(setup);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageStatus, screen]);
+
+  function startGeneration() {
+    if (!review) return;
+    setGenerationProgress({ done: 0, total: review.screens.length });
+    setScreen("generating");
+    postToTagMain({ type: "tag:generate", request: buildGenerationRequest(review) });
   }
 
   function handleSetupComplete(selectionSetup: SetupSelection) {
@@ -185,7 +251,7 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
     setFormsStatus(status);
 
     if (selectionSetup.modo === "tela") setScreen("frame");
-    else startMapping(selectionSetup);
+    else startPageMode(selectionSetup);
   }
 
   if (screen === "diagnostic") {
@@ -226,6 +292,7 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
         formsStatus={formsStatus}
         selection={selection}
         onMap={() => startMapping(setup)}
+        onDeleteOutput={() => selection.nodeId && postToTagMain({ type: "tag:delete-output", frameId: selection.nodeId })}
         onEditSetup={() => setScreen("setup")}
         onExit={onExit}
         onClose={closePlugin}
@@ -241,7 +308,7 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
         progress={mappingProgress}
         error={mappingError}
         avisos={mapping && mapping.screens.length === 0 ? mapping.avisos : []}
-        onRetry={() => (setup.modo === "tela" ? setScreen("frame") : startMapping(setup))}
+        onRetry={() => (setup.modo === "tela" ? setScreen("frame") : startPageMode(setup))}
         onEditSetup={() => setScreen("setup")}
         onClose={closePlugin}
       />
@@ -264,7 +331,7 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
         onFocusNode={(nodeId) => postToTagMain({ type: "tag:focus-node", nodeId })}
         onFinish={() => setScreen("summary")}
         onEditSetup={() => setScreen("setup")}
-        onRemap={() => (setup.modo === "tela" ? setScreen("frame") : startMapping(setup))}
+        onRemap={() => (setup.modo === "tela" ? setScreen("frame") : startPageMode(setup))}
         remapLabel={setup.modo === "tela" ? "Mapear outra tela" : "Mapear de novo"}
         onClose={closePlugin}
       />
@@ -280,7 +347,52 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
           setReviewScreen(index);
           setScreen("review");
         }}
+        onGenerate={startGeneration}
         onBack={() => setScreen("review")}
+        onClose={closePlugin}
+      />
+    );
+  }
+
+  if (screen === "pageChoice" && setup) {
+    if (!pageStatus || pageStatus.tagged.length === 0) return null; // consultando, ou segue direto para o mapeamento
+    return (
+      <PageTaggedChoice
+        status={pageStatus}
+        onRedoAll={() => startMapping(setup, false)}
+        onSkip={() => startMapping(setup, true)}
+        onBack={() => setScreen("setup")}
+        onClose={closePlugin}
+      />
+    );
+  }
+
+  if (screen === "generating") {
+    return <Generating done={generationProgress.done} total={generationProgress.total} />;
+  }
+
+  if (screen === "done") {
+    return (
+      <Done
+        result={generation}
+        deleted={deleted}
+        error={generationError}
+        onShow={() => {
+          const ids = generation ? generation.screens.map((s) => s.groupId).filter((id): id is string => !!id) : [];
+          if (ids.length > 0) postToTagMain({ type: "tag:focus-nodes", nodeIds: ids });
+          else if (selection.nodeId) postToTagMain({ type: "tag:focus-nodes", nodeIds: [selection.nodeId] });
+        }}
+        onNew={() => {
+          if (generationError) {
+            setScreen("summary");
+            return;
+          }
+          setGeneration(null);
+          setDeleted(null);
+          if (setup?.modo === "tela") setScreen("frame");
+          else setScreen("setup");
+        }}
+        onExit={onExit}
         onClose={closePlugin}
       />
     );

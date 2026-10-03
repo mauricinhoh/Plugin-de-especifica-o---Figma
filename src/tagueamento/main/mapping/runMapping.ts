@@ -13,6 +13,7 @@
 import { MappingResult, SetupSelection } from "../../shared/types";
 import { buildPrototypeGraph } from "./prototype";
 import { discoverItems, mapScreen, screenNameOf } from "./mapScreen";
+import { findTagOutput } from "../generation/existingOutput";
 
 type ScreenNode = FrameNode | GroupNode;
 
@@ -36,9 +37,16 @@ export function topLevelFrames(): ScreenNode[] {
 
 const yieldToFigma = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
+/** Situação da página: quantos frames e quais já têm tagueamento gerado. */
+export function pageTagStatus(): { total: number; tagged: string[] } {
+  const frames = topLevelFrames();
+  return { total: frames.length, tagged: frames.filter((frame) => findTagOutput(frame).length > 0).map((frame) => frame.name) };
+}
+
 export async function runMapping(
   setup: SetupSelection,
-  onProgress: (done: number, total: number) => void
+  onProgress: (done: number, total: number) => void,
+  skipTagged = false
 ): Promise<MappingResult> {
   const pageFrames = topLevelFrames();
   const result: MappingResult = { modo: setup.modo, screens: [], avisos: [] };
@@ -51,9 +59,13 @@ export async function runMapping(
     }
     targets = [selection[0]];
   } else {
-    targets = pageFrames;
+    targets = skipTagged ? pageFrames.filter((frame) => findTagOutput(frame).length === 0) : pageFrames;
     if (targets.length === 0) {
-      result.avisos.push("Esta página não tem frames de primeiro nível.");
+      result.avisos.push(
+        pageFrames.length === 0
+          ? "Esta página não tem frames de primeiro nível."
+          : "Todas as telas desta página já têm tagueamento, e você escolheu pular essas."
+      );
       return result;
     }
   }

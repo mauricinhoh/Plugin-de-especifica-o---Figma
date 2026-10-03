@@ -11,6 +11,7 @@
 import { TagSelectionState } from "../shared/types";
 import { postToTagUi } from "./messaging";
 import { isScreenNode } from "./mapping/runMapping";
+import { countTaggedCards } from "./generation/existingOutput";
 
 let listening = false;
 
@@ -26,7 +27,8 @@ function currentState(): TagSelectionState {
       nodeType: node.type,
       width: Math.round(node.width),
       height: Math.round(node.height),
-      element
+      element,
+      taggedCards: countTaggedCards(node)
     };
   }
   return { valid: false, nodeId: null, nodeName: null, element };

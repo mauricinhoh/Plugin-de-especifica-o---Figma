@@ -3481,6 +3481,43 @@
     };
   }
 
+  // src/tagueamento/main/generation/existingOutput.ts
+  var OUTPUT_SCREEN_KEY = "tagueamento.screenId";
+  var CARD_NODE_KEY = "tagueamento.nodeId";
+  var CARD_NUMBER_KEY = "tagueamento.numero";
+  var OUTPUT_GROUP_PREFIX = "Tagueamento \u2014 ";
+  function containersOf(frame) {
+    const containers = [figma.currentPage];
+    const parent = frame.parent;
+    if (parent && parent.type === "SECTION") containers.push(parent);
+    return containers;
+  }
+  function findTagOutput(frame) {
+    const found = [];
+    for (const container of containersOf(frame)) {
+      for (const child of container.children) {
+        if (child.getPluginData(OUTPUT_SCREEN_KEY) === frame.id && !found.includes(child)) found.push(child);
+      }
+    }
+    return found;
+  }
+  function countTaggedCards(frame) {
+    let count = 0;
+    for (const group of findTagOutput(frame)) {
+      if ("findAll" in group) {
+        count += group.findAll((node) => node.getPluginData(CARD_NUMBER_KEY) !== "" && node.type === "INSTANCE").length;
+      }
+    }
+    return count;
+  }
+  function deleteTagOutput(frame) {
+    const count = countTaggedCards(frame);
+    for (const group of findTagOutput(frame)) {
+      if (!group.removed) group.remove();
+    }
+    return count;
+  }
+
   // src/tagueamento/main/mapping/runMapping.ts
   function isScreenNode(node) {
     return node.type === "FRAME" || node.type === "GROUP";
@@ -3498,7 +3535,11 @@
     return frames;
   }
   var yieldToFigma = () => new Promise((resolve) => setTimeout(resolve, 0));
-  async function runMapping(setup, onProgress) {
+  function pageTagStatus() {
+    const frames = topLevelFrames();
+    return { total: frames.length, tagged: frames.filter((frame) => findTagOutput(frame).length > 0).map((frame) => frame.name) };
+  }
+  async function runMapping(setup, onProgress, skipTagged = false) {
     const pageFrames = topLevelFrames();
     const result = { modo: setup.modo, screens: [], avisos: [] };
     let targets;
@@ -3509,9 +3550,11 @@
       }
       targets = [selection[0]];
     } else {
-      targets = pageFrames;
+      targets = skipTagged ? pageFrames.filter((frame) => findTagOutput(frame).length === 0) : pageFrames;
       if (targets.length === 0) {
-        result.avisos.push("Esta p\xE1gina n\xE3o tem frames de primeiro n\xEDvel.");
+        result.avisos.push(
+          pageFrames.length === 0 ? "Esta p\xE1gina n\xE3o tem frames de primeiro n\xEDvel." : "Todas as telas desta p\xE1gina j\xE1 t\xEAm tagueamento, e voc\xEA escolheu pular essas."
+        );
         return result;
       }
     }
@@ -3544,7 +3587,8 @@
         nodeType: node.type,
         width: Math.round(node.width),
         height: Math.round(node.height),
-        element
+        element,
+        taggedCards: countTaggedCards(node)
       };
     }
     return { valid: false, nodeId: null, nodeName: null, element };
@@ -3561,6 +3605,299 @@
       listening = false;
     }
     if (enabled) sendState();
+  }
+
+  // src/tagueamento/shared/review.ts
+  var SETUP_FIELDS = ["region", "subregion"];
+  var APP_ONLY = ["firebase_screen", "firebase_previous_screen", "target_screen"];
+  var WEB_ONLY = ["page_name", "previous_page", "target_page"];
+  function fieldsFor(evento, plataforma) {
+    const schema = GA_EVENTS.find((event) => event.key === evento);
+    if (!schema) return { required: [], optional: [] };
+    const hidden = plataforma === "APP" ? WEB_ONLY : APP_ONLY;
+    const fields = { required: [], optional: [] };
+    for (const param of schema.params) {
+      const optional = param.endsWith("*");
+      const name = param.replace(/\*/g, "");
+      const keep = evento === "select_content" && name === "previous_page" ? true : !hidden.includes(name);
+      if (!keep) continue;
+      (optional ? fields.optional : fields.required).push(name);
+    }
+    return fields;
+  }
+  function isEmptyValue(value) {
+    if (!value) return true;
+    const trimmed = value.trim();
+    return trimmed === "" || trimmed.startsWith("<") && trimmed.endsWith(">");
+  }
+
+  // src/tagueamento/main/generation/fillCard.ts
+  var APP_ONLY2 = ["firebase_screen", "firebase_previous_screen", "target_screen"];
+  var WEB_ONLY2 = ["page_name", "previous_page", "target_page"];
+  function stripPropertyId4(name) {
+    const hashIndex = name.lastIndexOf("#");
+    return hashIndex > 0 ? name.slice(0, hashIndex) : name;
+  }
+  function isFilled(value) {
+    return !isEmptyValue(value) && (value != null ? value : "").trim().toUpperCase() !== "N/A";
+  }
+  async function loadFontsOf(node) {
+    const fonts = node.fontName === figma.mixed ? node.getRangeAllFontNames(0, node.characters.length) : [node.fontName];
+    await Promise.all(fonts.map((font) => figma.loadFontAsync(font)));
+  }
+  async function setText(node, text) {
+    if (node.characters === text) return;
+    await loadFontsOf(node);
+    node.characters = text;
+  }
+  async function fillCard(card, evento, values, numero, plataforma) {
+    var _a2;
+    const avisos = [];
+    const valueOf = (label) => values[normalizeParamLabel(label)];
+    const structure = readCardStructure(card);
+    const toggleOn = /* @__PURE__ */ new Map();
+    for (const row of structure.rows) {
+      const toggle = row.info.toggle;
+      if (!toggle || toggle === GA_CARD_SHOW_TOGGLE) continue;
+      toggleOn.set(toggle, ((_a2 = toggleOn.get(toggle)) != null ? _a2 : false) || isFilled(valueOf(row.info.label)));
+    }
+    const fullNames = /* @__PURE__ */ new Map();
+    for (const [name, property] of Object.entries(card.componentProperties)) {
+      if (property.type === "BOOLEAN") fullNames.set(stripPropertyId4(name), name);
+    }
+    const toApply = {};
+    for (const [toggle, on] of toggleOn) {
+      const fullName = fullNames.get(toggle);
+      if (fullName) toApply[fullName] = on;
+      else avisos.push(`Toggle "${toggle}" n\xE3o encontrada no card.`);
+    }
+    if (Object.keys(toApply).length > 0) card.setProperties(toApply);
+    const { required, optional } = fieldsFor(evento, plataforma);
+    const allowed = /* @__PURE__ */ new Set([...required, ...optional, ...SETUP_FIELDS]);
+    const hiddenChannel = plataforma === "APP" ? WEB_ONLY2 : APP_ONLY2;
+    const after = readCardStructure(card);
+    for (const row of after.rows) {
+      const param = normalizeParamLabel(row.info.label);
+      if (hiddenChannel.includes(param) && !allowed.has(param)) {
+        row.row.visible = false;
+        continue;
+      }
+      const value = values[param];
+      if (!value || isEmptyValue(value)) continue;
+      try {
+        await setText(row.valueNode, value);
+      } catch (error) {
+        avisos.push(`N\xE3o foi poss\xEDvel escrever "${param}": ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    if (after.numberNode) {
+      try {
+        await setText(after.numberNode, String(numero));
+      } catch (error) {
+        avisos.push(`N\xE3o foi poss\xEDvel escrever o n\xFAmero ${numero}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    } else {
+      avisos.push("\xC1rea de n\xFAmero (Number) n\xE3o encontrada no card.");
+    }
+    return avisos;
+  }
+
+  // src/tagueamento/shared/eventColors.ts
+  var EVENT_COLORS = {
+    select_content: { fill: "#E60050", text: "#FFFFFF" },
+    screen_view: { fill: "#FFCD00", text: "#323C32" },
+    page_view: { fill: "#FFCD00", text: "#323C32" },
+    modal_view: { fill: "#9328FF", text: "#FFFFFF" },
+    feedback: { fill: "#28D8FF", text: "#323C32" },
+    login: { fill: "#33820D", text: "#FFFFFF" },
+    transaction: { fill: "#4665FF", text: "#FFFFFF" },
+    search: { fill: "#FF28C6", text: "#FFFFFF" },
+    refresh: { fill: "#FF7028", text: "#FFFFFF" },
+    conversion: { fill: "#1BB718", text: "#FFFFFF" }
+  };
+  var FALLBACK_COLOR = { fill: "#131713", text: "#FFFFFF" };
+  function colorOf(evento) {
+    var _a2;
+    return (_a2 = EVENT_COLORS[evento]) != null ? _a2 : FALLBACK_COLOR;
+  }
+  function hexToRgb(hex) {
+    const clean = hex.replace("#", "");
+    return {
+      r: parseInt(clean.slice(0, 2), 16) / 255,
+      g: parseInt(clean.slice(2, 4), 16) / 255,
+      b: parseInt(clean.slice(4, 6), 16) / 255
+    };
+  }
+
+  // src/tagueamento/main/generation/markers.ts
+  var MARKER_STROKE_WIDTH2 = 2;
+  var MARKER_PADDING2 = 6;
+  var CIRCLE_DIAMETER2 = 24;
+  var MARKER_FONT2 = { family: "Inter", style: "Bold" };
+  function circleWithNumber(numero, evento, x, y) {
+    const color = colorOf(evento);
+    const circle = figma.createEllipse();
+    circle.name = `Marcador ${numero} - c\xEDrculo`;
+    circle.resize(CIRCLE_DIAMETER2, CIRCLE_DIAMETER2);
+    circle.x = x;
+    circle.y = y;
+    circle.fills = [{ type: "SOLID", color: hexToRgb(color.fill) }];
+    circle.strokes = [];
+    const label = figma.createText();
+    label.fontName = MARKER_FONT2;
+    label.characters = String(numero);
+    label.fontSize = 12;
+    label.fills = [{ type: "SOLID", color: hexToRgb(color.text) }];
+    label.textAlignHorizontal = "CENTER";
+    label.textAlignVertical = "CENTER";
+    label.textAutoResize = "NONE";
+    label.resize(CIRCLE_DIAMETER2, CIRCLE_DIAMETER2);
+    label.x = x;
+    label.y = y;
+    return [circle, label];
+  }
+  function createComponentMarker(bounds, numero, evento, nodeName) {
+    const color = colorOf(evento);
+    const outline = figma.createRectangle();
+    outline.name = `Marcador ${numero} - contorno`;
+    outline.x = bounds.x - MARKER_PADDING2;
+    outline.y = bounds.y - MARKER_PADDING2;
+    outline.resize(Math.max(1, bounds.width + MARKER_PADDING2 * 2), Math.max(1, bounds.height + MARKER_PADDING2 * 2));
+    outline.fills = [];
+    outline.strokes = [{ type: "SOLID", color: hexToRgb(color.fill) }];
+    outline.strokeWeight = MARKER_STROKE_WIDTH2;
+    outline.dashPattern = [4, 4];
+    outline.cornerRadius = 4;
+    const parts = circleWithNumber(
+      numero,
+      evento,
+      bounds.x - MARKER_PADDING2 - CIRCLE_DIAMETER2 / 2,
+      bounds.y - MARKER_PADDING2 - CIRCLE_DIAMETER2 / 2
+    );
+    const group = figma.group([outline, ...parts], figma.currentPage);
+    group.name = `Marcador ${numero} - ${nodeName}`;
+    return group;
+  }
+  function createScreenMarker(frameBounds, numero, evento) {
+    const parts = circleWithNumber(numero, evento, frameBounds.x - CIRCLE_DIAMETER2 / 2, frameBounds.y - CIRCLE_DIAMETER2 / 2);
+    const group = figma.group(parts, figma.currentPage);
+    group.name = `Marcador ${numero} - tela`;
+    return group;
+  }
+
+  // src/tagueamento/main/generation/generate.ts
+  var GAP_FROM_FRAME = 80;
+  var GAP_BETWEEN_CARDS = 24;
+  var GAP_BETWEEN_COLUMNS = 40;
+  var yieldToFigma2 = () => new Promise((resolve) => setTimeout(resolve, 0));
+  function errorMessage3(error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  async function loadVariants() {
+    var _a2;
+    const set = await figma.importComponentSetByKeyAsync(GA_CARD_SET_KEY);
+    const variants = /* @__PURE__ */ new Map();
+    for (const child of set.children) {
+      if (child.type !== "COMPONENT") continue;
+      const variantName = (_a2 = child.variantProperties) == null ? void 0 : _a2[GA_CARD_EVENT_PROPERTY];
+      if (variantName) variants.set(eventKeyFromVariantName(variantName), child);
+    }
+    return variants;
+  }
+  function placeInFrameContainer(group, frame) {
+    const parent = frame.parent;
+    if (!parent || parent.type !== "SECTION") return;
+    const absX = group.absoluteTransform[0][2];
+    const absY = group.absoluteTransform[1][2];
+    parent.appendChild(group);
+    group.x = absX - parent.absoluteTransform[0][2];
+    group.y = absY - parent.absoluteTransform[1][2];
+  }
+  async function generateScreen(screen, request, variants) {
+    const result = { frameId: screen.frameId, nomeTela: screen.nomeTela, cards: 0, groupId: null, avisos: [] };
+    const frame = await figma.getNodeByIdAsync(screen.frameId);
+    if (!frame || !("absoluteBoundingBox" in frame) || !frame.absoluteBoundingBox) {
+      result.avisos.push(`A tela "${screen.nomeTela}" n\xE3o existe mais no arquivo.`);
+      return result;
+    }
+    const frameBox = frame.absoluteBoundingBox;
+    deleteTagOutput(frame);
+    const created = [];
+    let x = frameBox.x + frameBox.width + GAP_FROM_FRAME;
+    let y = frameBox.y;
+    let columnWidth = 0;
+    const bottomLimit = frameBox.y + frameBox.height;
+    for (const item of screen.items) {
+      const variant = variants.get(item.evento);
+      if (!variant) {
+        result.avisos.push(`Card ${item.numero}: variante do evento "${item.evento}" n\xE3o encontrada na biblioteca.`);
+        continue;
+      }
+      let card;
+      try {
+        card = variant.createInstance();
+      } catch (error) {
+        result.avisos.push(`Card ${item.numero}: n\xE3o foi poss\xEDvel criar (${errorMessage3(error)}).`);
+        continue;
+      }
+      card.name = `${item.numero}. ${item.evento} \u2014 ${item.componente}`;
+      card.setPluginData(OUTPUT_SCREEN_KEY, frame.id);
+      card.setPluginData(CARD_NODE_KEY, item.nodeId);
+      card.setPluginData(CARD_NUMBER_KEY, String(item.numero));
+      try {
+        result.avisos.push(...(await fillCard(card, item.evento, item.values, item.numero, request.plataforma)).map((a) => `Card ${item.numero}: ${a}`));
+      } catch (error) {
+        result.avisos.push(`Card ${item.numero}: erro ao preencher (${errorMessage3(error)}).`);
+      }
+      if (y > frameBox.y && y + card.height > bottomLimit) {
+        x += columnWidth + GAP_BETWEEN_COLUMNS;
+        y = frameBox.y;
+        columnWidth = 0;
+      }
+      card.x = x;
+      card.y = y;
+      y += card.height + GAP_BETWEEN_CARDS;
+      columnWidth = Math.max(columnWidth, card.width);
+      created.push(card);
+      result.cards += 1;
+      try {
+        if (item.origem === "tela") {
+          created.push(createScreenMarker(frameBox, item.numero, item.evento));
+        } else {
+          const target = await figma.getNodeByIdAsync(item.nodeId);
+          const bounds = target && "absoluteBoundingBox" in target ? target.absoluteBoundingBox : null;
+          if (!target || !bounds) {
+            result.avisos.push(`Card ${item.numero}: o componente "${item.componente}" n\xE3o existe mais \u2014 card criado sem marcador.`);
+          } else {
+            const marker = createComponentMarker(bounds, item.numero, item.evento, item.componente);
+            marker.setPluginData(CARD_NODE_KEY, item.nodeId);
+            created.push(marker);
+          }
+        }
+      } catch (error) {
+        result.avisos.push(`Card ${item.numero}: marcador n\xE3o criado (${errorMessage3(error)}).`);
+      }
+    }
+    if (created.length > 0) {
+      const group = figma.group(created, figma.currentPage);
+      group.name = `${OUTPUT_GROUP_PREFIX}${screen.nomeTela || frame.name}`;
+      group.setPluginData(OUTPUT_SCREEN_KEY, frame.id);
+      placeInFrameContainer(group, frame);
+      result.groupId = group.id;
+    }
+    return result;
+  }
+  async function generateCards(request, onProgress) {
+    const result = { screens: [], avisos: [] };
+    const variants = await loadVariants();
+    await figma.loadFontAsync(MARKER_FONT2);
+    onProgress(0, request.screens.length);
+    for (let index = 0; index < request.screens.length; index++) {
+      result.screens.push(await generateScreen(request.screens[index], request, variants));
+      onProgress(index + 1, request.screens.length);
+      await yieldToFigma2();
+    }
+    return result;
   }
 
   // src/tagueamento/main/elementInfo.ts
@@ -3635,11 +3972,15 @@
     }
   }
   var mappingInProgress = false;
-  async function runMappingAndReport(setup) {
+  async function runMappingAndReport(setup, skipTagged) {
     if (mappingInProgress) return;
     mappingInProgress = true;
     try {
-      const result = await runMapping(setup, (done, total) => postToTagUi({ type: "tag:mapping-progress", done, total }));
+      const result = await runMapping(
+        setup,
+        (done, total) => postToTagUi({ type: "tag:mapping-progress", done, total }),
+        skipTagged
+      );
       postToTagUi({ type: "tag:mapping-result", result });
     } catch (error) {
       postToTagUi({
@@ -3649,6 +3990,40 @@
     } finally {
       mappingInProgress = false;
     }
+  }
+  var generationInProgress = false;
+  async function runGeneration(request) {
+    if (generationInProgress) return;
+    generationInProgress = true;
+    try {
+      const result = await generateCards(request, (done, total) => postToTagUi({ type: "tag:generation-progress", done, total }));
+      postToTagUi({ type: "tag:generation-result", result });
+    } catch (error) {
+      postToTagUi({
+        type: "tag:generation-error",
+        message: `N\xE3o foi poss\xEDvel gerar os cards: ${error instanceof Error ? error.message : String(error)}`
+      });
+    } finally {
+      generationInProgress = false;
+    }
+  }
+  async function deleteOutput(frameId) {
+    const frame = await figma.getNodeByIdAsync(frameId);
+    if (!frame || !("visible" in frame)) {
+      figma.notify("Tela n\xE3o encontrada");
+      return;
+    }
+    const cards = deleteTagOutput(frame);
+    postToTagUi({ type: "tag:output-deleted", frameName: frame.name, cards });
+  }
+  async function focusNodes(nodeIds) {
+    const nodes = [];
+    for (const id of nodeIds) {
+      const node = await figma.getNodeByIdAsync(id);
+      if (node && "visible" in node) nodes.push(node);
+    }
+    if (nodes.length > 0) figma.viewport.scrollAndZoomIntoView(nodes);
+    else figma.notify("Nada encontrado no canvas");
   }
   async function focusNode2(nodeId) {
     const node = await figma.getNodeByIdAsync(nodeId);
@@ -3690,10 +4065,22 @@
         watchSelection(message.enabled);
         break;
       case "tag:run-mapping":
-        void runMappingAndReport(message.setup);
+        void runMappingAndReport(message.setup, message.skipTagged === true);
         break;
       case "tag:focus-node":
         void focusNode2(message.nodeId);
+        break;
+      case "tag:generate":
+        void runGeneration(message.request);
+        break;
+      case "tag:delete-output":
+        void deleteOutput(message.frameId);
+        break;
+      case "tag:page-tag-status":
+        postToTagUi({ type: "tag:page-tag-status-result", status: pageTagStatus() });
+        break;
+      case "tag:focus-nodes":
+        void focusNodes(message.nodeIds);
         break;
       case "tag:element-info":
         void elementInfo(message.nodeId).then((info) => postToTagUi({ type: "tag:element-info-result", info }));

@@ -18,6 +18,8 @@ interface FrameSelectProps {
   formsStatus: FormsStatus;
   selection: TagSelectionState;
   onMap: () => void;
+  /** "Excluir marcadores" de uma tela que já tem tagueamento. */
+  onDeleteOutput: () => void;
   onEditSetup: () => void;
   onExit: () => void;
   onClose: () => void;
@@ -31,15 +33,17 @@ function isTypingTarget(element: Element | null): boolean {
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (element as HTMLElement).isContentEditable;
 }
 
-export function FrameSelect({ setup, formsStatus, selection, onMap, onEditSetup, onExit, onClose }: FrameSelectProps) {
+export function FrameSelect({ setup, formsStatus, selection, onMap, onDeleteOutput, onEditSetup, onExit, onClose }: FrameSelectProps) {
+  // Tela que já tem tagueamento: pergunta o que fazer (spec 3.3, igual à acessibilidade).
+  const tagged = selection.valid && (selection.taggedCards ?? 0) > 0;
   useEffect(() => {
     function handleKeydown(event: KeyboardEvent) {
-      if (event.key !== "Enter" || isTypingTarget(document.activeElement) || !selection.valid) return;
+      if (event.key !== "Enter" || isTypingTarget(document.activeElement) || !selection.valid || tagged) return;
       onMap();
     }
     window.addEventListener("keydown", handleKeydown);
     return () => window.removeEventListener("keydown", handleKeydown);
-  }, [selection.valid, onMap]);
+  }, [selection.valid, tagged, onMap]);
 
   const metaDims = selection.width !== undefined && selection.height !== undefined;
 
@@ -50,10 +54,23 @@ export function FrameSelect({ setup, formsStatus, selection, onMap, onEditSetup,
       <div className="scroll-area" style={{ padding: "18px 24px 24px" }}>
         <SetupBar setup={setup} formsStatus={formsStatus} onEdit={onEditSetup} />
 
-        <h2 style={{ fontSize: 21, fontWeight: 900, letterSpacing: "-.025em", margin: "20px 0 0" }}>Selecione uma tela</h2>
-        <p style={{ marginTop: 6, fontSize: "13.5px", lineHeight: 1.45, color: "var(--color-text-muted)" }}>
-          Escolha no canvas o frame que você quer taguear.
-        </p>
+        {tagged ? (
+          <>
+            <h2 style={{ fontSize: 21, fontWeight: 900, letterSpacing: "-.025em", margin: "20px 0 0", overflowWrap: "anywhere" }}>
+              O que deseja fazer com essa tela {selection.nodeName}?
+            </h2>
+            <p style={{ marginTop: 6, fontSize: "13.5px", lineHeight: 1.45, color: "var(--color-text-muted)" }}>
+              Ela já tem {selection.taggedCards} {selection.taggedCards === 1 ? "card" : "cards"} de tagueamento.
+            </p>
+          </>
+        ) : (
+          <>
+            <h2 style={{ fontSize: 21, fontWeight: 900, letterSpacing: "-.025em", margin: "20px 0 0" }}>Selecione uma tela</h2>
+            <p style={{ marginTop: 6, fontSize: "13.5px", lineHeight: 1.45, color: "var(--color-text-muted)" }}>
+              Escolha no canvas o frame que você quer taguear.
+            </p>
+          </>
+        )}
 
         {!selection.valid ? (
           <>
@@ -203,10 +220,21 @@ export function FrameSelect({ setup, formsStatus, selection, onMap, onEditSetup,
           gap: 9
         }}
       >
-        <Button fullWidth disabled={!selection.valid} onClick={onMap} iconRight={<Icon name="arrow-right" size={16} color="#fff" />}>
-          Mapear tela
-        </Button>
-        {selection.valid && (
+        {tagged ? (
+          <>
+            <Button fullWidth onClick={onMap}>
+              Refazer o parecer
+            </Button>
+            <Button variant="secondary" fullWidth onClick={onDeleteOutput}>
+              Excluir marcadores
+            </Button>
+          </>
+        ) : (
+          <Button fullWidth disabled={!selection.valid} onClick={onMap} iconRight={<Icon name="arrow-right" size={16} color="#fff" />}>
+            Mapear tela
+          </Button>
+        )}
+        {selection.valid && !tagged && (
           <div style={{ textAlign: "center", fontSize: "11.5px", fontWeight: 700, color: "#A3AC9B" }}>
             ou pressione{" "}
             <kbd

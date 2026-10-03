@@ -246,6 +246,8 @@ export interface TagSelectionState {
   height?: number;
   /** Qualquer camada única selecionada (usado no "Adicionar evento manual"). */
   element?: { id: string; name: string; type: string } | null;
+  /** Cards de tagueamento já gerados para a tela selecionada (0 = nenhum). */
+  taggedCards?: number;
 }
 
 /** Fase 6: dados do elemento escolhido para um evento manual. */
@@ -257,4 +259,50 @@ export interface ElementInfo {
   label: string | null;
   /** Frame de primeiro nível que contém o elemento (para avisar se é de outra tela). */
   frameId: string | null;
+}
+
+// ---------- Fase 7: geração ----------
+
+export interface GenerationItem {
+  numero: number;
+  /** Componente marcado (o próprio frame no card de tela). */
+  nodeId: string;
+  componente: string;
+  evento: string;
+  origem: "tela" | "componente" | "manual";
+  /** Valores revisados, com o nome do parâmetro igual ao do card. */
+  values: Record<string, string>;
+}
+
+export interface GenerationScreen {
+  frameId: string;
+  nomeTela: string;
+  items: GenerationItem[];
+}
+
+export interface GenerationRequest {
+  plataforma: Plataforma;
+  screens: GenerationScreen[];
+}
+
+export interface GeneratedScreen {
+  frameId: string;
+  nomeTela: string;
+  /** Cards criados nesta tela. */
+  cards: number;
+  /** Grupo "Tagueamento — …" criado (para "Mostrar na tela"). */
+  groupId: string | null;
+  avisos: string[];
+}
+
+export interface GenerationResult {
+  screens: GeneratedScreen[];
+  avisos: string[];
+}
+
+/** Situação da página antes de mapear em "Página inteira". */
+export interface PageTagStatus {
+  total: number;
+  /** Nomes dos frames que já têm tagueamento gerado. */
+  tagged: string[];
 }

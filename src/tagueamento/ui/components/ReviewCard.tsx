@@ -3,6 +3,7 @@ import { COMPONENT_EVENTS, fieldsFor, Pendencia, pendenciasOf, ReviewItem, SETUP
 import { Plataforma } from "../../shared/types";
 import { Icon } from "./Icon";
 import { ParamField } from "./ParamField";
+import { colorOf } from "../../shared/eventColors";
 
 /**
  * Card da revisão (Fase 6) — visual adaptado do Card da acessibilidade
@@ -95,8 +96,8 @@ export function ReviewCard({
             minWidth: 24,
             height: 24,
             borderRadius: 999,
-            background: "var(--color-chrome)",
-            color: "#fff",
+            background: colorOf(item.evento).fill,
+            color: colorOf(item.evento).text,
             fontSize: 12,
             fontWeight: 900,
             display: "flex",

@@ -3,9 +3,9 @@
  * plugin está aberto; a geração (Fase 7) grava o resultado no arquivo.
  */
 
-import { MappingResult, Plataforma, SetupSelection } from "../../shared/types";
+import { GenerationRequest, MappingResult, Plataforma, SetupSelection } from "../../shared/types";
 import { describeReport, normalizeWithReport } from "../../shared/naming";
-import { changeEvent, defaultsFor, pendenciasOf, ReviewItem, ScreenContext } from "../../shared/review";
+import { changeEvent, defaultsFor, fieldsFor, pendenciasOf, ReviewItem, ScreenContext, SETUP_FIELDS } from "../../shared/review";
 
 export interface ReviewScreen {
   frameId: string;
@@ -193,4 +193,26 @@ export function screenPendencias(state: ReviewState, screen: ReviewScreen): numb
 
 export function totalPendencias(state: ReviewState): number {
   return state.screens.reduce((sum, screen) => sum + screenPendencias(state, screen), 0);
+}
+
+/** Monta o pedido de geração (Fase 7): só os campos do evento/canal de cada item, já revisados. */
+export function buildGenerationRequest(state: ReviewState): GenerationRequest {
+  return {
+    plataforma: state.plataforma,
+    screens: state.screens.map((screen) => ({
+      frameId: screen.frameId,
+      nomeTela: screen.nomeTela,
+      items: screen.items.map((item, index) => {
+        const { required, optional } = fieldsFor(item.evento, state.plataforma);
+        const allowed = new Set([...required, ...optional, ...SETUP_FIELDS]);
+        const values: Record<string, string> = {};
+        for (const [field, value] of Object.entries(item.values)) {
+          if (allowed.has(field) && value) values[field] = value;
+        }
+        values.region = state.region;
+        values.subregion = state.subregion;
+        return { numero: index + 1, nodeId: item.nodeId, componente: item.componente, evento: item.evento, origem: item.origem, values };
+      })
+    }))
+  };
 }

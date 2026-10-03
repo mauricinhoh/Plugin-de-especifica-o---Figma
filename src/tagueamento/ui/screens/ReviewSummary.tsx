@@ -7,20 +7,20 @@ import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 
 /**
- * Fase 6 — resumo da revisão. Pendência BLOQUEIA a geração (decisão do Mau,
- * 03/10/2026): "Gerar cards" só habilita com zero pendências. A geração em
- * si chega na Fase 7.
+ * Fase 6/7 — resumo da revisão. Pendência BLOQUEIA a geração (decisão do Mau,
+ * 03/10/2026): "Gerar cards" só habilita com zero pendências.
  */
 
 interface ReviewSummaryProps {
   setup: SetupSelection;
   state: ReviewState;
   onGoToScreen: (index: number) => void;
+  onGenerate: () => void;
   onBack: () => void;
   onClose: () => void;
 }
 
-export function ReviewSummary({ setup, state, onGoToScreen, onBack, onClose }: ReviewSummaryProps) {
+export function ReviewSummary({ setup, state, onGoToScreen, onGenerate, onBack, onClose }: ReviewSummaryProps) {
   const pending = totalPendencias(state);
   const cards = state.screens.reduce((sum, screen) => sum + screen.items.length, 0);
 
@@ -56,7 +56,7 @@ export function ReviewSummary({ setup, state, onGoToScreen, onBack, onClose }: R
           <span>
             {pending > 0
               ? `Resolva as ${pending} ${pending === 1 ? "pendência" : "pendências"} para gerar os cards.`
-              : "Tudo revisado. A geração dos cards no canvas chega na Fase 7."}
+              : "Tudo revisado. Os cards e marcadores vão ser criados ao lado de cada tela."}
           </span>
         </div>
 
@@ -85,8 +85,8 @@ export function ReviewSummary({ setup, state, onGoToScreen, onBack, onClose }: R
         </div>
       </div>
       <div style={{ borderTop: "1px solid var(--color-border)", padding: "12px 24px 18px" }}>
-        <Button fullWidth disabled>
-          Gerar cards {pending > 0 ? `(${pending} ${pending === 1 ? "pendência" : "pendências"})` : "— Fase 7"}
+        <Button fullWidth disabled={pending > 0} onClick={onGenerate} iconRight={pending > 0 ? undefined : <Icon name="arrow-right" size={15} color="#fff" />}>
+          {pending > 0 ? `Gerar cards (${pending} ${pending === 1 ? "pendência" : "pendências"})` : "Gerar cards"}
         </Button>
       </div>
     </>

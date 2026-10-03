@@ -89,6 +89,7 @@ src/tagueamento/
   shared/forms.ts        # link pré-preenchido do Forms do "Outro" (configurado; códigos por pergunta)
   shared/classification.ts # tabela componente → evento/ação (spec 4.2) e cabeçalhos ignorados
   shared/review.ts       # regras da revisão: campos por evento/canal, pendências, troca de evento
+  shared/eventColors.ts  # cores de cada evento (bolinha da revisão e marcador)
   data/                  # Excel de regions (template), canais.json e a lista gerada
   main/router.ts         # recebe as mensagens "tag:" no main thread
   main/messaging.ts      # postToTagUi (cópia adaptada de src/main/messaging.ts)
@@ -98,12 +99,13 @@ src/tagueamento/
   main/setupStorage.ts   # memória da última escolha do setup (clientStorage, chave própria)
   main/selection.ts      # listener de seleção próprio (seleção de tela e revisão)
   main/elementInfo.ts    # dados do elemento escolhido para um evento manual
+  main/generation/       # geração: cards (fillCard), marcadores, layout, grupo e tela já tagueada
   main/traversal/        # cópias adaptadas da descoberta, ordem de leitura e identificação
   main/mapping/          # mapeamento do frame, setas do protótipo, execução (tela/página)
   ui/TagueamentoApp.tsx  # raiz do fluxo na UI
   ui/bridge.ts           # postToTagMain / onTagMessage (cópia adaptada do mainBridge)
   ui/screens/            # telas: SetupScreen, FrameSelect, MappingProgress, Review, ReviewSummary,
-                         #        CardDiagnostic, NamingTester
+                         #        Generation (gerando/pronto), PageTaggedChoice, CardDiagnostic, NamingTester
   ui/state/reviewStore.ts # estado da revisão (edições, eventos, manuais) — só em memória
   ui/regionsData.ts      # lista de regions embutida (gerada no build)
   ui/diagnosticReport.ts # relatório em texto do diagnóstico (botão "Copiar")

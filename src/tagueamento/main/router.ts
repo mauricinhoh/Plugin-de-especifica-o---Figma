@@ -18,8 +18,10 @@ import { checkAllVariants } from "./variantCheck";
 import { GA_CARD_SET_KEY } from "../shared/gaCard";
 import { loadLastSetup, saveLastSetup } from "./setupStorage";
 import { watchSelection } from "./selection";
-import { runMapping } from "./mapping/runMapping";
-import { SetupSelection } from "../shared/types";
+import { pageTagStatus, runMapping } from "./mapping/runMapping";
+import { generateCards } from "./generation/generate";
+import { deleteTagOutput } from "./generation/existingOutput";
+import { GenerationRequest, SetupSelection } from "../shared/types";
 import { elementInfo } from "./elementInfo";
 
 /** true quando a mensagem vinda da UI pertence ao tagueamento. */
@@ -83,11 +85,15 @@ async function runCheckAllVariants(): Promise<void> {
 
 let mappingInProgress = false;
 
-async function runMappingAndReport(setup: SetupSelection): Promise<void> {
+async function runMappingAndReport(setup: SetupSelection, skipTagged: boolean): Promise<void> {
   if (mappingInProgress) return;
   mappingInProgress = true;
   try {
-    const result = await runMapping(setup, (done, total) => postToTagUi({ type: "tag:mapping-progress", done, total }));
+    const result = await runMapping(
+      setup,
+      (done, total) => postToTagUi({ type: "tag:mapping-progress", done, total }),
+      skipTagged
+    );
     postToTagUi({ type: "tag:mapping-result", result });
   } catch (error) {
     postToTagUi({
@@ -97,6 +103,44 @@ async function runMappingAndReport(setup: SetupSelection): Promise<void> {
   } finally {
     mappingInProgress = false;
   }
+}
+
+let generationInProgress = false;
+
+async function runGeneration(request: GenerationRequest): Promise<void> {
+  if (generationInProgress) return;
+  generationInProgress = true;
+  try {
+    const result = await generateCards(request, (done, total) => postToTagUi({ type: "tag:generation-progress", done, total }));
+    postToTagUi({ type: "tag:generation-result", result });
+  } catch (error) {
+    postToTagUi({
+      type: "tag:generation-error",
+      message: `Não foi possível gerar os cards: ${error instanceof Error ? error.message : String(error)}`
+    });
+  } finally {
+    generationInProgress = false;
+  }
+}
+
+async function deleteOutput(frameId: string): Promise<void> {
+  const frame = await figma.getNodeByIdAsync(frameId);
+  if (!frame || !("visible" in frame)) {
+    figma.notify("Tela não encontrada");
+    return;
+  }
+  const cards = deleteTagOutput(frame as SceneNode);
+  postToTagUi({ type: "tag:output-deleted", frameName: frame.name, cards });
+}
+
+async function focusNodes(nodeIds: string[]): Promise<void> {
+  const nodes: SceneNode[] = [];
+  for (const id of nodeIds) {
+    const node = await figma.getNodeByIdAsync(id);
+    if (node && "visible" in node) nodes.push(node as SceneNode);
+  }
+  if (nodes.length > 0) figma.viewport.scrollAndZoomIntoView(nodes);
+  else figma.notify("Nada encontrado no canvas");
 }
 
 async function focusNode(nodeId: string): Promise<void> {
@@ -140,10 +184,22 @@ export function handleTagueamentoMessage(message: TagUiToMainMessage): void {
       watchSelection(message.enabled);
       break;
     case "tag:run-mapping":
-      void runMappingAndReport(message.setup);
+      void runMappingAndReport(message.setup, message.skipTagged === true);
       break;
     case "tag:focus-node":
       void focusNode(message.nodeId);
+      break;
+    case "tag:generate":
+      void runGeneration(message.request);
+      break;
+    case "tag:delete-output":
+      void deleteOutput(message.frameId);
+      break;
+    case "tag:page-tag-status":
+      postToTagUi({ type: "tag:page-tag-status-result", status: pageTagStatus() });
+      break;
+    case "tag:focus-nodes":
+      void focusNodes(message.nodeIds);
       break;
     case "tag:element-info":
       void elementInfo(message.nodeId).then((info) => postToTagUi({ type: "tag:element-info-result", info }));
