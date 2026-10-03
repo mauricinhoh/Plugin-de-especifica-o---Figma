@@ -11,9 +11,12 @@
  *    local_name = nome da tela; local_type = Modal (dentro de Modal/Drawer) ou
  *    Screen; action = Click (editável na revisão).
  *  - modal_view: modal_name = título do modal normalizado.
- *  - Tela anterior / alvo: setas do protótipo (ver prototype.ts). Várias
- *    origens → usa a primeira e avisa. Vários destinos → deixa o placeholder
- *    e avisa. Sem seta → placeholder do card.
+ *  - Tela anterior: setas que chegam no frame (várias → usa a primeira e avisa).
+ *  - Tela alvo = ÚLTIMA tela do fluxo (decisão do Mau, 03/10/2026): segue as
+ *    setas de saída até uma tela sem saída. Um final só → preenche. Vários
+ *    finais → o PD escolhe na revisão (sugestões). Sem seta → campo vazio.
+ *  - Frame com Modal/Drawer: SEM screen_view/page_view (decisão do Mau,
+ *    03/10/2026) — a tela de baixo já é mapeada no frame dela.
  *  - Parâmetros de tempo de execução (feedback_name, search_term, result…)
  *    ficam para o PD na revisão (spec 5.1).
  */
@@ -23,7 +26,7 @@ import { ActionSource, EVENT_BY_CLASS, findClassification } from "../../shared/c
 import { describeReport, normalizeWithReport } from "../../shared/naming";
 import { discoverItems, DiscoveredItem, firstVisibleText } from "../traversal/discovery";
 import { sortByReadingOrder } from "../traversal/readingOrder";
-import { PrototypeGraph } from "./prototype";
+import { flowEnds, PrototypeGraph } from "./prototype";
 
 /** Largura acima da qual o frame é considerado web (spec 4.3). */
 export const WEB_WIDTH_THRESHOLD = 1000;
@@ -109,22 +112,31 @@ export function mapScreen(
   if (origens.length > 1) {
     avisos.push(`Mais de uma tela leva até esta (${origens.join(", ")}). Usei "${origens[0]}" como tela anterior — confira.`);
   }
-  if (destinos.length > 1) {
-    avisos.push(`Esta tela leva a mais de uma tela (${destinos.join(", ")}). A tela alvo ficou para você escolher.`);
+  const fim = flowEnds(graph, frame.id);
+  const finais = fim.finais.map((id) => nomeTelaById.get(id) ?? id);
+  if (finais.length > 1) {
+    avisos.push(`O fluxo termina em mais de uma tela (${finais.join(", ")}). Escolha a tela alvo na revisão.`);
+  } else if (finais.length === 0 && destinos.length > 0) {
+    avisos.push("As setas do protótipo formam um loop e não chegam a uma tela final. Preencha a tela alvo na revisão.");
   }
   const previousValue = telaAnterior ?? PLACEHOLDER_PREVIOUS;
 
   const base = { region: setup.region, subregion: setup.subregion };
   const items: MappedItem[] = [];
 
-  // 1. Card de tela
+  // 1. Card de tela — não entra quando o frame tem Modal/Drawer (a tela de
+  //    baixo já é mapeada em outro frame).
+  const temModal = discovered.some((item) => item.classe === "modal_view");
+  if (temModal) {
+    avisos.push(`Frame com modal/drawer: sem ${setup.plataforma === "APP" ? "screen_view" : "page_view"}, a tela de fundo é mapeada no frame dela.`);
+  }
   const screenParams: Record<string, string> = {
     [keys.screen]: nomeTela,
     ...base,
     [keys.previous]: previousValue
   };
-  if (destinos.length === 1) screenParams[keys.target] = destinos[0];
-  items.push({
+  if (finais.length === 1) screenParams[keys.target] = finais[0];
+  if (!temModal) items.push({
     numero: 1,
     nodeId: frame.id,
     componente: frame.name,
@@ -224,7 +236,9 @@ export function mapScreen(
     plataformaPelaLargura,
     divergeDoCanal,
     origens,
-    destinos,
+    // Sugestões da tela alvo na revisão: as telas finais do fluxo (ou, sem
+    // final claro, as telas logo à frente).
+    destinos: finais.length > 0 ? finais : destinos,
     items,
     avisos
   };

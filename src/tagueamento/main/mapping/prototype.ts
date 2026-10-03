@@ -71,3 +71,37 @@ export async function buildPrototypeGraph(frames: SceneNode[]): Promise<Prototyp
   }
   return graph;
 }
+
+export interface FlowEnd {
+  /** Telas finais (sem setas de saída) alcançáveis a partir do frame. */
+  finais: string[];
+  /** true quando algum caminho volta para uma tela já visitada (loop). */
+  temCiclo: boolean;
+}
+
+/**
+ * Última tela do fluxo (target_screen / target_page): segue as setas de saída
+ * a partir do frame até chegar em telas que não levam a nenhuma outra.
+ * Loops são ignorados (cada tela é visitada uma vez só).
+ */
+export function flowEnds(graph: PrototypeGraph, frameId: string): FlowEnd {
+  const finais: string[] = [];
+  const visitados = new Set<string>([frameId]);
+  const pilha = [...(graph.outgoing.get(frameId) ?? [])].reverse();
+  let temCiclo = false;
+  while (pilha.length > 0) {
+    const id = pilha.pop() as string;
+    if (visitados.has(id)) {
+      temCiclo = true;
+      continue;
+    }
+    visitados.add(id);
+    const saidas = graph.outgoing.get(id) ?? [];
+    if (saidas.length === 0) {
+      finais.push(id);
+      continue;
+    }
+    for (let i = saidas.length - 1; i >= 0; i--) pilha.push(saidas[i]);
+  }
+  return { finais, temCiclo };
+}

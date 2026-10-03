@@ -93,7 +93,7 @@ export function Done({ result, deleted, error, onShow, onNew, onExit, onClose }:
   return (
     <>
       <TitleBar title="Tagueamento" showLogo onClose={onClose} />
-      <div className="scroll-area" style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 24px 24px", textAlign: "center" }}>
+      <div className="scroll-area" style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 24px 24px", textAlign: "center", overflowX: "hidden" }}>
         <div
           style={{
             width: 64,
@@ -114,7 +114,26 @@ export function Done({ result, deleted, error, onShow, onNew, onExit, onClose }:
         <h2 style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-.025em", margin: "22px 0 0" }}>
           {failed ? "Não deu para gerar" : deleted ? "Marcadores excluídos" : "Tagueamento pronto"}
         </h2>
-        <p style={{ marginTop: 8, fontSize: 13.5, lineHeight: 1.5, color: "var(--color-text-muted)", maxWidth: 280 }}>
+        <p
+          title={!failed ? (deleted ? deleted.frameName : result && result.screens.length === 1 ? result.screens[0].nomeTela : undefined) : undefined}
+          style={{
+            marginTop: 8,
+            fontSize: 13.5,
+            lineHeight: 1.5,
+            color: "var(--color-text-muted)",
+            maxWidth: 280,
+            width: "100%",
+            minWidth: 0,
+            // Nome de frame muito grande (sem espaços): quebra em qualquer ponto e
+            // corta em 2 linhas com "…", sem gerar rolagem horizontal.
+            overflowWrap: "anywhere",
+            wordBreak: "break-word",
+            display: "-webkit-box",
+            WebkitLineClamp: failed ? undefined : 2,
+            WebkitBoxOrient: "vertical",
+            overflow: failed ? undefined : "hidden"
+          }}
+        >
           {failed
             ? error
             : deleted
@@ -124,7 +143,7 @@ export function Done({ result, deleted, error, onShow, onNew, onExit, onClose }:
           {!failed && !deleted && result && result.screens.length === 1 && (
             <strong style={{ fontWeight: 800, color: "var(--color-text-dark)" }}>{result.screens[0].nomeTela}</strong>
           )}
-          {!failed ? "." : ""}
+          {!failed && !(deleted || (result && result.screens.length === 1)) ? "." : ""}
         </p>
 
         {!failed && !deleted && result && (

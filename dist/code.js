@@ -2886,6 +2886,28 @@
     }
     return graph;
   }
+  function flowEnds(graph, frameId) {
+    var _a2, _b;
+    const finais = [];
+    const visitados = /* @__PURE__ */ new Set([frameId]);
+    const pilha = [...(_a2 = graph.outgoing.get(frameId)) != null ? _a2 : []].reverse();
+    let temCiclo = false;
+    while (pilha.length > 0) {
+      const id = pilha.pop();
+      if (visitados.has(id)) {
+        temCiclo = true;
+        continue;
+      }
+      visitados.add(id);
+      const saidas = (_b = graph.outgoing.get(id)) != null ? _b : [];
+      if (saidas.length === 0) {
+        finais.push(id);
+        continue;
+      }
+      for (let i = saidas.length - 1; i >= 0; i--) pilha.push(saidas[i]);
+    }
+    return { finais, temCiclo };
+  }
 
   // src/tagueamento/shared/classification.ts
   var LABEL = { kind: "label" };
@@ -3370,19 +3392,30 @@
     if (origens.length > 1) {
       avisos.push(`Mais de uma tela leva at\xE9 esta (${origens.join(", ")}). Usei "${origens[0]}" como tela anterior \u2014 confira.`);
     }
-    if (destinos.length > 1) {
-      avisos.push(`Esta tela leva a mais de uma tela (${destinos.join(", ")}). A tela alvo ficou para voc\xEA escolher.`);
+    const fim = flowEnds(graph, frame.id);
+    const finais = fim.finais.map((id) => {
+      var _a3;
+      return (_a3 = nomeTelaById.get(id)) != null ? _a3 : id;
+    });
+    if (finais.length > 1) {
+      avisos.push(`O fluxo termina em mais de uma tela (${finais.join(", ")}). Escolha a tela alvo na revis\xE3o.`);
+    } else if (finais.length === 0 && destinos.length > 0) {
+      avisos.push("As setas do prot\xF3tipo formam um loop e n\xE3o chegam a uma tela final. Preencha a tela alvo na revis\xE3o.");
     }
     const previousValue = telaAnterior != null ? telaAnterior : PLACEHOLDER_PREVIOUS;
     const base = { region: setup.region, subregion: setup.subregion };
     const items = [];
+    const temModal = discovered.some((item) => item.classe === "modal_view");
+    if (temModal) {
+      avisos.push(`Frame com modal/drawer: sem ${setup.plataforma === "APP" ? "screen_view" : "page_view"}, a tela de fundo \xE9 mapeada no frame dela.`);
+    }
     const screenParams = __spreadProps(__spreadValues({
       [keys.screen]: nomeTela
     }, base), {
       [keys.previous]: previousValue
     });
-    if (destinos.length === 1) screenParams[keys.target] = destinos[0];
-    items.push({
+    if (finais.length === 1) screenParams[keys.target] = finais[0];
+    if (!temModal) items.push({
       numero: 1,
       nodeId: frame.id,
       componente: frame.name,
@@ -3475,7 +3508,9 @@
       plataformaPelaLargura,
       divergeDoCanal,
       origens,
-      destinos,
+      // Sugestões da tela alvo na revisão: as telas finais do fluxo (ou, sem
+      // final claro, as telas logo à frente).
+      destinos: finais.length > 0 ? finais : destinos,
       items,
       avisos
     };
