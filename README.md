@@ -84,16 +84,21 @@ src/tagueamento/
   shared/messages.ts     # protocolo próprio — toda mensagem começa com "tag:"
   shared/types.ts        # tipos próprios do tagueamento
   shared/gaCard.ts       # chave/nome do card de GA + parâmetros por evento (spec 7.2)
+  shared/naming.ts       # normalização de nomenclatura (spec 6.2)
+  shared/forms.ts        # link pré-preenchido do Forms do "Outro" (link modelo PENDENTE)
+  data/                  # Excel de regions (template), canais.json e a lista gerada
   main/router.ts         # recebe as mensagens "tag:" no main thread
   main/messaging.ts      # postToTagUi (cópia adaptada de src/main/messaging.ts)
   main/cardDiagnostic.ts # Fase 2: lê o card de GA selecionado e cria um card de teste
   main/cardStructure.ts  # acha as linhas do card ("Specs" + nome + Tag com valor)
   main/variantCheck.ts   # Fase 2.1: importa pela chave e confere as 10 variantes
+  main/setupStorage.ts   # memória da última escolha do setup (clientStorage, chave própria)
   ui/TagueamentoApp.tsx  # raiz do fluxo na UI
   ui/bridge.ts           # postToTagMain / onTagMessage (cópia adaptada do mainBridge)
-  ui/screens/            # telas do tagueamento (Fase 2: CardDiagnostic)
+  ui/screens/            # telas: SetupScreen, SetupSummary, CardDiagnostic
+  ui/regionsData.ts      # lista de regions embutida (gerada no build)
   ui/diagnosticReport.ts # relatório em texto do diagnóstico (botão "Copiar")
-  ui/components/         # cópias de TitleBar, Button, Icon, Stepper, EmptyState
+  ui/components/         # cópias de TitleBar, Button, Icon, Stepper, EmptyState + SearchSelect
 ```
 
 Pontos de contato com o código da acessibilidade (os únicos):
@@ -101,6 +106,24 @@ Pontos de contato com o código da acessibilidade (os únicos):
 - `src/ui/App.tsx` — a tela `"tagueamento"` renderiza `<TagueamentoApp onExit />`.
 - `src/main/code.ts` — no início do `figma.ui.onmessage`, mensagens com prefixo `"tag:"` vão para `src/tagueamento/main/router.ts`.
 - `tsconfig.json` / `tsconfig.main.json` — incluem as pastas do módulo no typecheck.
+
+### Lista de regions (Canal → Produto → Fluxo)
+
+A lista vem do Excel **"IBPF - Dados comportamentais.xlsx"**, aba **"Regions e
+Subregions"** (colunas Canal, Produto, Tarefa do usuário, Region, Subregion).
+O plugin **não** carrega o Excel: no `npm run build`, o script
+`scripts/build-regions.mjs` lê, **valida** e gera uma lista compacta embutida.
+
+Para usar a planilha real:
+1. Salve o Excel como `src/tagueamento/data/regions.xlsx` (mesma aba e colunas).
+   Esse arquivo está no `.gitignore` — **nunca vai para o GitHub** (dados internos).
+   Sem ele, o build usa `regions.template.xlsx` (dados de exemplo).
+2. Confira se todo Canal da planilha está em `src/tagueamento/data/canais.json`
+   com a plataforma `APP` ou `WEB`.
+3. Rode `npm run build`. Se a planilha tiver problema (coluna faltando, célula
+   obrigatória vazia, Subregion vazia em vez de N/A, canal sem plataforma,
+   produto com duas Regions…), o build **para** e mostra a linha do Excel.
+   Fora do padrão de nomenclatura é só **aviso**: o valor é usado como está.
 
 O desenvolvimento acontece na branch git `tagueamento`; a `main` guarda a versão
 da acessibilidade em produção.

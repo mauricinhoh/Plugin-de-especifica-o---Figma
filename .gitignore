@@ -1,1 +1,7 @@
 node_modules
+
+# Tagueamento: a planilha REAL de regions fica só na máquina (dados internos)
+# e a lista gerada a partir dela também. O template vai para o GitHub.
+src/tagueamento/data/regions.xlsx
+src/tagueamento/data/regions.generated.json
+~$*.xlsx

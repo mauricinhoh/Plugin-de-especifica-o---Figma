@@ -16,6 +16,7 @@ import { postToTagUi } from "./messaging";
 import { createTestCard, diagnoseSelection } from "./cardDiagnostic";
 import { checkAllVariants } from "./variantCheck";
 import { GA_CARD_SET_KEY } from "../shared/gaCard";
+import { loadLastSetup, saveLastSetup } from "./setupStorage";
 
 /** true quando a mensagem vinda da UI pertence ao tagueamento. */
 export function isTagueamentoMessage(message: unknown): message is TagUiToMainMessage {
@@ -92,6 +93,15 @@ export function handleTagueamentoMessage(message: TagUiToMainMessage): void {
       break;
     case "tag:check-all-variants":
       void runCheckAllVariants();
+      break;
+    case "tag:get-last-setup":
+      void loadLastSetup().then((setup) => postToTagUi({ type: "tag:last-setup", setup }));
+      break;
+    case "tag:save-setup":
+      void saveLastSetup(message.setup);
+      break;
+    case "tag:open-external":
+      figma.openExternal(message.url);
       break;
     default:
       break;

@@ -11,7 +11,7 @@
  * Tudo aqui precisa ser serializável em JSON (figma.ui.postMessage).
  */
 
-import { AllVariantsCheck, CardDiagnosis, TestCardResult } from "./types";
+import { AllVariantsCheck, CardDiagnosis, SetupSelection, TestCardResult } from "./types";
 
 export const TAG_MESSAGE_PREFIX = "tag:";
 
@@ -30,7 +30,13 @@ export type TagUiToMainMessage =
    */
   | { type: "tag:create-test-card"; sourceNodeId: string; variantValues: Record<string, string> }
   /** Fase 2.1: importa o card pela chave e confere todas as variantes com a spec 7.2. */
-  | { type: "tag:check-all-variants" };
+  | { type: "tag:check-all-variants" }
+  /** Fase 3: pede a última escolha do setup (guardada em figma.clientStorage, chave própria). */
+  | { type: "tag:get-last-setup" }
+  /** Fase 3: guarda a escolha do setup para o próximo uso. */
+  | { type: "tag:save-setup"; setup: SetupSelection }
+  /** Fase 3: abre um link no navegador (Forms do "Outro") com figma.openExternal. */
+  | { type: "tag:open-external"; url: string };
 
 // ---------- Main -> UI ----------
 
@@ -44,7 +50,8 @@ export type TagMainToUiMessage =
   | { type: "tag:diagnosis-result"; diagnosis: CardDiagnosis }
   | { type: "tag:diagnosis-error"; message: string }
   | { type: "tag:test-card-result"; result: TestCardResult }
-  | { type: "tag:all-variants-result"; result: AllVariantsCheck };
+  | { type: "tag:all-variants-result"; result: AllVariantsCheck }
+  | { type: "tag:last-setup"; setup: SetupSelection | null };
 
 /** true quando a mensagem pertence ao tagueamento (prefixo "tag:"). */
 export function isTagMessageType(type: unknown): boolean {

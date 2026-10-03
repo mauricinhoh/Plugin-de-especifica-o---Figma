@@ -2817,6 +2817,25 @@
     return result;
   }
 
+  // src/tagueamento/main/setupStorage.ts
+  var LAST_SETUP_KEY = "tagueamento.lastSetup";
+  async function loadLastSetup() {
+    try {
+      const stored = await figma.clientStorage.getAsync(LAST_SETUP_KEY);
+      return stored && typeof stored === "object" ? stored : null;
+    } catch (error) {
+      console.error("Tagueamento: n\xE3o foi poss\xEDvel ler a \xFAltima escolha do setup.", error);
+      return null;
+    }
+  }
+  async function saveLastSetup(setup) {
+    try {
+      await figma.clientStorage.setAsync(LAST_SETUP_KEY, setup);
+    } catch (error) {
+      console.error("Tagueamento: n\xE3o foi poss\xEDvel guardar a escolha do setup.", error);
+    }
+  }
+
   // src/tagueamento/main/router.ts
   function isTagueamentoMessage(message) {
     return typeof message === "object" && message !== null && isTagMessageType(message.type);
@@ -2884,6 +2903,15 @@
         break;
       case "tag:check-all-variants":
         void runCheckAllVariants();
+        break;
+      case "tag:get-last-setup":
+        void loadLastSetup().then((setup) => postToTagUi({ type: "tag:last-setup", setup }));
+        break;
+      case "tag:save-setup":
+        void saveLastSetup(message.setup);
+        break;
+      case "tag:open-external":
+        figma.openExternal(message.url);
         break;
       default:
         break;

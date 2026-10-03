@@ -134,3 +134,52 @@ export interface AllVariantsCheck {
   checks: VariantCheck[];
   warnings: string[];
 }
+
+// ---------- Fase 3: setup ----------
+
+export type Plataforma = "APP" | "WEB";
+export type ModoGeracao = "tela" | "pagina";
+
+/** Lista de regions gerada do Excel no build (scripts/build-regions.mjs). */
+export interface RegionsData {
+  /** "planilha" = regions.xlsx real; "template" = regions.template.xlsx de exemplo. */
+  fonte: "planilha" | "template";
+  arquivo: string;
+  geradoEm: string;
+  totalLinhas: number;
+  canais: RegionsCanal[];
+}
+
+export interface RegionsCanal {
+  nome: string;
+  plataforma: Plataforma;
+  produtos: RegionsProduto[];
+}
+
+export interface RegionsProduto {
+  nome: string;
+  region: string;
+  fluxos: RegionsFluxo[];
+}
+
+export interface RegionsFluxo {
+  /** Coluna "Tarefa do usuário". */
+  nome: string;
+  /** Código da subregion, ou "N/A". */
+  subregion: string;
+}
+
+/** Resultado do setup — o que vai para os cards. */
+export interface SetupSelection {
+  canal: string;
+  plataforma: Plataforma;
+  /** Nome legível (coluna Produto) ou o texto digitado no "Outro". */
+  produto: string;
+  region: string;
+  produtoOutro: boolean;
+  /** Nome legível (coluna Tarefa do usuário), texto do "Outro", ou "N/A". */
+  fluxo: string;
+  subregion: string;
+  fluxoOutro: boolean;
+  modo: ModoGeracao;
+}

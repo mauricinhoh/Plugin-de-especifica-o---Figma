@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { onTagMessage, postToTagMain } from "./bridge";
-import { AllVariantsCheck, CardDiagnosis, TestCardResult } from "../shared/types";
-import { TitleBar } from "./components/TitleBar";
-import { Stepper } from "./components/Stepper";
-import { EmptyState } from "./components/EmptyState";
-import { Button, ChoiceCard } from "./components/Button";
-import { Icon } from "./components/Icon";
+import { AllVariantsCheck, CardDiagnosis, SetupSelection, TestCardResult } from "../shared/types";
+import { buildFormsUrl } from "../shared/forms";
+import { REGIONS } from "./regionsData";
 import { CardDiagnostic } from "./screens/CardDiagnostic";
+import { SetupScreen } from "./screens/SetupScreen";
+import { FormsStatus, SetupSummary } from "./screens/SetupSummary";
 
 /**
  * Raiz do fluxo de TAGUEAMENTO.
@@ -18,10 +17,13 @@ import { CardDiagnostic } from "./screens/CardDiagnostic";
  *
  * Fase 1: base isolada + canal próprio com o main thread (tag:ui-ready → tag:ready).
  * Fase 2: ferramenta temporária "Diagnóstico do card" (2.1: verificação de todas as variantes).
- * As etapas de setup (Canal, Produto, Fluxo, Modo) entram na Fase 3.
+ * Fase 3: setup (Canal, Produto, Fluxo, Modo), "Outro" + Forms, memória da última escolha.
  */
 
-type TagScreen = "home" | "diagnostic";
+type TagScreen = "setup" | "summary" | "diagnostic";
+
+/** Se o main thread não responder com a última escolha, abre o setup vazio depois deste tempo. */
+const LAST_SETUP_TIMEOUT_MS = 800;
 
 interface TagueamentoAppProps {
   /** Volta para a tela inicial (escolha Acessibilidade / Tagueamento). */
@@ -29,8 +31,13 @@ interface TagueamentoAppProps {
 }
 
 export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
-  const [screen, setScreen] = useState<TagScreen>("home");
+  const [screen, setScreen] = useState<TagScreen>("setup");
   const [fileName, setFileName] = useState<string | null>(null);
+
+  const [lastSetup, setLastSetup] = useState<SetupSelection | null>(null);
+  const [lastSetupLoaded, setLastSetupLoaded] = useState(false);
+  const [setup, setSetup] = useState<SetupSelection | null>(null);
+  const [formsStatus, setFormsStatus] = useState<FormsStatus>(null);
 
   const [diagnosis, setDiagnosis] = useState<CardDiagnosis | null>(null);
   const [diagnosisError, setDiagnosisError] = useState<string | null>(null);
@@ -64,15 +71,50 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
           setCheckingAllVariants(false);
           setAllVariants(message.result);
           break;
+        case "tag:last-setup":
+          setLastSetup(message.setup);
+          setLastSetupLoaded(true);
+          break;
         default:
           break;
       }
     });
     postToTagMain({ type: "tag:ui-ready" });
-    return stop;
+    postToTagMain({ type: "tag:get-last-setup" });
+    const fallback = window.setTimeout(() => setLastSetupLoaded(true), LAST_SETUP_TIMEOUT_MS);
+    return () => {
+      stop();
+      window.clearTimeout(fallback);
+    };
   }, []);
 
   const closePlugin = () => postToTagMain({ type: "tag:close-plugin" });
+
+  function handleSetupComplete(selection: SetupSelection) {
+    setSetup(selection);
+    postToTagMain({ type: "tag:save-setup", setup: selection });
+
+    // "Outro" (spec 2.3): abre o Forms pré-preenchido; o parecer segue sem esperar.
+    let status: FormsStatus = null;
+    if (selection.produtoOutro || selection.fluxoOutro) {
+      const url = buildFormsUrl({
+        canal: selection.canal,
+        produto: selection.produto,
+        tarefa: selection.fluxo,
+        region: selection.region,
+        subregion: selection.subregion,
+        arquivoFigma: fileName ?? ""
+      });
+      if (url) {
+        postToTagMain({ type: "tag:open-external", url });
+        status = "opened";
+      } else {
+        status = "not-configured";
+      }
+    }
+    setFormsStatus(status);
+    setScreen("summary");
+  }
 
   if (screen === "diagnostic") {
     return (
@@ -99,59 +141,37 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
           setTestCard(null);
           postToTagMain({ type: "tag:create-test-card", sourceNodeId: diagnosis.nodeId, variantValues });
         }}
-        onBack={() => setScreen("home")}
+        onBack={() => setScreen("setup")}
         onClose={closePlugin}
       />
     );
   }
 
-  return (
-    <>
-      <TitleBar title="Tagueamento" showBack onBack={onExit} onClose={closePlugin} />
-      <Stepper current={1} progress={0} />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: 24 }}>
-        <EmptyState
-          iconName="tag"
-          title="Tagueamento em construção"
-          description="O fluxo de Google Analytics está sendo desenvolvido por etapas. A especificação de acessibilidade continua disponível na tela inicial."
-          maxWidth={290}
-        >
-          <div style={{ marginTop: 22, width: "100%", display: "flex", flexDirection: "column", gap: 10 }}>
-            <ChoiceCard
-              icon={<Icon name="components" size={20} />}
-              title="Diagnóstico do card"
-              description="Ferramenta de desenvolvimento: lê o card de GA selecionado"
-              onClick={() => setScreen("diagnostic")}
-            />
-            <Button variant="secondary" fullWidth onClick={onExit} icon={<Icon name="chevron-left" size={15} />}>
-              Voltar ao início
-            </Button>
-          </div>
-        </EmptyState>
-      </div>
+  if (screen === "summary" && setup) {
+    return (
+      <SetupSummary
+        setup={setup}
+        formsStatus={formsStatus}
+        onEdit={() => setScreen("setup")}
+        onExit={onExit}
+        onClose={closePlugin}
+      />
+    );
+  }
 
-      <div
-        role="status"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 6,
-          padding: "0 24px 20px",
-          fontSize: 11.5,
-          fontWeight: 700,
-          color: fileName ? "var(--color-text-subtle)" : "var(--color-text-disabled)"
-        }}
-      >
-        <Icon
-          name={fileName ? "check" : "info"}
-          size={12}
-          color={fileName ? "var(--color-primary)" : "var(--color-text-disabled)"}
-        />
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {fileName ? `Conectado ao arquivo ${fileName}` : "Conectando ao arquivo…"}
-        </span>
-      </div>
-    </>
+  if (!lastSetupLoaded) {
+    // Espera a última escolha chegar do main thread (é rápido) para abrir o setup já preenchido.
+    return null;
+  }
+
+  return (
+    <SetupScreen
+      data={REGIONS}
+      initial={setup ?? lastSetup}
+      onComplete={handleSetupComplete}
+      onExit={onExit}
+      onClose={closePlugin}
+      onOpenDiagnostic={() => setScreen("diagnostic")}
+    />
   );
 }
