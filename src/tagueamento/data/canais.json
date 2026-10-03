@@ -1,9 +1,8 @@
 {
-  "_leia": "Plataforma de cada Canal da planilha: APP ou WEB (confirmado pelo Mau em 03/10/2026). O canal define o evento de tela (screen_view no APP, page_view no WEB) e quais linhas do card são preenchidas. O nome precisa ser IGUAL ao da coluna Canal do Excel. Todo Canal que aparecer na planilha precisa estar aqui — se faltar, o build para e lista os canais sem plataforma. 'Internet Banking' e 'Internet Banking PJ' estão os dois porque o nome exato ainda vai ser conferido na planilha; o que não existir lá pode ser apagado (entrada sobrando não causa erro).",
+  "_leia": "Plataforma de cada Canal da planilha: APP ou WEB (confirmado pelo Mau em 03/10/2026). O canal define o evento de tela (screen_view no APP, page_view no WEB) e quais linhas do card são preenchidas. O nome precisa ser IGUAL ao da coluna Canal do Excel. Todo Canal que aparecer na planilha precisa estar aqui — se faltar, o build para e lista os canais sem plataforma.",
   "canais": {
     "App Sicredi": "APP",
     "Sicredi X": "APP",
-    "Internet Banking": "WEB",
     "Internet Banking PJ": "WEB",
     "Internet Banking - Plataforma": "WEB"
   }
