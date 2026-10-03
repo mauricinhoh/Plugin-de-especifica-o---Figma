@@ -10,7 +10,8 @@
  *  - Numeração: card de tela = 1, componentes na ordem espacial, manuais no fim.
  *
  * O que conta como pendência:
- *  - campo obrigatório do evento (sem "*" no card) vazio ou com placeholder "<…>";
+ *  - campo obrigatório do evento (sem "*" no card) vazio ou com placeholder "<…>"
+ *    (exceto a tela anterior: "<Tela_anterior_apresentada>" é válido);
  *  - componente não reconhecido ainda não confirmado;
  *  - termo em inglês sinalizado ou valor cortado em 100 caracteres, até editar ou "Manter assim".
  */
@@ -67,6 +68,14 @@ export function fieldsFor(evento: string, plataforma: Plataforma): EventFields {
   return fields;
 }
 
+/**
+ * Tela anterior: o placeholder do card "<Tela_anterior_apresentada>" é um valor
+ * VÁLIDO — os devs entendem (decisão do Mau, 03/10/2026). Sem seta de
+ * protótipo, o campo fica com ele e não vira pendência.
+ */
+export const PREVIOUS_SCREEN_PLACEHOLDER = "<Tela_anterior_apresentada>";
+const PREVIOUS_SCREEN_FIELDS = ["firebase_previous_screen", "previous_page"];
+
 export function isEmptyValue(value: string | undefined): boolean {
   if (!value) return true;
   const trimmed = value.trim();
@@ -110,6 +119,8 @@ export function pendenciasOf(item: ReviewItem, plataforma: Plataforma): Pendenci
   const { required } = fieldsFor(item.evento, plataforma);
   for (const field of required) {
     if (SETUP_FIELDS.includes(field)) continue;
+    // Tela anterior vazia ou com o placeholder do card é válida (o card mostra "<Tela_anterior_apresentada>").
+    if (PREVIOUS_SCREEN_FIELDS.includes(field)) continue;
     if (isEmptyValue(item.values[field])) list.push({ field, texto: `Preencha ${field}` });
   }
   for (const [field, flag] of Object.entries(item.flags)) {
@@ -149,12 +160,12 @@ export function defaultsFor(evento: string, context: ScreenContext): Record<stri
   const all = [...required, ...optional];
   if (all.includes(screenKey) && evento !== "modal_view") values[screenKey] = context.nomeTela;
   if (evento === "modal_view" && context.plataforma === "APP") values.firebase_screen = context.nomeTela;
-  if (all.includes(previousKey) && context.telaAnterior) values[previousKey] = context.telaAnterior;
+  if (all.includes(previousKey)) values[previousKey] = context.telaAnterior ?? PREVIOUS_SCREEN_PLACEHOLDER;
   if (evento === "select_content") {
     values.action = "Click";
     values.local_name = context.nomeTela;
     values.local_type = context.insideModal ? "Modal" : "Screen";
-    if (context.telaAnterior) values.previous_page = context.telaAnterior;
+    values.previous_page = context.telaAnterior ?? PREVIOUS_SCREEN_PLACEHOLDER;
   }
   return values;
 }
