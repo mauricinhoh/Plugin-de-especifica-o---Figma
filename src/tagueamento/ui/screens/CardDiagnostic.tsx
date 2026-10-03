@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { CardDiagnosis, DiagnosedLayer, DiagnosedProperty, TestCardResult } from "../../shared/types";
+import { AllVariantsCheck, CardDiagnosis, DiagnosedLayer, DiagnosedProperty, TestCardResult } from "../../shared/types";
+import { VariantCheckPanel } from "./VariantCheckPanel";
 import { TitleBar } from "../components/TitleBar";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
 import { buildDiagnosticReport, copyText } from "../diagnosticReport";
+import { GA_CARD_SET_NAME } from "../../shared/gaCard";
 
 /**
- * Fase 2 — tela de diagnóstico do card "[Helper] Google Analytics, atributo".
+ * Fase 2 — tela de diagnóstico do card "[Helper] Google Analytics Spec".
  * Ferramenta temporária de desenvolvimento: lê uma instância real do card
  * e mostra/copia tudo o que a geração vai precisar. Também cria um card de
  * teste para validar a importação pela chave.
@@ -18,6 +20,9 @@ interface CardDiagnosticProps {
   reading: boolean;
   testCard: TestCardResult | null;
   creatingTestCard: boolean;
+  allVariants: AllVariantsCheck | null;
+  checkingAllVariants: boolean;
+  onCheckAllVariants: () => void;
   onRead: () => void;
   onCreateTestCard: (variantValues: Record<string, string>) => void;
   onBack: () => void;
@@ -120,6 +125,9 @@ export function CardDiagnostic({
   reading,
   testCard,
   creatingTestCard,
+  allVariants,
+  checkingAllVariants,
+  onCheckAllVariants,
   onRead,
   onCreateTestCard,
   onBack,
@@ -151,15 +159,20 @@ export function CardDiagnostic({
   return (
     <>
       <TitleBar title="Diagnóstico do card" showBack onBack={onBack} onClose={onClose} />
-      <div className="scroll-area" style={{ padding: "18px 20px 24px" }}>
+      <div className="scroll-area" style={{ padding: "4px 20px 24px" }}>
+        <h3 style={sectionTitle}>Verificação completa</h3>
+        <VariantCheckPanel result={allVariants} checking={checkingAllVariants} onCheck={onCheckAllVariants} />
+
+        <h3 style={sectionTitle}>Card selecionado</h3>
         <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--color-text-muted)" }}>
           Selecione no canvas uma instância do card{" "}
-          <strong style={{ color: "var(--color-text-dark)" }}>[Helper] Google Analytics, atributo</strong> e clique em
-          Ler card selecionado. O plugin só lê: o card não é alterado.
+          <strong style={{ color: "var(--color-text-dark)" }}>{GA_CARD_SET_NAME}</strong> e clique em Ler card
+          selecionado. O plugin só lê: o card não é alterado.
         </p>
 
-        <div style={{ marginTop: 14 }}>
+        <div style={{ marginTop: 12 }}>
           <Button
+            variant="secondary"
             fullWidth
             onClick={onRead}
             disabled={reading}

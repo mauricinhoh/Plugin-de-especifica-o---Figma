@@ -6,8 +6,6 @@
 
 // ---------- Fase 2: diagnóstico do card "[Helper] Google Analytics, atributo" ----------
 
-/** Nome do componente da biblioteca, como está na spec (seção 7.1). */
-export const GA_CARD_COMPONENT_NAME = "[Helper] Google Analytics, atributo";
 
 export interface DiagnosedComponent {
   id: string;
@@ -76,4 +74,63 @@ export interface TestCardResult {
   importError?: string;
   /** Propriedades efetivamente aplicadas ao card de teste. */
   appliedProperties?: Record<string, string>;
+}
+
+// ---------- Fase 2.1: verificação de todas as variantes do card ----------
+
+/** Uma linha de parâmetro encontrada no card ("Specs": nome do parâmetro + Tag com o valor). */
+export interface CardRowInfo {
+  /** Texto do nome do parâmetro, como está no card (ex.: "subregion*"). */
+  label: string;
+  /** Texto atual do valor (ex.: "<Nome_da_tela>"). */
+  value: string;
+  visible: boolean;
+  /** Nome (sem "#id") da toggle que liga/desliga esta linha, se houver. */
+  toggle?: string;
+}
+
+export interface VariantCheck {
+  /** Evento da spec (ex.: "screen_view"). */
+  eventKey: string;
+  /** Nome da variante encontrada no card (ex.: "[App] screen_view"), ou null se não achou. */
+  variantName: string | null;
+  /** true quando todos os parâmetros da spec foram encontrados no card. */
+  ok: boolean;
+  expectedCount: number;
+  foundCount: number;
+  /** Parâmetros da spec que o card não tem. */
+  missing: string[];
+  /** Linhas do card que não estão na lista da spec (informativo, não é erro). */
+  extra: string[];
+  rows: CardRowInfo[];
+  /** Texto do título do card (camada "Type"), se encontrado. */
+  typeText?: string;
+  /** true quando o card tem a área de número ("Number"). */
+  hasNumber: boolean;
+  /** Erro ao ler esta variante, se houver. */
+  error?: string;
+}
+
+export interface AllVariantsCheck {
+  /** Chave usada na importação (a que está no código). */
+  keyUsed: string;
+  /** true quando figma.importComponentSetByKeyAsync funcionou com essa chave. */
+  importOk: boolean;
+  importError?: string;
+  /** De onde vieram as variantes lidas: importação pela chave ou o card selecionado. */
+  source: "import" | "selection" | "none";
+  setName?: string;
+  setNameOk: boolean;
+  /** Chave real lida do card (quando foi possível ler). */
+  actualSetKey?: string;
+  /** Opções da variante Evento no card. */
+  variantOptions: string[];
+  /** Variantes do card que não correspondem a nenhum evento da spec. */
+  unmatchedVariants: string[];
+  /** Toggles (BOOLEAN) do card, sem o sufixo "#id". */
+  toggles: string[];
+  /** true quando a toggle "Mostrar atributos" foi encontrada. */
+  showToggleFound: boolean;
+  checks: VariantCheck[];
+  warnings: string[];
 }

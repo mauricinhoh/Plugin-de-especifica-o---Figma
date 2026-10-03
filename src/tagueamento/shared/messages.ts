@@ -11,7 +11,7 @@
  * Tudo aqui precisa ser serializável em JSON (figma.ui.postMessage).
  */
 
-import { CardDiagnosis, TestCardResult } from "./types";
+import { AllVariantsCheck, CardDiagnosis, TestCardResult } from "./types";
 
 export const TAG_MESSAGE_PREFIX = "tag:";
 
@@ -28,7 +28,9 @@ export type TagUiToMainMessage =
    * Fase 2: cria um card de teste ao lado do card diagnosticado, aplicando
    * os valores de variante escolhidos (ex.: { Evento: "[App] screen_view" }).
    */
-  | { type: "tag:create-test-card"; sourceNodeId: string; variantValues: Record<string, string> };
+  | { type: "tag:create-test-card"; sourceNodeId: string; variantValues: Record<string, string> }
+  /** Fase 2.1: importa o card pela chave e confere todas as variantes com a spec 7.2. */
+  | { type: "tag:check-all-variants" };
 
 // ---------- Main -> UI ----------
 
@@ -41,7 +43,8 @@ export type TagMainToUiMessage =
   | { type: "tag:ready"; fileName: string }
   | { type: "tag:diagnosis-result"; diagnosis: CardDiagnosis }
   | { type: "tag:diagnosis-error"; message: string }
-  | { type: "tag:test-card-result"; result: TestCardResult };
+  | { type: "tag:test-card-result"; result: TestCardResult }
+  | { type: "tag:all-variants-result"; result: AllVariantsCheck };
 
 /** true quando a mensagem pertence ao tagueamento (prefixo "tag:"). */
 export function isTagMessageType(type: unknown): boolean {

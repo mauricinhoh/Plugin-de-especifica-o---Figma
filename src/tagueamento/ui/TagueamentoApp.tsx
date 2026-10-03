@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { onTagMessage, postToTagMain } from "./bridge";
-import { CardDiagnosis, TestCardResult } from "../shared/types";
+import { AllVariantsCheck, CardDiagnosis, TestCardResult } from "../shared/types";
 import { TitleBar } from "./components/TitleBar";
 import { Stepper } from "./components/Stepper";
 import { EmptyState } from "./components/EmptyState";
@@ -17,7 +17,7 @@ import { CardDiagnostic } from "./screens/CardDiagnostic";
  * vive dentro de src/tagueamento/.
  *
  * Fase 1: base isolada + canal próprio com o main thread (tag:ui-ready → tag:ready).
- * Fase 2: ferramenta temporária "Diagnóstico do card".
+ * Fase 2: ferramenta temporária "Diagnóstico do card" (2.1: verificação de todas as variantes).
  * As etapas de setup (Canal, Produto, Fluxo, Modo) entram na Fase 3.
  */
 
@@ -37,6 +37,8 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
   const [reading, setReading] = useState(false);
   const [testCard, setTestCard] = useState<TestCardResult | null>(null);
   const [creatingTestCard, setCreatingTestCard] = useState(false);
+  const [allVariants, setAllVariants] = useState<AllVariantsCheck | null>(null);
+  const [checkingAllVariants, setCheckingAllVariants] = useState(false);
 
   useEffect(() => {
     const stop = onTagMessage((message) => {
@@ -58,6 +60,10 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
           setCreatingTestCard(false);
           setTestCard(message.result);
           break;
+        case "tag:all-variants-result":
+          setCheckingAllVariants(false);
+          setAllVariants(message.result);
+          break;
         default:
           break;
       }
@@ -76,6 +82,12 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
         reading={reading}
         testCard={testCard}
         creatingTestCard={creatingTestCard}
+        allVariants={allVariants}
+        checkingAllVariants={checkingAllVariants}
+        onCheckAllVariants={() => {
+          setCheckingAllVariants(true);
+          postToTagMain({ type: "tag:check-all-variants" });
+        }}
         onRead={() => {
           setReading(true);
           setDiagnosisError(null);

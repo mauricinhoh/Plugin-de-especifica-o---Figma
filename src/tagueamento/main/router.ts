@@ -14,6 +14,8 @@
 import { TagUiToMainMessage, isTagMessageType } from "../shared/messages";
 import { postToTagUi } from "./messaging";
 import { createTestCard, diagnoseSelection } from "./cardDiagnostic";
+import { checkAllVariants } from "./variantCheck";
+import { GA_CARD_SET_KEY } from "../shared/gaCard";
 
 /** true quando a mensagem vinda da UI pertence ao tagueamento. */
 export function isTagueamentoMessage(message: unknown): message is TagUiToMainMessage {
@@ -51,6 +53,29 @@ async function runCreateTestCard(sourceNodeId: string, variantValues: Record<str
   }
 }
 
+async function runCheckAllVariants(): Promise<void> {
+  try {
+    const result = await checkAllVariants();
+    postToTagUi({ type: "tag:all-variants-result", result });
+  } catch (error) {
+    postToTagUi({
+      type: "tag:all-variants-result",
+      result: {
+        keyUsed: GA_CARD_SET_KEY,
+        importOk: false,
+        source: "none",
+        setNameOk: false,
+        variantOptions: [],
+        unmatchedVariants: [],
+        toggles: [],
+        showToggleFound: false,
+        checks: [],
+        warnings: [`Falha inesperada na verificação: ${error instanceof Error ? error.message : String(error)}`]
+      }
+    });
+  }
+}
+
 export function handleTagueamentoMessage(message: TagUiToMainMessage): void {
   switch (message.type) {
     case "tag:ui-ready":
@@ -64,6 +89,9 @@ export function handleTagueamentoMessage(message: TagUiToMainMessage): void {
       break;
     case "tag:create-test-card":
       void runCreateTestCard(message.sourceNodeId, message.variantValues);
+      break;
+    case "tag:check-all-variants":
+      void runCheckAllVariants();
       break;
     default:
       break;

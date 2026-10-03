@@ -1,7 +1,7 @@
 /// <reference types="@figma/plugin-typings" />
 
 /**
- * Fase 2 do TAGUEAMENTO — diagnóstico do card "[Helper] Google Analytics, atributo".
+ * Fase 2 do TAGUEAMENTO — diagnóstico do card "[Helper] Google Analytics Spec".
  *
  * Objetivo: descobrir, a partir de uma instância REAL do card no arquivo,
  * tudo o que a geração (Fase 7) vai precisar — sem supor nada:
@@ -23,9 +23,9 @@ import {
   DiagnosedComponent,
   DiagnosedLayer,
   DiagnosedProperty,
-  GA_CARD_COMPONENT_NAME,
   TestCardResult
 } from "../shared/types";
+import { GA_CARD_SET_NAME } from "../shared/gaCard";
 
 /** Limite de camadas listadas — protege o plugin contra seleções enormes. */
 const MAX_LAYERS = 600;
@@ -181,9 +181,9 @@ export async function diagnoseSelection(): Promise<CardDiagnosis> {
       }
 
       const setName = componentSet ? componentSet.name : mainComponent.name;
-      if (setName !== GA_CARD_COMPONENT_NAME) {
+      if (setName !== GA_CARD_SET_NAME) {
         warnings.push(
-          `O componente se chama "${setName}", e o esperado era "${GA_CARD_COMPONENT_NAME}". Confira se é o card certo.`
+          `O componente se chama "${setName}", e o esperado era "${GA_CARD_SET_NAME}". Confira se é o card certo.`
         );
       }
 

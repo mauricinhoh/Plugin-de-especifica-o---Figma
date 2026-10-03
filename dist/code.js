@@ -2291,8 +2291,95 @@
     figma.ui.postMessage(message);
   }
 
-  // src/tagueamento/shared/types.ts
-  var GA_CARD_COMPONENT_NAME = "[Helper] Google Analytics, atributo";
+  // src/tagueamento/shared/gaCard.ts
+  var GA_CARD_SET_NAME = "[Helper] Google Analytics Spec";
+  var GA_CARD_SET_KEY = "051df160d03349be02f026974d98735ec96a5128";
+  var GA_CARD_SHOW_TOGGLE = "Mostrar atributos";
+  var GA_CARD_EVENT_PROPERTY = "Evento";
+  var GA_EVENTS = [
+    {
+      key: "screen_view",
+      params: [
+        "firebase_screen",
+        "region",
+        "subregion*",
+        "firebase_previous_screen",
+        "target_screen*",
+        "code*",
+        "status*",
+        "title*",
+        "message*",
+        "details*",
+        "utm_source*",
+        "utm_medium*",
+        "utm_campaing*",
+        "utm_content*",
+        "utm_term*",
+        "hiring_id*"
+      ]
+    },
+    { key: "page_view", params: ["page_name", "region", "subregion*", "previous_page", "target_page*"] },
+    {
+      key: "select_content",
+      params: ["content_type", "region", "subregion*", "action", "local_name", "local_type", "previous_page"]
+    },
+    { key: "modal_view", params: ["modal_name", "page_name", "firebase_screen", "region", "subregion*"] },
+    {
+      key: "feedback",
+      params: [
+        "region",
+        "subregion*",
+        "firebase_screen",
+        "page_name",
+        "feedback_name",
+        "firebase_previous_screen",
+        "previous_page"
+      ]
+    },
+    {
+      key: "search",
+      params: [
+        "search_term",
+        "result",
+        "firebase_screen",
+        "page_name",
+        "region",
+        "subregion*",
+        "firebase_previous_screen",
+        "previous_page"
+      ]
+    },
+    { key: "login", params: ["region", "authentication", "result", "method*", "details*"] },
+    {
+      key: "transaction",
+      params: [
+        "firebase_screen",
+        "page_name",
+        "authentication",
+        "region",
+        "subregion*",
+        "transaction_id*",
+        "transaction_type",
+        "transaction_code",
+        "transaction_name",
+        "transaction_items",
+        "value*",
+        "result",
+        "details*"
+      ]
+    },
+    {
+      key: "refresh",
+      params: ["firebase_screen", "page_name", "region", "firebase_previous_screen", "previous_page", "subregion*", "details*"]
+    },
+    { key: "conversion", params: ["firebase_screen", "page_name", "region", "result", "subregion*", "details*"] }
+  ];
+  function normalizeParamLabel(label) {
+    return label.replace(/\*/g, "").trim().toLowerCase();
+  }
+  function eventKeyFromVariantName(variantName) {
+    return variantName.replace(/\[[^\]]*\]/g, "").replace(/\s+/g, "").toLowerCase();
+  }
 
   // src/tagueamento/main/cardDiagnostic.ts
   var MAX_LAYERS = 600;
@@ -2412,9 +2499,9 @@
           warnings.push(`N\xE3o foi poss\xEDvel ler o conjunto de variantes: ${errorMessage(error)}`);
         }
         const setName = componentSet ? componentSet.name : mainComponent.name;
-        if (setName !== GA_CARD_COMPONENT_NAME) {
+        if (setName !== GA_CARD_SET_NAME) {
           warnings.push(
-            `O componente se chama "${setName}", e o esperado era "${GA_CARD_COMPONENT_NAME}". Confira se \xE9 o card certo.`
+            `O componente se chama "${setName}", e o esperado era "${GA_CARD_SET_NAME}". Confira se \xE9 o card certo.`
           );
         }
         const definitions = readPropertyDefinitions(mainComponent, componentSet, warnings);
@@ -2517,6 +2604,197 @@
     };
   }
 
+  // src/tagueamento/main/cardStructure.ts
+  function stripPropertyId2(name) {
+    const hashIndex = name.lastIndexOf("#");
+    return hashIndex > 0 ? name.slice(0, hashIndex) : name;
+  }
+  function firstTextInside(node) {
+    if (node.type === "TEXT") return node;
+    if ("children" in node) {
+      for (const child of node.children) {
+        const found = firstTextInside(child);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+  function asRow(node) {
+    if (node.type !== "FRAME" && node.type !== "GROUP") return null;
+    let labelNode = null;
+    let valueNode = null;
+    for (const child of node.children) {
+      if (!labelNode && child.type === "TEXT") labelNode = child;
+      if (!valueNode && child.type === "INSTANCE") valueNode = firstTextInside(child);
+    }
+    if (!labelNode || !valueNode) return null;
+    const refs = node.type === "FRAME" ? node.componentPropertyReferences : null;
+    const info = {
+      label: labelNode.characters.trim(),
+      value: valueNode.characters,
+      visible: node.visible
+    };
+    if (refs && typeof refs.visible === "string") {
+      info.toggle = stripPropertyId2(refs.visible);
+    }
+    return { info, row: node, labelNode, valueNode };
+  }
+  function readCardStructure(card) {
+    const structure = { rows: [], typeNode: null, numberNode: null };
+    function visit(node) {
+      if (node !== card) {
+        const row = asRow(node);
+        if (row) {
+          structure.rows.push(row);
+          return;
+        }
+        if (!structure.typeNode && node.type === "FRAME" && node.name === "Type") {
+          structure.typeNode = firstTextInside(node);
+        }
+        if (!structure.numberNode && node.type === "FRAME" && node.name === "Number") {
+          structure.numberNode = firstTextInside(node);
+        }
+      }
+      if ("children" in node) {
+        for (const child of node.children) visit(child);
+      }
+    }
+    visit(card);
+    return structure;
+  }
+
+  // src/tagueamento/main/variantCheck.ts
+  var TEMP_OFFSET = -1e5;
+  function errorMessage2(error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  function stripPropertyId3(name) {
+    const hashIndex = name.lastIndexOf("#");
+    return hashIndex > 0 ? name.slice(0, hashIndex) : name;
+  }
+  async function setFromSelection() {
+    const selection = figma.currentPage.selection;
+    if (selection.length !== 1 || selection[0].type !== "INSTANCE") return null;
+    const main = await selection[0].getMainComponentAsync();
+    const parent = main ? main.parent : null;
+    return parent && parent.type === "COMPONENT_SET" ? parent : null;
+  }
+  function variantNameOf(component) {
+    const props = component.variantProperties;
+    return props && typeof props[GA_CARD_EVENT_PROPERTY] === "string" ? props[GA_CARD_EVENT_PROPERTY] : null;
+  }
+  async function checkAllVariants() {
+    const result = {
+      keyUsed: GA_CARD_SET_KEY,
+      importOk: false,
+      source: "none",
+      setNameOk: false,
+      variantOptions: [],
+      unmatchedVariants: [],
+      toggles: [],
+      showToggleFound: false,
+      checks: [],
+      warnings: []
+    };
+    let componentSet = null;
+    try {
+      componentSet = await figma.importComponentSetByKeyAsync(GA_CARD_SET_KEY);
+      result.importOk = true;
+      result.source = "import";
+    } catch (error) {
+      result.importError = errorMessage2(error);
+      componentSet = await setFromSelection();
+      if (componentSet) {
+        result.source = "selection";
+        result.warnings.push(
+          "A importa\xE7\xE3o pela chave falhou; as variantes foram lidas do card selecionado. A gera\xE7\xE3o precisa da importa\xE7\xE3o funcionando."
+        );
+      } else {
+        result.warnings.push(
+          "A importa\xE7\xE3o pela chave falhou e n\xE3o h\xE1 um card selecionado. Selecione uma inst\xE2ncia do card e verifique de novo para ver a chave real."
+        );
+        return result;
+      }
+    }
+    result.setName = componentSet.name;
+    result.setNameOk = componentSet.name === GA_CARD_SET_NAME;
+    result.actualSetKey = componentSet.key;
+    if (!result.setNameOk) {
+      result.warnings.push(`O conjunto se chama "${componentSet.name}"; o esperado era "${GA_CARD_SET_NAME}".`);
+    }
+    try {
+      const definitions = componentSet.componentPropertyDefinitions;
+      for (const [name, definition] of Object.entries(definitions)) {
+        if (definition.type === "BOOLEAN") result.toggles.push(stripPropertyId3(name));
+        if (definition.type === "VARIANT" && name === GA_CARD_EVENT_PROPERTY && definition.variantOptions) {
+          result.variantOptions = [...definition.variantOptions];
+        }
+      }
+    } catch (error) {
+      result.warnings.push(`N\xE3o foi poss\xEDvel ler as propriedades do conjunto: ${errorMessage2(error)}`);
+    }
+    result.showToggleFound = result.toggles.includes(GA_CARD_SHOW_TOGGLE);
+    if (!result.showToggleFound) {
+      result.warnings.push(`A toggle "${GA_CARD_SHOW_TOGGLE}" n\xE3o foi encontrada no conjunto.`);
+    }
+    const variantsByEvent = /* @__PURE__ */ new Map();
+    for (const child of componentSet.children) {
+      if (child.type !== "COMPONENT") continue;
+      const variantName = variantNameOf(child);
+      if (!variantName) continue;
+      const eventKey = eventKeyFromVariantName(variantName);
+      if (GA_EVENTS.some((event) => event.key === eventKey)) {
+        variantsByEvent.set(eventKey, child);
+      } else {
+        result.unmatchedVariants.push(variantName);
+      }
+    }
+    for (const event of GA_EVENTS) {
+      const expected = event.params.map(normalizeParamLabel);
+      const check = {
+        eventKey: event.key,
+        variantName: null,
+        ok: false,
+        expectedCount: expected.length,
+        foundCount: 0,
+        missing: [],
+        extra: [],
+        rows: [],
+        hasNumber: false
+      };
+      const variant = variantsByEvent.get(event.key);
+      if (!variant) {
+        check.missing = [...event.params];
+        check.error = "Nenhuma variante de Evento corresponde a este evento.";
+        result.checks.push(check);
+        continue;
+      }
+      check.variantName = variantNameOf(variant);
+      let temp = null;
+      try {
+        temp = variant.createInstance();
+        temp.x = TEMP_OFFSET;
+        temp.y = TEMP_OFFSET;
+        const structure = readCardStructure(temp);
+        check.rows = structure.rows.map((row) => row.info);
+        check.typeText = structure.typeNode ? structure.typeNode.characters : void 0;
+        check.hasNumber = structure.numberNode !== null;
+        const foundLabels = new Set(check.rows.map((row) => normalizeParamLabel(row.label)));
+        check.missing = event.params.filter((param) => !foundLabels.has(normalizeParamLabel(param)));
+        check.extra = check.rows.map((row) => row.label).filter((label) => !expected.includes(normalizeParamLabel(label)));
+        check.foundCount = expected.length - check.missing.length;
+        check.ok = check.missing.length === 0;
+      } catch (error) {
+        check.error = `N\xE3o foi poss\xEDvel ler esta variante: ${errorMessage2(error)}`;
+        check.missing = [...event.params];
+      } finally {
+        if (temp && !temp.removed) temp.remove();
+      }
+      result.checks.push(check);
+    }
+    return result;
+  }
+
   // src/tagueamento/main/router.ts
   function isTagueamentoMessage(message) {
     return typeof message === "object" && message !== null && isTagMessageType(message.type);
@@ -2546,6 +2824,28 @@
       });
     }
   }
+  async function runCheckAllVariants() {
+    try {
+      const result = await checkAllVariants();
+      postToTagUi({ type: "tag:all-variants-result", result });
+    } catch (error) {
+      postToTagUi({
+        type: "tag:all-variants-result",
+        result: {
+          keyUsed: GA_CARD_SET_KEY,
+          importOk: false,
+          source: "none",
+          setNameOk: false,
+          variantOptions: [],
+          unmatchedVariants: [],
+          toggles: [],
+          showToggleFound: false,
+          checks: [],
+          warnings: [`Falha inesperada na verifica\xE7\xE3o: ${error instanceof Error ? error.message : String(error)}`]
+        }
+      });
+    }
+  }
   function handleTagueamentoMessage(message) {
     switch (message.type) {
       case "tag:ui-ready":
@@ -2559,6 +2859,9 @@
         break;
       case "tag:create-test-card":
         void runCreateTestCard(message.sourceNodeId, message.variantValues);
+        break;
+      case "tag:check-all-variants":
+        void runCheckAllVariants();
         break;
       default:
         break;
