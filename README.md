@@ -86,7 +86,7 @@ src/tagueamento/
   shared/gaCard.ts       # chave/nome do card de GA + parâmetros por evento (spec 7.2)
   shared/naming.ts       # normalização de nomenclatura (spec 6.2, passos 1-9)
   shared/dicionario.ts   # termos em inglês: TRADUCOES, MANTER, SINALIZAR (edite aqui)
-  shared/forms.ts        # link pré-preenchido do Forms do "Outro" (link modelo PENDENTE)
+  shared/forms.ts        # link pré-preenchido do Forms do "Outro" (configurado; códigos por pergunta)
   shared/classification.ts # tabela componente → evento/ação (spec 4.2) e cabeçalhos ignorados
   shared/review.ts       # regras da revisão: campos por evento/canal, pendências, troca de evento
   data/                  # Excel de regions (template), canais.json e a lista gerada
