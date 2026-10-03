@@ -78,7 +78,7 @@ function ItemCard({ item, onFocus }: { item: MappedItem; onFocus: () => void }) 
           {item.numero}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 900 }}>{item.evento}</div>
+          <div style={{ fontSize: 13, fontWeight: 900, overflowWrap: "anywhere" }}>{item.evento}</div>
           <div style={{ fontSize: 11.5, color: "var(--color-text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {item.componente}
             {item.label && item.origem === "componente" ? ` · “${item.label}”` : ""}
@@ -87,11 +87,19 @@ function ItemCard({ item, onFocus }: { item: MappedItem; onFocus: () => void }) 
         <button
           type="button"
           onClick={onFocus}
-          aria-label={`Ver ${item.componente} no canvas`}
-          title="Ver no canvas"
-          style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)", borderRadius: 8, padding: "4px 8px", fontSize: 11, fontWeight: 800 }}
+          aria-label={`Mostrar ${item.componente} na tela`}
+          style={{
+            border: "1px solid var(--color-border)",
+            background: "var(--color-surface)",
+            borderRadius: 8,
+            padding: "4px 8px",
+            fontSize: 11,
+            fontWeight: 800,
+            whiteSpace: "nowrap",
+            flexShrink: 0
+          }}
         >
-          Ver
+          Mostrar na tela
         </button>
       </div>
 
@@ -114,7 +122,7 @@ function ItemCard({ item, onFocus }: { item: MappedItem; onFocus: () => void }) 
       {item.pendencias.map((pendencia, index) => (
         <div key={index} style={{ marginTop: 6, display: "flex", gap: 6, fontSize: 12, fontWeight: 700, color: "var(--color-warning)" }}>
           <Icon name="alert-triangle" size={13} color="var(--color-warning)" />
-          <span>{pendencia}</span>
+          <span style={{ overflowWrap: "anywhere", minWidth: 0 }}>{pendencia}</span>
         </div>
       ))}
     </div>
@@ -125,9 +133,18 @@ function ScreenSection({ screen, onFocusNode }: { screen: MappedScreen; onFocusN
   const pendingCount = screen.items.filter((item) => item.pendencias.length > 0).length;
   return (
     <div style={{ marginTop: 14 }}>
-      <div style={{ padding: "12px 14px", borderRadius: 12, background: "var(--color-surface-muted)", border: "1px solid var(--color-border)" }}>
-        <div style={{ fontSize: 15, fontWeight: 900 }}>{screen.nomeTela || "(sem nome)"}</div>
-        <div style={{ fontSize: 11.5, color: "var(--color-text-muted)", marginTop: 2 }}>
+      <div
+        style={{
+          padding: "12px 14px",
+          borderRadius: 12,
+          background: "var(--color-surface-muted)",
+          border: "1px solid var(--color-border)",
+          minWidth: 0,
+          overflow: "hidden"
+        }}
+      >
+        <div style={{ fontSize: 15, fontWeight: 900, overflowWrap: "anywhere" }}>{screen.nomeTela || "(sem nome)"}</div>
+        <div style={{ fontSize: 11.5, color: "var(--color-text-muted)", marginTop: 2, overflowWrap: "anywhere" }}>
           {screen.frameName} · {screen.largura}×{screen.altura}
         </div>
         <div style={{ fontSize: 12, marginTop: 6 }}>
@@ -137,7 +154,7 @@ function ScreenSection({ screen, onFocusNode }: { screen: MappedScreen; onFocusN
         {screen.avisos.map((aviso, index) => (
           <div key={index} style={{ marginTop: 6, display: "flex", gap: 6, fontSize: 12, fontWeight: 700, color: "var(--color-warning)" }}>
             <Icon name="alert-triangle" size={13} color="var(--color-warning)" />
-            <span>{aviso}</span>
+            <span style={{ overflowWrap: "anywhere", minWidth: 0 }}>{aviso}</span>
           </div>
         ))}
       </div>

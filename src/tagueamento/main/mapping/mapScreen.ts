@@ -58,9 +58,13 @@ export function screenNameOf(frameName: string): string {
 }
 
 /** Base do content_type: label (2 palavras) ou a ação da tabela. */
-function contentBase(acao: ActionSource | undefined, label: string | null): { base: string | null; pendencia?: string } {
+function contentBase(
+  acao: ActionSource | undefined,
+  label: string | null,
+  componente: string
+): { base: string | null; pendencia?: string } {
   if (acao && typeof acao === "object" && acao.kind === "pd") {
-    return { base: null, pendencia: "Ação preenchida pelo PD (Button Icon)" };
+    return { base: null, pendencia: `Ação preenchida pelo PD (${componente})` };
   }
   if (label) return { base: firstTwoWords(label) };
   if (typeof acao === "string") return { base: acao };
@@ -152,7 +156,7 @@ export function mapScreen(
     switch (evento) {
       case "select_content": {
         const rule = found.ruleName ? findClassification([found.ruleName])?.rule : undefined;
-        const { base: contentText, pendencia } = contentBase(rule?.acao, label);
+        const { base: contentText, pendencia } = contentBase(rule?.acao, label, found.componentName);
         if (pendencia) item.pendencias.push(pendencia);
         item.params = {
           content_type: contentText ? normalizeParam(`${contentText} ${nomeTelaPalavras}`) : "",

@@ -2918,7 +2918,7 @@
     { names: ["Chip Filter"], classe: "select_content", acao: "Filtrar" },
     { names: ["Switch"], classe: "select_content", acao: "Ativar / Desativar" },
     { names: ["Date Picker"], classe: "select_content", acao: "Selecionar_data" },
-    { names: ["Pagination", "Carousel Nav", "Breadcrumb"], classe: "select_content", acao: "Navegar" },
+    { names: ["Pagination", "Carousel Nav"], classe: "select_content", acao: "Navegar" },
     { names: ["Uploader"], classe: "select_content", acao: "Anexar" },
     { names: ["Rate Input", "Cookies", "Banner Image Full"], classe: "select_content", acao: LABEL },
     {
@@ -2935,7 +2935,10 @@
       acao: LABEL
     },
     { names: ["Button Icon"], classe: "select_content", acao: PD },
-    { names: ["Card", "Card Review", "Table", "Fixed Bar", "Header Product", "Button Group"], classe: "container" },
+    // Table: o componente inteiro vira um item e o plugin não entra nele (ajuste do Mau, 03/10/2026).
+    // A ação fica para o PD na revisão até a regra da tabela ser definida.
+    { names: ["Table"], classe: "select_content", acao: PD },
+    { names: ["Card", "Card Review", "Fixed Bar", "Header Product", "Button Group"], classe: "container" },
     {
       names: [
         "Avatar Business",
@@ -2969,7 +2972,9 @@
     "[IB-Leg] Acessibility Settings Bar",
     "[IB-Leg] Header",
     "[IB-Leg] Navigation Bar",
-    "[IB-Leg] Footer"
+    "[IB-Leg] Footer",
+    // Não mapear (ajuste do Mau, 03/10/2026): nem o componente nem o que tem dentro.
+    "Breadcrumb"
   ];
   var EVENT_BY_CLASS = {
     select_content: "select_content",
@@ -2995,8 +3000,15 @@
     }
     return null;
   }
+  var IGNORED_NORMALIZED = IGNORED_LAYER_NAMES.map(normalizeName);
   function isIgnoredLayer(names) {
-    return names.some((name) => !!name && IGNORED_LAYER_NAMES.includes(name.trim()));
+    return names.some((name) => {
+      var _a2;
+      if (!name) return false;
+      const full = normalizeName(name);
+      const last = normalizeName((_a2 = name.split("/").pop()) != null ? _a2 : name);
+      return IGNORED_NORMALIZED.includes(full) || IGNORED_NORMALIZED.includes(last);
+    });
   }
 
   // src/tagueamento/shared/naming.ts
@@ -3228,9 +3240,9 @@
   function screenNameOf(frameName) {
     return normalizeParam(firstTwoWords(frameName));
   }
-  function contentBase(acao, label) {
+  function contentBase(acao, label, componente) {
     if (acao && typeof acao === "object" && acao.kind === "pd") {
-      return { base: null, pendencia: "A\xE7\xE3o preenchida pelo PD (Button Icon)" };
+      return { base: null, pendencia: `A\xE7\xE3o preenchida pelo PD (${componente})` };
     }
     if (label) return { base: firstTwoWords(label) };
     if (typeof acao === "string") return { base: acao };
@@ -3311,7 +3323,7 @@
       switch (evento) {
         case "select_content": {
           const rule = found.ruleName ? (_d = findClassification([found.ruleName])) == null ? void 0 : _d.rule : void 0;
-          const { base: contentText, pendencia } = contentBase(rule == null ? void 0 : rule.acao, label);
+          const { base: contentText, pendencia } = contentBase(rule == null ? void 0 : rule.acao, label, found.componentName);
           if (pendencia) item.pendencias.push(pendencia);
           item.params = __spreadProps(__spreadValues({
             content_type: contentText ? normalizeParam(`${contentText} ${nomeTelaPalavras}`) : ""

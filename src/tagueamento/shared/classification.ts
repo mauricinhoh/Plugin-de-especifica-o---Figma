@@ -12,6 +12,10 @@
  *    "não reconhecido, confirme".
  *  - Chevron: regra adiada para os testes.
  *
+ * Ajustes do Mau (03/10/2026, testes da Fase 4):
+ *  - Table: o componente inteiro vira um item (select_content), sem entrar nele.
+ *  - Breadcrumb: não é mapeado (nem ele nem o que tem dentro).
+ *
  * Dados puros: para mudar a classificação, edite só este arquivo.
  */
 
@@ -64,7 +68,7 @@ export const CLASSIFICATION: ClassificationRule[] = [
   { names: ["Chip Filter"], classe: "select_content", acao: "Filtrar" },
   { names: ["Switch"], classe: "select_content", acao: "Ativar / Desativar" },
   { names: ["Date Picker"], classe: "select_content", acao: "Selecionar_data" },
-  { names: ["Pagination", "Carousel Nav", "Breadcrumb"], classe: "select_content", acao: "Navegar" },
+  { names: ["Pagination", "Carousel Nav"], classe: "select_content", acao: "Navegar" },
   { names: ["Uploader"], classe: "select_content", acao: "Anexar" },
   { names: ["Rate Input", "Cookies", "Banner Image Full"], classe: "select_content", acao: LABEL },
   {
@@ -81,7 +85,10 @@ export const CLASSIFICATION: ClassificationRule[] = [
     acao: LABEL
   },
   { names: ["Button Icon"], classe: "select_content", acao: PD },
-  { names: ["Card", "Card Review", "Table", "Fixed Bar", "Header Product", "Button Group"], classe: "container" },
+  // Table: o componente inteiro vira um item e o plugin não entra nele (ajuste do Mau, 03/10/2026).
+  // A ação fica para o PD na revisão até a regra da tabela ser definida.
+  { names: ["Table"], classe: "select_content", acao: PD },
+  { names: ["Card", "Card Review", "Fixed Bar", "Header Product", "Button Group"], classe: "container" },
   {
     names: [
       "Avatar Business",
@@ -121,7 +128,9 @@ export const IGNORED_LAYER_NAMES = [
   "[IB-Leg] Acessibility Settings Bar",
   "[IB-Leg] Header",
   "[IB-Leg] Navigation Bar",
-  "[IB-Leg] Footer"
+  "[IB-Leg] Footer",
+  // Não mapear (ajuste do Mau, 03/10/2026): nem o componente nem o que tem dentro.
+  "Breadcrumb"
 ];
 
 /** Evento gerado por classe (container e nao_marcar não geram). */
@@ -157,6 +166,14 @@ export function findClassification(candidates: (string | null | undefined)[]): {
   return null;
 }
 
+const IGNORED_NORMALIZED = IGNORED_LAYER_NAMES.map(normalizeName);
+
+/** true quando algum nome (inteiro ou último trecho depois de "/") está na lista de ignorados. */
 export function isIgnoredLayer(names: (string | null | undefined)[]): boolean {
-  return names.some((name) => !!name && IGNORED_LAYER_NAMES.includes(name.trim()));
+  return names.some((name) => {
+    if (!name) return false;
+    const full = normalizeName(name);
+    const last = normalizeName(name.split("/").pop() ?? name);
+    return IGNORED_NORMALIZED.includes(full) || IGNORED_NORMALIZED.includes(last);
+  });
 }
