@@ -82,10 +82,14 @@ editadas por causa do tagueamento.
 ```
 src/tagueamento/
   shared/messages.ts     # protocolo próprio — toda mensagem começa com "tag:"
+  shared/types.ts        # tipos próprios do tagueamento
   main/router.ts         # recebe as mensagens "tag:" no main thread
   main/messaging.ts      # postToTagUi (cópia adaptada de src/main/messaging.ts)
+  main/cardDiagnostic.ts # Fase 2: lê o card de GA selecionado e cria um card de teste
   ui/TagueamentoApp.tsx  # raiz do fluxo na UI
   ui/bridge.ts           # postToTagMain / onTagMessage (cópia adaptada do mainBridge)
+  ui/screens/            # telas do tagueamento (Fase 2: CardDiagnostic)
+  ui/diagnosticReport.ts # relatório em texto do diagnóstico (botão "Copiar")
   ui/components/         # cópias de TitleBar, Button, Icon, Stepper, EmptyState
 ```
 

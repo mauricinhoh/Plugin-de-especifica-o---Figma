@@ -13,6 +13,7 @@
 
 import { TagUiToMainMessage, isTagMessageType } from "../shared/messages";
 import { postToTagUi } from "./messaging";
+import { createTestCard, diagnoseSelection } from "./cardDiagnostic";
 
 /** true quando a mensagem vinda da UI pertence ao tagueamento. */
 export function isTagueamentoMessage(message: unknown): message is TagUiToMainMessage {
@@ -23,6 +24,33 @@ export function isTagueamentoMessage(message: unknown): message is TagUiToMainMe
   );
 }
 
+async function runDiagnosis(): Promise<void> {
+  try {
+    const diagnosis = await diagnoseSelection();
+    postToTagUi({ type: "tag:diagnosis-result", diagnosis });
+  } catch (error) {
+    postToTagUi({
+      type: "tag:diagnosis-error",
+      message: error instanceof Error ? error.message : "Não foi possível ler o card selecionado."
+    });
+  }
+}
+
+async function runCreateTestCard(sourceNodeId: string, variantValues: Record<string, string>): Promise<void> {
+  try {
+    const result = await createTestCard(sourceNodeId, variantValues);
+    postToTagUi({ type: "tag:test-card-result", result });
+  } catch (error) {
+    postToTagUi({
+      type: "tag:test-card-result",
+      result: {
+        ok: false,
+        message: `Falha inesperada ao criar o card de teste: ${error instanceof Error ? error.message : String(error)}`
+      }
+    });
+  }
+}
+
 export function handleTagueamentoMessage(message: TagUiToMainMessage): void {
   switch (message.type) {
     case "tag:ui-ready":
@@ -30,6 +58,12 @@ export function handleTagueamentoMessage(message: TagUiToMainMessage): void {
       break;
     case "tag:close-plugin":
       figma.closePlugin();
+      break;
+    case "tag:diagnose-selection":
+      void runDiagnosis();
+      break;
+    case "tag:create-test-card":
+      void runCreateTestCard(message.sourceNodeId, message.variantValues);
       break;
     default:
       break;

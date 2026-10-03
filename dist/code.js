@@ -2291,9 +2291,260 @@
     figma.ui.postMessage(message);
   }
 
+  // src/tagueamento/shared/types.ts
+  var GA_CARD_COMPONENT_NAME = "[Helper] Google Analytics, atributo";
+
+  // src/tagueamento/main/cardDiagnostic.ts
+  var MAX_LAYERS = 600;
+  var MAX_CHARACTERS = 120;
+  var TEST_CARD_GAP = 40;
+  var TEST_CARD_PLUGIN_DATA_KEY = "tagueamento.testCard";
+  function errorMessage(error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  function stripPropertyId(name) {
+    const hashIndex = name.lastIndexOf("#");
+    return hashIndex > 0 ? name.slice(0, hashIndex) : name;
+  }
+  function describeComponent(node) {
+    return { id: node.id, name: node.name, key: node.key, remote: node.remote };
+  }
+  function fontLabel(font) {
+    return `${font.family} ${font.style}`;
+  }
+  function collectLayers(root) {
+    const layers = [];
+    const fonts = /* @__PURE__ */ new Set();
+    let truncated = false;
+    function visit(node, depth) {
+      if (layers.length >= MAX_LAYERS) {
+        truncated = true;
+        return;
+      }
+      const layer = { depth, type: node.type, name: node.name, visible: node.visible };
+      if (node.type === "TEXT") {
+        const text = node.characters;
+        layer.characters = text.length > MAX_CHARACTERS ? `${text.slice(0, MAX_CHARACTERS)}\u2026` : text;
+        if (node.fontName !== figma.mixed) {
+          layer.font = fontLabel(node.fontName);
+          fonts.add(layer.font);
+        } else {
+          layer.font = "(v\xE1rias fontes)";
+          try {
+            for (const font of node.getRangeAllFontNames(0, text.length)) {
+              fonts.add(fontLabel(font));
+            }
+          } catch (e) {
+          }
+        }
+      }
+      const refs = "componentPropertyReferences" in node ? node.componentPropertyReferences : null;
+      if (refs) {
+        const entries = Object.entries(refs).filter(([, value]) => typeof value === "string");
+        if (entries.length > 0) {
+          const propertyRefs = {};
+          for (const [field, property] of entries) propertyRefs[field] = property;
+          layer.propertyRefs = propertyRefs;
+        }
+      }
+      layers.push(layer);
+      if ("children" in node) {
+        for (const child of node.children) {
+          visit(child, depth + 1);
+        }
+      }
+    }
+    visit(root, 0);
+    return { layers, truncated, fonts: [...fonts].sort() };
+  }
+  function readPropertyDefinitions(mainComponent, componentSet, warnings) {
+    try {
+      if (componentSet) return componentSet.componentPropertyDefinitions;
+      return mainComponent.componentPropertyDefinitions;
+    } catch (error) {
+      warnings.push(
+        `N\xE3o foi poss\xEDvel ler as defini\xE7\xF5es das propriedades (op\xE7\xF5es de variante e valores padr\xE3o): ${errorMessage(error)}`
+      );
+      return null;
+    }
+  }
+  async function diagnoseSelection() {
+    const selection = figma.currentPage.selection;
+    if (selection.length !== 1) {
+      throw new Error(
+        selection.length === 0 ? "Selecione no canvas uma inst\xE2ncia do card antes de ler." : "Selecione s\xF3 um card por vez."
+      );
+    }
+    const node = selection[0];
+    const warnings = [];
+    const diagnosis = {
+      nodeId: node.id,
+      nodeName: node.name,
+      nodeType: node.type,
+      width: Math.round(node.width),
+      height: Math.round(node.height),
+      mainComponent: null,
+      componentSet: null,
+      properties: [],
+      layers: [],
+      layersTruncated: false,
+      fonts: [],
+      warnings
+    };
+    if (node.type !== "INSTANCE") {
+      warnings.push(
+        `A camada selecionada \xE9 do tipo ${node.type}, n\xE3o uma inst\xE2ncia. Selecione a inst\xE2ncia do card (\xEDcone de losango no painel de camadas), n\xE3o uma camada de dentro dele.`
+      );
+    } else {
+      const mainComponent = await node.getMainComponentAsync();
+      if (!mainComponent) {
+        warnings.push("A inst\xE2ncia n\xE3o tem componente principal (ele pode ter sido apagado da biblioteca).");
+      } else {
+        diagnosis.mainComponent = describeComponent(mainComponent);
+        let componentSet = null;
+        try {
+          const parent = mainComponent.parent;
+          if (parent && parent.type === "COMPONENT_SET") {
+            componentSet = parent;
+            diagnosis.componentSet = describeComponent(parent);
+          }
+        } catch (error) {
+          warnings.push(`N\xE3o foi poss\xEDvel ler o conjunto de variantes: ${errorMessage(error)}`);
+        }
+        const setName = componentSet ? componentSet.name : mainComponent.name;
+        if (setName !== GA_CARD_COMPONENT_NAME) {
+          warnings.push(
+            `O componente se chama "${setName}", e o esperado era "${GA_CARD_COMPONENT_NAME}". Confira se \xE9 o card certo.`
+          );
+        }
+        const definitions = readPropertyDefinitions(mainComponent, componentSet, warnings);
+        for (const [name, property] of Object.entries(node.componentProperties)) {
+          const definition = definitions ? definitions[name] : void 0;
+          const diagnosed = {
+            name,
+            displayName: stripPropertyId(name),
+            type: property.type,
+            value: property.value
+          };
+          if (definition) {
+            diagnosed.defaultValue = definition.defaultValue;
+            if (definition.type === "VARIANT" && definition.variantOptions) {
+              diagnosed.options = [...definition.variantOptions];
+            }
+          }
+          diagnosis.properties.push(diagnosed);
+        }
+      }
+    }
+    const { layers, truncated, fonts } = collectLayers(node);
+    diagnosis.layers = layers;
+    diagnosis.layersTruncated = truncated;
+    diagnosis.fonts = fonts;
+    if (truncated) {
+      warnings.push(`A lista de camadas foi cortada em ${MAX_LAYERS} itens.`);
+    }
+    return diagnosis;
+  }
+  async function createTestCard(sourceNodeId, variantValues) {
+    const source = await figma.getNodeByIdAsync(sourceNodeId);
+    if (!source || source.type !== "INSTANCE") {
+      return { ok: false, message: "O card lido n\xE3o existe mais no arquivo. Selecione-o e clique em Ler card de novo." };
+    }
+    const mainComponent = await source.getMainComponentAsync();
+    if (!mainComponent) {
+      return { ok: false, message: "O card lido n\xE3o tem componente principal." };
+    }
+    let instance;
+    let method;
+    let importError;
+    try {
+      const imported = await figma.importComponentByKeyAsync(mainComponent.key);
+      instance = imported.createInstance();
+      method = "Importado pela chave (importComponentByKeyAsync)";
+    } catch (error) {
+      importError = errorMessage(error);
+      try {
+        instance = mainComponent.createInstance();
+        method = "Criado direto do componente principal (a importa\xE7\xE3o pela chave falhou)";
+      } catch (fallbackError) {
+        return {
+          ok: false,
+          message: `N\xE3o foi poss\xEDvel criar o card de teste: ${errorMessage(fallbackError)}`,
+          importError
+        };
+      }
+    }
+    const box = source.absoluteBoundingBox;
+    if (box) {
+      instance.x = box.x + box.width + TEST_CARD_GAP;
+      instance.y = box.y;
+    }
+    instance.setPluginData(TEST_CARD_PLUGIN_DATA_KEY, "1");
+    const current = instance.componentProperties;
+    const toApply = {};
+    for (const [name, value] of Object.entries(variantValues)) {
+      const property = current[name];
+      if (property && property.type === "VARIANT" && property.value !== value) {
+        toApply[name] = value;
+      }
+    }
+    try {
+      if (Object.keys(toApply).length > 0) {
+        instance.setProperties(toApply);
+      }
+    } catch (error) {
+      figma.currentPage.selection = [instance];
+      figma.viewport.scrollAndZoomIntoView([source, instance]);
+      return {
+        ok: false,
+        message: `O card de teste foi criado, mas n\xE3o deu para aplicar as variantes: ${errorMessage(error)}`,
+        method,
+        importError
+      };
+    }
+    figma.currentPage.selection = [instance];
+    figma.viewport.scrollAndZoomIntoView([source, instance]);
+    const applied = {};
+    for (const [name, property] of Object.entries(instance.componentProperties)) {
+      if (property.type === "VARIANT") applied[name] = String(property.value);
+    }
+    return {
+      ok: true,
+      message: "Card de teste criado ao lado do card lido.",
+      method,
+      importError,
+      appliedProperties: applied
+    };
+  }
+
   // src/tagueamento/main/router.ts
   function isTagueamentoMessage(message) {
     return typeof message === "object" && message !== null && isTagMessageType(message.type);
+  }
+  async function runDiagnosis() {
+    try {
+      const diagnosis = await diagnoseSelection();
+      postToTagUi({ type: "tag:diagnosis-result", diagnosis });
+    } catch (error) {
+      postToTagUi({
+        type: "tag:diagnosis-error",
+        message: error instanceof Error ? error.message : "N\xE3o foi poss\xEDvel ler o card selecionado."
+      });
+    }
+  }
+  async function runCreateTestCard(sourceNodeId, variantValues) {
+    try {
+      const result = await createTestCard(sourceNodeId, variantValues);
+      postToTagUi({ type: "tag:test-card-result", result });
+    } catch (error) {
+      postToTagUi({
+        type: "tag:test-card-result",
+        result: {
+          ok: false,
+          message: `Falha inesperada ao criar o card de teste: ${error instanceof Error ? error.message : String(error)}`
+        }
+      });
+    }
   }
   function handleTagueamentoMessage(message) {
     switch (message.type) {
@@ -2302,6 +2553,12 @@
         break;
       case "tag:close-plugin":
         figma.closePlugin();
+        break;
+      case "tag:diagnose-selection":
+        void runDiagnosis();
+        break;
+      case "tag:create-test-card":
+        void runCreateTestCard(message.sourceNodeId, message.variantValues);
         break;
       default:
         break;

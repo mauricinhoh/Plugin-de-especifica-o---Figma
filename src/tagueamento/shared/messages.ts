@@ -11,6 +11,8 @@
  * Tudo aqui precisa ser serializável em JSON (figma.ui.postMessage).
  */
 
+import { CardDiagnosis, TestCardResult } from "./types";
+
 export const TAG_MESSAGE_PREFIX = "tag:";
 
 // ---------- UI -> Main ----------
@@ -19,7 +21,14 @@ export type TagUiToMainMessage =
   /** A tela do tagueamento abriu e está pronta para receber mensagens. */
   | { type: "tag:ui-ready" }
   /** Fecha o plugin a partir do fluxo de tagueamento. */
-  | { type: "tag:close-plugin" };
+  | { type: "tag:close-plugin" }
+  /** Fase 2: lê o card selecionado no canvas (chave, variantes, propriedades, camadas). */
+  | { type: "tag:diagnose-selection" }
+  /**
+   * Fase 2: cria um card de teste ao lado do card diagnosticado, aplicando
+   * os valores de variante escolhidos (ex.: { Evento: "[App] screen_view" }).
+   */
+  | { type: "tag:create-test-card"; sourceNodeId: string; variantValues: Record<string, string> };
 
 // ---------- Main -> UI ----------
 
@@ -29,7 +38,10 @@ export type TagMainToUiMessage =
    * tagueamento funciona nos dois sentidos. `fileName` = figma.root.name
    * (o mesmo valor que depois vai para o campo "Arquivo Figma" do Forms).
    */
-  | { type: "tag:ready"; fileName: string };
+  | { type: "tag:ready"; fileName: string }
+  | { type: "tag:diagnosis-result"; diagnosis: CardDiagnosis }
+  | { type: "tag:diagnosis-error"; message: string }
+  | { type: "tag:test-card-result"; result: TestCardResult };
 
 /** true quando a mensagem pertence ao tagueamento (prefixo "tag:"). */
 export function isTagMessageType(type: unknown): boolean {

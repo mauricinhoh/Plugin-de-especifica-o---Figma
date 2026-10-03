@@ -60,7 +60,24 @@ const icons: Record<string, IconElement[]> = {
   sparkle: [{ type: "path", d: "M12 2 9.6 8.6 3 11l6.6 2.4L12 20l2.4-6.6L21 11l-6.6-2.4L12 2Z" }],
   monitor: [{ type: "path", d: "M3 4h18v12H3zM8 20h8M12 16v4" }],
   smartphone: [{ type: "path", d: "M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1ZM12 18h.01" }],
-  components: [{ type: "path", d: "M12 2 3 7l9 5 9-5-9-5ZM3 12l9 5 9-5M3 17l9 5 9-5" }]
+  components: [{ type: "path", d: "M12 2 3 7l9 5 9-5-9-5ZM3 12l9 5 9-5M3 17l9 5 9-5" }],
+  // Acrescentados no tagueamento (Fase 2) — traços da Lucide, mesma licença ISC.
+  copy: [
+    { type: "path", d: "M10 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2Z" },
+    { type: "path", d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" }
+  ],
+  refresh: [
+    { type: "path", d: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" },
+    { type: "path", d: "M21 3v5h-5" },
+    { type: "path", d: "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" },
+    { type: "path", d: "M8 16H3v5" }
+  ],
+  "eye-off": [
+    { type: "path", d: "M9.88 9.88a3 3 0 1 0 4.24 4.24" },
+    { type: "path", d: "M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" },
+    { type: "path", d: "M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" },
+    { type: "path", d: "M2 2l20 20" }
+  ]
 };
 
 interface IconProps {
