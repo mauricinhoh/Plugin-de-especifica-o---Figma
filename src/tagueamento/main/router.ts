@@ -17,6 +17,9 @@ import { createTestCard, diagnoseSelection } from "./cardDiagnostic";
 import { checkAllVariants } from "./variantCheck";
 import { GA_CARD_SET_KEY } from "../shared/gaCard";
 import { loadLastSetup, saveLastSetup } from "./setupStorage";
+import { watchSelection } from "./selection";
+import { runMapping } from "./mapping/runMapping";
+import { SetupSelection } from "../shared/types";
 
 /** true quando a mensagem vinda da UI pertence ao tagueamento. */
 export function isTagueamentoMessage(message: unknown): message is TagUiToMainMessage {
@@ -77,12 +80,41 @@ async function runCheckAllVariants(): Promise<void> {
   }
 }
 
+let mappingInProgress = false;
+
+async function runMappingAndReport(setup: SetupSelection): Promise<void> {
+  if (mappingInProgress) return;
+  mappingInProgress = true;
+  try {
+    const result = await runMapping(setup, (done, total) => postToTagUi({ type: "tag:mapping-progress", done, total }));
+    postToTagUi({ type: "tag:mapping-result", result });
+  } catch (error) {
+    postToTagUi({
+      type: "tag:mapping-error",
+      message: error instanceof Error ? error.message : "Não foi possível mapear a tela."
+    });
+  } finally {
+    mappingInProgress = false;
+  }
+}
+
+async function focusNode(nodeId: string): Promise<void> {
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (node && "visible" in node) {
+    figma.currentPage.selection = [node as SceneNode];
+    figma.viewport.scrollAndZoomIntoView([node as SceneNode]);
+  } else {
+    figma.notify("Camada não encontrada");
+  }
+}
+
 export function handleTagueamentoMessage(message: TagUiToMainMessage): void {
   switch (message.type) {
     case "tag:ui-ready":
       postToTagUi({ type: "tag:ready", fileName: figma.root.name });
       break;
     case "tag:close-plugin":
+      watchSelection(false);
       figma.closePlugin();
       break;
     case "tag:diagnose-selection":
@@ -102,6 +134,15 @@ export function handleTagueamentoMessage(message: TagUiToMainMessage): void {
       break;
     case "tag:open-external":
       figma.openExternal(message.url);
+      break;
+    case "tag:watch-selection":
+      watchSelection(message.enabled);
+      break;
+    case "tag:run-mapping":
+      void runMappingAndReport(message.setup);
+      break;
+    case "tag:focus-node":
+      void focusNode(message.nodeId);
       break;
     default:
       break;

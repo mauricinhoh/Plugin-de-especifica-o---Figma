@@ -11,7 +11,14 @@
  * Tudo aqui precisa ser serializável em JSON (figma.ui.postMessage).
  */
 
-import { AllVariantsCheck, CardDiagnosis, SetupSelection, TestCardResult } from "./types";
+import {
+  AllVariantsCheck,
+  CardDiagnosis,
+  MappingResult,
+  SetupSelection,
+  TagSelectionState,
+  TestCardResult
+} from "./types";
 
 export const TAG_MESSAGE_PREFIX = "tag:";
 
@@ -36,7 +43,13 @@ export type TagUiToMainMessage =
   /** Fase 3: guarda a escolha do setup para o próximo uso. */
   | { type: "tag:save-setup"; setup: SetupSelection }
   /** Fase 3: abre um link no navegador (Forms do "Outro") com figma.openExternal. */
-  | { type: "tag:open-external"; url: string };
+  | { type: "tag:open-external"; url: string }
+  /** Fase 4: liga/desliga o acompanhamento da seleção (listener próprio do tagueamento). */
+  | { type: "tag:watch-selection"; enabled: boolean }
+  /** Fase 4: mapeia o frame selecionado ("tela") ou a página inteira ("pagina"), conforme setup.modo. */
+  | { type: "tag:run-mapping"; setup: SetupSelection }
+  /** Fase 4: seleciona e enquadra um node no canvas. */
+  | { type: "tag:focus-node"; nodeId: string };
 
 // ---------- Main -> UI ----------
 
@@ -51,7 +64,11 @@ export type TagMainToUiMessage =
   | { type: "tag:diagnosis-error"; message: string }
   | { type: "tag:test-card-result"; result: TestCardResult }
   | { type: "tag:all-variants-result"; result: AllVariantsCheck }
-  | { type: "tag:last-setup"; setup: SetupSelection | null };
+  | { type: "tag:last-setup"; setup: SetupSelection | null }
+  | { type: "tag:selection-state"; state: TagSelectionState }
+  | { type: "tag:mapping-progress"; done: number; total: number }
+  | { type: "tag:mapping-result"; result: MappingResult }
+  | { type: "tag:mapping-error"; message: string };
 
 /** true quando a mensagem pertence ao tagueamento (prefixo "tag:"). */
 export function isTagMessageType(type: unknown): boolean {

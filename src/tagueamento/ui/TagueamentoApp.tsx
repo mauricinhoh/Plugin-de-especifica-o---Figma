@@ -1,11 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { onTagMessage, postToTagMain } from "./bridge";
-import { AllVariantsCheck, CardDiagnosis, SetupSelection, TestCardResult } from "../shared/types";
+import {
+  AllVariantsCheck,
+  CardDiagnosis,
+  MappingResult,
+  SetupSelection,
+  TagSelectionState,
+  TestCardResult
+} from "../shared/types";
 import { buildFormsUrl } from "../shared/forms";
 import { REGIONS } from "./regionsData";
 import { CardDiagnostic } from "./screens/CardDiagnostic";
 import { SetupScreen } from "./screens/SetupScreen";
-import { FormsStatus, SetupSummary } from "./screens/SetupSummary";
+import { FrameSelect } from "./screens/FrameSelect";
+import { MappingPreview } from "./screens/MappingPreview";
+import { FormsStatus } from "./components/SetupBar";
 
 /**
  * Raiz do fluxo de TAGUEAMENTO.
@@ -18,12 +27,15 @@ import { FormsStatus, SetupSummary } from "./screens/SetupSummary";
  * Fase 1: base isolada + canal próprio com o main thread (tag:ui-ready → tag:ready).
  * Fase 2: ferramenta temporária "Diagnóstico do card" (2.1: verificação de todas as variantes).
  * Fase 3: setup (Canal, Produto, Fluxo, Modo), "Outro" + Forms, memória da última escolha.
+ * Fase 4: seleção de frame (tela por tela) ou página inteira → mapeamento → prévia.
  */
 
-type TagScreen = "setup" | "summary" | "diagnostic";
+type TagScreen = "setup" | "frame" | "mapping" | "diagnostic";
 
 /** Se o main thread não responder com a última escolha, abre o setup vazio depois deste tempo. */
 const LAST_SETUP_TIMEOUT_MS = 800;
+
+const NO_SELECTION: TagSelectionState = { valid: false, nodeId: null, nodeName: null };
 
 interface TagueamentoAppProps {
   /** Volta para a tela inicial (escolha Acessibilidade / Tagueamento). */
@@ -34,11 +46,19 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
   const [screen, setScreen] = useState<TagScreen>("setup");
   const [fileName, setFileName] = useState<string | null>(null);
 
+  // Setup (Fase 3)
   const [lastSetup, setLastSetup] = useState<SetupSelection | null>(null);
   const [lastSetupLoaded, setLastSetupLoaded] = useState(false);
   const [setup, setSetup] = useState<SetupSelection | null>(null);
   const [formsStatus, setFormsStatus] = useState<FormsStatus>(null);
 
+  // Mapeamento (Fase 4)
+  const [selection, setSelection] = useState<TagSelectionState>(NO_SELECTION);
+  const [mapping, setMapping] = useState<MappingResult | null>(null);
+  const [mappingProgress, setMappingProgress] = useState<{ done: number; total: number } | null>(null);
+  const [mappingError, setMappingError] = useState<string | null>(null);
+
+  // Diagnóstico (Fase 2)
   const [diagnosis, setDiagnosis] = useState<CardDiagnosis | null>(null);
   const [diagnosisError, setDiagnosisError] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
@@ -52,6 +72,22 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
       switch (message.type) {
         case "tag:ready":
           setFileName(message.fileName);
+          break;
+        case "tag:last-setup":
+          setLastSetup(message.setup);
+          setLastSetupLoaded(true);
+          break;
+        case "tag:selection-state":
+          setSelection(message.state);
+          break;
+        case "tag:mapping-progress":
+          setMappingProgress({ done: message.done, total: message.total });
+          break;
+        case "tag:mapping-result":
+          setMapping(message.result);
+          break;
+        case "tag:mapping-error":
+          setMappingError(message.message);
           break;
         case "tag:diagnosis-result":
           setReading(false);
@@ -71,10 +107,6 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
           setCheckingAllVariants(false);
           setAllVariants(message.result);
           break;
-        case "tag:last-setup":
-          setLastSetup(message.setup);
-          setLastSetupLoaded(true);
-          break;
         default:
           break;
       }
@@ -88,21 +120,36 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
     };
   }, []);
 
+  // O listener de seleção do tagueamento só fica ligado na tela "Selecione uma tela".
+  useEffect(() => {
+    if (screen !== "frame") return;
+    postToTagMain({ type: "tag:watch-selection", enabled: true });
+    return () => postToTagMain({ type: "tag:watch-selection", enabled: false });
+  }, [screen]);
+
   const closePlugin = () => postToTagMain({ type: "tag:close-plugin" });
 
-  function handleSetupComplete(selection: SetupSelection) {
-    setSetup(selection);
-    postToTagMain({ type: "tag:save-setup", setup: selection });
+  function startMapping(selectionSetup: SetupSelection) {
+    setMapping(null);
+    setMappingError(null);
+    setMappingProgress(null);
+    setScreen("mapping");
+    postToTagMain({ type: "tag:run-mapping", setup: selectionSetup });
+  }
+
+  function handleSetupComplete(selectionSetup: SetupSelection) {
+    setSetup(selectionSetup);
+    postToTagMain({ type: "tag:save-setup", setup: selectionSetup });
 
     // "Outro" (spec 2.3): abre o Forms pré-preenchido; o parecer segue sem esperar.
     let status: FormsStatus = null;
-    if (selection.produtoOutro || selection.fluxoOutro) {
+    if (selectionSetup.produtoOutro || selectionSetup.fluxoOutro) {
       const url = buildFormsUrl({
-        canal: selection.canal,
-        produto: selection.produto,
-        tarefa: selection.fluxo,
-        region: selection.region,
-        subregion: selection.subregion,
+        canal: selectionSetup.canal,
+        produto: selectionSetup.produto,
+        tarefa: selectionSetup.fluxo,
+        region: selectionSetup.region,
+        subregion: selectionSetup.subregion,
         arquivoFigma: fileName ?? ""
       });
       if (url) {
@@ -113,7 +160,9 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
       }
     }
     setFormsStatus(status);
-    setScreen("summary");
+
+    if (selectionSetup.modo === "tela") setScreen("frame");
+    else startMapping(selectionSetup);
   }
 
   if (screen === "diagnostic") {
@@ -147,13 +196,32 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
     );
   }
 
-  if (screen === "summary" && setup) {
+  if (screen === "frame" && setup) {
     return (
-      <SetupSummary
+      <FrameSelect
         setup={setup}
         formsStatus={formsStatus}
-        onEdit={() => setScreen("setup")}
+        selection={selection}
+        onMap={() => startMapping(setup)}
+        onEditSetup={() => setScreen("setup")}
         onExit={onExit}
+        onClose={closePlugin}
+      />
+    );
+  }
+
+  if (screen === "mapping" && setup) {
+    return (
+      <MappingPreview
+        setup={setup}
+        formsStatus={formsStatus}
+        result={mapping}
+        progress={mappingProgress}
+        error={mappingError}
+        remapLabel={setup.modo === "tela" ? "Mapear outra tela" : "Mapear de novo"}
+        onFocusNode={(nodeId) => postToTagMain({ type: "tag:focus-node", nodeId })}
+        onRemap={() => (setup.modo === "tela" ? setScreen("frame") : startMapping(setup))}
+        onEditSetup={() => setScreen("setup")}
         onClose={closePlugin}
       />
     );

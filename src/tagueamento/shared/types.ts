@@ -183,3 +183,60 @@ export interface SetupSelection {
   fluxoOutro: boolean;
   modo: ModoGeracao;
 }
+
+// ---------- Fase 4: travessia e mapeamento ----------
+
+/** Um item mapeado num frame: o card de tela (número 1) ou um componente. */
+export interface MappedItem {
+  numero: number;
+  /** Id do node no Figma (o próprio frame, no card de tela). */
+  nodeId: string;
+  /** Nome legível do componente (nome da regra, ou o nome do componente quando não reconhecido). */
+  componente: string;
+  /** Evento do card (ex.: "screen_view", "select_content"). */
+  evento: string;
+  origem: "tela" | "componente";
+  /** Primeiro texto visível do componente (base do content_type / modal_name). */
+  label: string | null;
+  /** Parâmetros que o plugin já preencheu, com o nome igual ao do card (sem "*"). */
+  params: Record<string, string>;
+  /** Pontos que o PD precisa resolver na revisão (destacados). */
+  pendencias: string[];
+  /** Parâmetros de tempo de execução que o PD preenche na revisão (spec 5.1). */
+  paraPd: string[];
+}
+
+export interface MappedScreen {
+  frameId: string;
+  frameName: string;
+  /** Duas primeiras palavras do nome do frame, normalizadas. */
+  nomeTela: string;
+  largura: number;
+  altura: number;
+  /** Plataforma pela largura (> 1000 px = WEB; ≤ 1000 px = APP). Só checagem. */
+  plataformaPelaLargura: Plataforma;
+  /** true quando a largura não combina com o canal escolhido no setup. */
+  divergeDoCanal: boolean;
+  /** Telas (nomeTela) com seta de protótipo chegando neste frame. */
+  origens: string[];
+  /** Telas (nomeTela) para onde saem setas deste frame. */
+  destinos: string[];
+  items: MappedItem[];
+  avisos: string[];
+}
+
+export interface MappingResult {
+  modo: ModoGeracao;
+  screens: MappedScreen[];
+  /** Avisos gerais (ex.: nenhum frame na página). */
+  avisos: string[];
+}
+
+export interface TagSelectionState {
+  valid: boolean;
+  nodeId: string | null;
+  nodeName: string | null;
+  nodeType?: string;
+  width?: number;
+  height?: number;
+}

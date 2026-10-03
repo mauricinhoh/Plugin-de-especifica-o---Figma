@@ -2836,6 +2836,609 @@
     }
   }
 
+  // src/tagueamento/main/mapping/prototype.ts
+  function pushUnique(map, key, value) {
+    var _a2;
+    const list = (_a2 = map.get(key)) != null ? _a2 : [];
+    if (!list.includes(value)) list.push(value);
+    map.set(key, list);
+  }
+  function navigationTargets(node) {
+    var _a2;
+    if (!("reactions" in node)) return [];
+    const targets = [];
+    for (const reaction of node.reactions) {
+      const legacy = reaction.action;
+      const actions = (_a2 = reaction.actions) != null ? _a2 : legacy ? [legacy] : [];
+      for (const action of actions) {
+        if (action.type === "NODE" && action.navigation === "NAVIGATE" && action.destinationId) {
+          targets.push(action.destinationId);
+        }
+      }
+    }
+    return targets;
+  }
+  async function topLevelFrameId(nodeId, frameIds) {
+    if (frameIds.has(nodeId)) return nodeId;
+    let node = await figma.getNodeByIdAsync(nodeId);
+    while (node) {
+      if (frameIds.has(node.id)) return node.id;
+      node = node.parent;
+    }
+    return null;
+  }
+  async function buildPrototypeGraph(frames) {
+    const graph = { outgoing: /* @__PURE__ */ new Map(), incoming: /* @__PURE__ */ new Map() };
+    const frameIds = new Set(frames.map((frame) => frame.id));
+    for (const frame of frames) {
+      const withReactions = [frame];
+      if ("findAll" in frame) {
+        withReactions.push(...frame.findAll((node) => "reactions" in node && node.reactions.length > 0));
+      }
+      for (const node of withReactions) {
+        for (const destinationId of navigationTargets(node)) {
+          const destinationFrame = await topLevelFrameId(destinationId, frameIds);
+          if (!destinationFrame || destinationFrame === frame.id) continue;
+          pushUnique(graph.outgoing, frame.id, destinationFrame);
+          pushUnique(graph.incoming, destinationFrame, frame.id);
+        }
+      }
+    }
+    return graph;
+  }
+
+  // src/tagueamento/shared/classification.ts
+  var LABEL = { kind: "label" };
+  var PD = { kind: "pd" };
+  var CLASSIFICATION = [
+    { names: ["Search"], classe: "search", acao: "Buscar" },
+    { names: ["Alert", "Toast", "Flag", "Flag Cooperado"], classe: "feedback" },
+    { names: ["Modal", "Drawer"], classe: "modal_view" },
+    {
+      names: [
+        "Button Primary",
+        "Button Secondary",
+        "Button Mini",
+        "Link Icon",
+        "Shortcut",
+        "Tab",
+        "List Navigation",
+        "Menu Button",
+        "Popover Menu"
+      ],
+      classe: "select_content",
+      acao: LABEL
+    },
+    { names: ["Accordion"], classe: "select_content", acao: "Expandir" },
+    {
+      names: ["Checkbox", "Radio Button", "List Select", "Chip Select", "Dropdown", "Input Select"],
+      classe: "select_content",
+      acao: "Selecionar"
+    },
+    { names: ["Chip Filter"], classe: "select_content", acao: "Filtrar" },
+    { names: ["Switch"], classe: "select_content", acao: "Ativar / Desativar" },
+    { names: ["Date Picker"], classe: "select_content", acao: "Selecionar_data" },
+    { names: ["Pagination", "Carousel Nav", "Breadcrumb"], classe: "select_content", acao: "Navegar" },
+    { names: ["Uploader"], classe: "select_content", acao: "Anexar" },
+    { names: ["Rate Input", "Cookies", "Banner Image Full"], classe: "select_content", acao: LABEL },
+    {
+      names: [
+        "Input Text",
+        "Input Text Area",
+        "Input Password",
+        "Input Code",
+        "Input Code Number",
+        "Input Date",
+        "Currency"
+      ],
+      classe: "select_content",
+      acao: LABEL
+    },
+    { names: ["Button Icon"], classe: "select_content", acao: PD },
+    { names: ["Card", "Card Review", "Table", "Fixed Bar", "Header Product", "Button Group"], classe: "container" },
+    {
+      names: [
+        "Avatar Business",
+        "Avatar Name",
+        "Badge",
+        "Brand",
+        "Description",
+        "Heading",
+        "Icon",
+        "Icon Shape",
+        "Image",
+        "Loading",
+        "Page Indicator",
+        "Paragraph",
+        "Progress Line",
+        "Skeleton",
+        "Tag Container",
+        "Tag Icon",
+        "Topic",
+        "List Content",
+        "List Ghost",
+        "Tooltip",
+        "Empty State",
+        "Credit Card"
+      ],
+      classe: "nao_marcar"
+    }
+  ];
+  var IGNORED_LAYER_NAMES = [
+    "Header Web",
+    "[IB-Leg] Acessibility Settings Bar",
+    "[IB-Leg] Header",
+    "[IB-Leg] Navigation Bar",
+    "[IB-Leg] Footer"
+  ];
+  var EVENT_BY_CLASS = {
+    select_content: "select_content",
+    search: "search",
+    feedback: "feedback",
+    modal_view: "modal_view"
+  };
+  function normalizeName(name) {
+    return name.replace(/\s+/g, " ").trim().toLowerCase();
+  }
+  var RULE_BY_NAME = /* @__PURE__ */ new Map();
+  for (const rule of CLASSIFICATION) {
+    for (const name of rule.names) RULE_BY_NAME.set(normalizeName(name), { rule, name });
+  }
+  function findClassification(candidates) {
+    var _a2, _b;
+    for (const candidate of candidates) {
+      if (!candidate) continue;
+      const full = normalizeName(candidate);
+      const last = normalizeName((_a2 = candidate.split("/").pop()) != null ? _a2 : candidate);
+      const match = (_b = RULE_BY_NAME.get(full)) != null ? _b : RULE_BY_NAME.get(last);
+      if (match) return match;
+    }
+    return null;
+  }
+  function isIgnoredLayer(names) {
+    return names.some((name) => !!name && IGNORED_LAYER_NAMES.includes(name.trim()));
+  }
+
+  // src/tagueamento/shared/naming.ts
+  var MAX_VALUE_LENGTH = 100;
+  var UNITS = ["zero", "um", "dois", "tres", "quatro", "cinco", "seis", "sete", "oito", "nove"];
+  var TEENS = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
+  var TENS = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
+  var HUNDREDS = [
+    "",
+    "cento",
+    "duzentos",
+    "trezentos",
+    "quatrocentos",
+    "quinhentos",
+    "seiscentos",
+    "setecentos",
+    "oitocentos",
+    "novecentos"
+  ];
+  function belowThousand(n) {
+    if (n === 0) return "";
+    if (n === 100) return "cem";
+    const parts = [];
+    const hundreds = Math.floor(n / 100);
+    const rest = n % 100;
+    if (hundreds > 0) parts.push(HUNDREDS[hundreds]);
+    if (rest > 0) {
+      if (rest < 10) parts.push(UNITS[rest]);
+      else if (rest < 20) parts.push(TEENS[rest - 10]);
+      else {
+        const tens = Math.floor(rest / 10);
+        const units = rest % 10;
+        parts.push(units > 0 ? `${TENS[tens]} e ${UNITS[units]}` : TENS[tens]);
+      }
+    }
+    return parts.join(" e ");
+  }
+  function numberToWords(n) {
+    if (!Number.isInteger(n) || n < 0 || n > 999999999) return String(n);
+    if (n === 0) return UNITS[0];
+    const millions = Math.floor(n / 1e6);
+    const thousands = Math.floor(n % 1e6 / 1e3);
+    const rest = n % 1e3;
+    const groups = [];
+    if (millions > 0) groups.push(millions === 1 ? "um milhao" : `${belowThousand(millions)} milhoes`);
+    if (thousands > 0) groups.push(thousands === 1 ? "mil" : `${belowThousand(thousands)} mil`);
+    if (rest > 0) groups.push(belowThousand(rest));
+    if (groups.length > 1 && rest > 0 && (rest < 100 || rest % 100 === 0)) {
+      const last = groups.pop();
+      return `${groups.join(" ")} e ${last}`;
+    }
+    return groups.join(" ");
+  }
+  function removeAccents(text) {
+    return text.normalize("NFD").replace(/[̀-ͯ]/g, "");
+  }
+  function truncate(value, max) {
+    if (value.length <= max) return value;
+    const cut = value.slice(0, max);
+    const lastUnderscore = cut.lastIndexOf("_");
+    return (lastUnderscore > 0 ? cut.slice(0, lastUnderscore) : cut).replace(/_+$/, "");
+  }
+  function baseNormalize(text) {
+    let value = text.trim();
+    value = value.replace(/\d+/g, (digits) => ` ${numberToWords(Number(digits))} `);
+    value = removeAccents(value);
+    value = value.replace(/[\s-]+/g, "_");
+    value = value.replace(/[^A-Za-z0-9_]/g, "");
+    value = value.replace(/_+/g, "_").replace(/^_+|_+$/g, "");
+    return value;
+  }
+  function normalizeParam(text) {
+    const value = baseNormalize(text).toLowerCase();
+    const cased = value.charAt(0).toUpperCase() + value.slice(1);
+    return truncate(cased, MAX_VALUE_LENGTH);
+  }
+
+  // src/tagueamento/main/traversal/componentIdentity.ts
+  async function resolveComponentNames(node) {
+    const names = { instanceName: node.name, setName: null, mainName: null };
+    let main = null;
+    try {
+      main = node.type === "INSTANCE" ? await node.getMainComponentAsync() : node;
+    } catch (e) {
+      main = null;
+    }
+    if (main) {
+      names.mainName = main.name;
+      try {
+        const parent = main.parent;
+        if (parent && parent.type === "COMPONENT_SET") names.setName = parent.name;
+      } catch (e) {
+      }
+    }
+    return names;
+  }
+  function candidateNames(names) {
+    return [names.setName, names.mainName, names.instanceName].filter((name) => !!name);
+  }
+  function displayName(names) {
+    var _a2, _b;
+    return (_b = (_a2 = names.setName) != null ? _a2 : names.mainName) != null ? _b : names.instanceName;
+  }
+
+  // src/tagueamento/main/traversal/discovery.ts
+  function firstVisibleText(node) {
+    if ("visible" in node && !node.visible) return null;
+    if (node.type === "TEXT") {
+      const text = node.characters.replace(/\s+/g, " ").trim();
+      return text.length > 0 ? text : null;
+    }
+    if ("children" in node) {
+      for (const child of node.children) {
+        const found = firstVisibleText(child);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+  async function discoverItems(root) {
+    const found = [];
+    async function walkChildren(node, insideModal) {
+      if (!("children" in node)) return;
+      for (const child of node.children) {
+        await walk(child, insideModal);
+      }
+    }
+    async function walk(node, insideModal) {
+      if ("visible" in node && !node.visible) return;
+      if (isIgnoredLayer([node.name])) return;
+      if (node.type !== "INSTANCE" && node.type !== "COMPONENT") {
+        await walkChildren(node, insideModal);
+        return;
+      }
+      const names = await resolveComponentNames(node);
+      if (isIgnoredLayer(candidateNames(names))) return;
+      const match = findClassification(candidateNames(names));
+      if (!match) {
+        const before = found.length;
+        await walkChildren(node, insideModal);
+        if (found.length === before && firstVisibleText(node)) {
+          found.push({
+            node,
+            names,
+            componentName: displayName(names),
+            classe: "nao_reconhecido",
+            ruleName: null,
+            insideModal
+          });
+        }
+        return;
+      }
+      const { rule, name } = match;
+      const item = { node, names, componentName: name, classe: rule.classe, ruleName: name, insideModal };
+      switch (rule.classe) {
+        case "select_content":
+        case "search":
+          found.push(item);
+          return;
+        case "modal_view":
+          found.push(item);
+          await walkChildren(node, true);
+          return;
+        case "feedback":
+          found.push(item);
+          await walkChildren(node, insideModal);
+          return;
+        case "container":
+        case "nao_marcar":
+          await walkChildren(node, insideModal);
+          return;
+      }
+    }
+    await walkChildren(root, false);
+    return found;
+  }
+
+  // src/tagueamento/main/traversal/readingOrder.ts
+  function getBounds2(node) {
+    const box = node.absoluteBoundingBox;
+    if (!box) return null;
+    return { x: box.x, y: box.y, width: box.width, height: box.height };
+  }
+  function rowThresholdFor2(a, b) {
+    return Math.min(a.height, b.height) * 0.6;
+  }
+  function sortByReadingOrder2(nodes) {
+    const withBounds = [];
+    const withoutBounds = [];
+    for (const node of nodes) {
+      const bounds = getBounds2(node);
+      if (bounds) {
+        withBounds.push({ node, bounds, centerY: bounds.y + bounds.height / 2 });
+      } else {
+        withoutBounds.push(node);
+      }
+    }
+    withBounds.sort((a, b) => a.centerY - b.centerY || a.bounds.x - b.bounds.x);
+    const rows = [];
+    for (const entry of withBounds) {
+      const lastRow = rows[rows.length - 1];
+      const lastItem = lastRow == null ? void 0 : lastRow.items[lastRow.items.length - 1];
+      const threshold = lastItem ? rowThresholdFor2(lastItem.bounds, entry.bounds) : 0;
+      if (lastRow && Math.abs(entry.centerY - lastRow.averageCenterY) <= threshold) {
+        lastRow.items.push(entry);
+        const sum = lastRow.items.reduce((acc, item) => acc + item.centerY, 0);
+        lastRow.averageCenterY = sum / lastRow.items.length;
+      } else {
+        rows.push({ items: [entry], averageCenterY: entry.centerY });
+      }
+    }
+    const ordered = [];
+    for (const row of rows) {
+      row.items.sort((a, b) => a.bounds.x - b.bounds.x);
+      ordered.push(...row.items.map((e) => e.node));
+    }
+    return [...ordered, ...withoutBounds];
+  }
+
+  // src/tagueamento/main/mapping/mapScreen.ts
+  var WEB_WIDTH_THRESHOLD = 1e3;
+  var PLACEHOLDER_PREVIOUS = "<Tela_anterior_apresentada>";
+  function keysFor(plataforma) {
+    return plataforma === "APP" ? { screen: "firebase_screen", previous: "firebase_previous_screen", target: "target_screen" } : { screen: "page_name", previous: "previous_page", target: "target_page" };
+  }
+  function firstTwoWords(text) {
+    return text.split(/\s+/).filter((word) => /[A-Za-z0-9\u00C0-\u024F]/.test(word)).slice(0, 2).join(" ");
+  }
+  function screenNameOf(frameName) {
+    return normalizeParam(firstTwoWords(frameName));
+  }
+  function contentBase(acao, label) {
+    if (acao && typeof acao === "object" && acao.kind === "pd") {
+      return { base: null, pendencia: "A\xE7\xE3o preenchida pelo PD (Button Icon)" };
+    }
+    if (label) return { base: firstTwoWords(label) };
+    if (typeof acao === "string") return { base: acao };
+    return { base: null, pendencia: "Componente sem texto: preencha a a\xE7\xE3o" };
+  }
+  function mapScreen(frame, discovered, setup, graph, nomeTelaById) {
+    var _a2, _b, _c, _d;
+    const keys = keysFor(setup.plataforma);
+    const nomeTela = screenNameOf(frame.name);
+    const nomeTelaPalavras = firstTwoWords(frame.name);
+    const largura = Math.round(frame.width);
+    const plataformaPelaLargura = frame.width > WEB_WIDTH_THRESHOLD ? "WEB" : "APP";
+    const avisos = [];
+    if (!nomeTela) avisos.push("O nome do frame n\xE3o tem palavras para formar o nome da tela.");
+    const divergeDoCanal = plataformaPelaLargura !== setup.plataforma;
+    if (divergeDoCanal) {
+      avisos.push(
+        `A largura do frame (${largura} px) parece ${plataformaPelaLargura === "WEB" ? "web" : "app"}, mas o canal "${setup.canal}" \xE9 ${setup.plataforma === "WEB" ? "web" : "app"}. Voc\xEA pode seguir assim.`
+      );
+    }
+    const origens = ((_a2 = graph.incoming.get(frame.id)) != null ? _a2 : []).map((id) => {
+      var _a3;
+      return (_a3 = nomeTelaById.get(id)) != null ? _a3 : id;
+    });
+    const destinos = ((_b = graph.outgoing.get(frame.id)) != null ? _b : []).map((id) => {
+      var _a3;
+      return (_a3 = nomeTelaById.get(id)) != null ? _a3 : id;
+    });
+    const telaAnterior = (_c = origens[0]) != null ? _c : null;
+    if (origens.length > 1) {
+      avisos.push(`Mais de uma tela leva at\xE9 esta (${origens.join(", ")}). Usei "${origens[0]}" como tela anterior \u2014 confira.`);
+    }
+    if (destinos.length > 1) {
+      avisos.push(`Esta tela leva a mais de uma tela (${destinos.join(", ")}). A tela alvo ficou para voc\xEA escolher.`);
+    }
+    const previousValue = telaAnterior != null ? telaAnterior : PLACEHOLDER_PREVIOUS;
+    const base = { region: setup.region, subregion: setup.subregion };
+    const items = [];
+    const screenParams = __spreadProps(__spreadValues({
+      [keys.screen]: nomeTela
+    }, base), {
+      [keys.previous]: previousValue
+    });
+    if (destinos.length === 1) screenParams[keys.target] = destinos[0];
+    items.push({
+      numero: 1,
+      nodeId: frame.id,
+      componente: frame.name,
+      evento: setup.plataforma === "APP" ? "screen_view" : "page_view",
+      origem: "tela",
+      label: null,
+      params: screenParams,
+      pendencias: [],
+      paraPd: []
+    });
+    const ordered = sortByReadingOrder2(discovered.map((item) => item.node));
+    const byId = new Map(discovered.map((item) => [item.node.id, item]));
+    for (const node of ordered) {
+      const found = byId.get(node.id);
+      if (!found) continue;
+      const label = firstVisibleText(found.node);
+      const evento = found.classe === "nao_reconhecido" ? "select_content" : EVENT_BY_CLASS[found.classe];
+      if (!evento) continue;
+      const item = {
+        numero: items.length + 1,
+        nodeId: found.node.id,
+        componente: found.componentName,
+        evento,
+        origem: "componente",
+        label,
+        params: {},
+        pendencias: [],
+        paraPd: []
+      };
+      if (found.classe === "nao_reconhecido") {
+        item.pendencias.push("Componente n\xE3o reconhecido: confirme se \xE9 mesmo um select_content");
+      }
+      switch (evento) {
+        case "select_content": {
+          const rule = found.ruleName ? (_d = findClassification([found.ruleName])) == null ? void 0 : _d.rule : void 0;
+          const { base: contentText, pendencia } = contentBase(rule == null ? void 0 : rule.acao, label);
+          if (pendencia) item.pendencias.push(pendencia);
+          item.params = __spreadProps(__spreadValues({
+            content_type: contentText ? normalizeParam(`${contentText} ${nomeTelaPalavras}`) : ""
+          }, base), {
+            action: "Click",
+            local_name: nomeTela,
+            local_type: found.insideModal ? "Modal" : "Screen",
+            previous_page: previousValue
+          });
+          if (!contentText) delete item.params.content_type;
+          break;
+        }
+        case "modal_view": {
+          const modalName = label ? normalizeParam(label) : "";
+          if (!modalName) item.pendencias.push("Modal sem t\xEDtulo: preencha o modal_name");
+          item.params = __spreadValues({}, base);
+          if (modalName) item.params.modal_name = modalName;
+          if (setup.plataforma === "APP") item.params.firebase_screen = nomeTela;
+          else if (modalName) item.params.page_name = modalName;
+          break;
+        }
+        case "feedback":
+          item.params = __spreadProps(__spreadValues({}, base), { [keys.screen]: nomeTela, [keys.previous]: previousValue });
+          item.paraPd.push("feedback_name");
+          break;
+        case "search":
+          item.params = __spreadProps(__spreadValues({}, base), { [keys.screen]: nomeTela, [keys.previous]: previousValue });
+          item.paraPd.push("search_term", "result");
+          break;
+      }
+      items.push(item);
+    }
+    return {
+      frameId: frame.id,
+      frameName: frame.name,
+      nomeTela,
+      largura,
+      altura: Math.round(frame.height),
+      plataformaPelaLargura,
+      divergeDoCanal,
+      origens,
+      destinos,
+      items,
+      avisos
+    };
+  }
+
+  // src/tagueamento/main/mapping/runMapping.ts
+  function isScreenNode(node) {
+    return node.type === "FRAME" || node.type === "GROUP";
+  }
+  function topLevelFrames() {
+    const frames = [];
+    function collect(children) {
+      for (const child of children) {
+        if (!child.visible) continue;
+        if (child.type === "SECTION") collect(child.children);
+        else if (child.type === "FRAME") frames.push(child);
+      }
+    }
+    collect(figma.currentPage.children);
+    return frames;
+  }
+  var yieldToFigma = () => new Promise((resolve) => setTimeout(resolve, 0));
+  async function runMapping(setup, onProgress) {
+    const pageFrames = topLevelFrames();
+    const result = { modo: setup.modo, screens: [], avisos: [] };
+    let targets;
+    if (setup.modo === "tela") {
+      const selection = figma.currentPage.selection;
+      if (selection.length !== 1 || !isScreenNode(selection[0])) {
+        throw new Error("Selecione um \xFAnico frame para mapear.");
+      }
+      targets = [selection[0]];
+    } else {
+      targets = pageFrames;
+      if (targets.length === 0) {
+        result.avisos.push("Esta p\xE1gina n\xE3o tem frames de primeiro n\xEDvel.");
+        return result;
+      }
+    }
+    const graphFrames = [...pageFrames];
+    for (const target of targets) if (!graphFrames.includes(target)) graphFrames.push(target);
+    const graph = await buildPrototypeGraph(graphFrames);
+    const nomeTelaById = new Map(graphFrames.map((frame) => [frame.id, screenNameOf(frame.name)]));
+    onProgress(0, targets.length);
+    for (let index = 0; index < targets.length; index++) {
+      const frame = targets[index];
+      const discovered = await discoverItems(frame);
+      result.screens.push(mapScreen(frame, discovered, setup, graph, nomeTelaById));
+      onProgress(index + 1, targets.length);
+      await yieldToFigma();
+    }
+    return result;
+  }
+
+  // src/tagueamento/main/selection.ts
+  var listening = false;
+  function currentState() {
+    const selection = figma.currentPage.selection;
+    if (selection.length === 1 && isScreenNode(selection[0])) {
+      const node = selection[0];
+      return {
+        valid: true,
+        nodeId: node.id,
+        nodeName: node.name,
+        nodeType: node.type,
+        width: Math.round(node.width),
+        height: Math.round(node.height)
+      };
+    }
+    return { valid: false, nodeId: null, nodeName: null };
+  }
+  function sendState() {
+    postToTagUi({ type: "tag:selection-state", state: currentState() });
+  }
+  function watchSelection(enabled) {
+    if (enabled && !listening) {
+      figma.on("selectionchange", sendState);
+      listening = true;
+    } else if (!enabled && listening) {
+      figma.off("selectionchange", sendState);
+      listening = false;
+    }
+    if (enabled) sendState();
+  }
+
   // src/tagueamento/main/router.ts
   function isTagueamentoMessage(message) {
     return typeof message === "object" && message !== null && isTagMessageType(message.type);
@@ -2887,12 +3490,38 @@
       });
     }
   }
+  var mappingInProgress = false;
+  async function runMappingAndReport(setup) {
+    if (mappingInProgress) return;
+    mappingInProgress = true;
+    try {
+      const result = await runMapping(setup, (done, total) => postToTagUi({ type: "tag:mapping-progress", done, total }));
+      postToTagUi({ type: "tag:mapping-result", result });
+    } catch (error) {
+      postToTagUi({
+        type: "tag:mapping-error",
+        message: error instanceof Error ? error.message : "N\xE3o foi poss\xEDvel mapear a tela."
+      });
+    } finally {
+      mappingInProgress = false;
+    }
+  }
+  async function focusNode2(nodeId) {
+    const node = await figma.getNodeByIdAsync(nodeId);
+    if (node && "visible" in node) {
+      figma.currentPage.selection = [node];
+      figma.viewport.scrollAndZoomIntoView([node]);
+    } else {
+      figma.notify("Camada n\xE3o encontrada");
+    }
+  }
   function handleTagueamentoMessage(message) {
     switch (message.type) {
       case "tag:ui-ready":
         postToTagUi({ type: "tag:ready", fileName: figma.root.name });
         break;
       case "tag:close-plugin":
+        watchSelection(false);
         figma.closePlugin();
         break;
       case "tag:diagnose-selection":
@@ -2912,6 +3541,15 @@
         break;
       case "tag:open-external":
         figma.openExternal(message.url);
+        break;
+      case "tag:watch-selection":
+        watchSelection(message.enabled);
+        break;
+      case "tag:run-mapping":
+        void runMappingAndReport(message.setup);
+        break;
+      case "tag:focus-node":
+        void focusNode2(message.nodeId);
         break;
       default:
         break;
