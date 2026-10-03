@@ -20,6 +20,7 @@ import { loadLastSetup, saveLastSetup } from "./setupStorage";
 import { watchSelection } from "./selection";
 import { runMapping } from "./mapping/runMapping";
 import { SetupSelection } from "../shared/types";
+import { elementInfo } from "./elementInfo";
 
 /** true quando a mensagem vinda da UI pertence ao tagueamento. */
 export function isTagueamentoMessage(message: unknown): message is TagUiToMainMessage {
@@ -143,6 +144,9 @@ export function handleTagueamentoMessage(message: TagUiToMainMessage): void {
       break;
     case "tag:focus-node":
       void focusNode(message.nodeId);
+      break;
+    case "tag:element-info":
+      void elementInfo(message.nodeId).then((info) => postToTagUi({ type: "tag:element-info-result", info }));
       break;
     default:
       break;

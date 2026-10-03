@@ -16,6 +16,7 @@ let listening = false;
 
 function currentState(): TagSelectionState {
   const selection = figma.currentPage.selection;
+  const element = selection.length === 1 ? { id: selection[0].id, name: selection[0].name, type: selection[0].type } : null;
   if (selection.length === 1 && isScreenNode(selection[0])) {
     const node = selection[0];
     return {
@@ -24,10 +25,11 @@ function currentState(): TagSelectionState {
       nodeName: node.name,
       nodeType: node.type,
       width: Math.round(node.width),
-      height: Math.round(node.height)
+      height: Math.round(node.height),
+      element
     };
   }
-  return { valid: false, nodeId: null, nodeName: null };
+  return { valid: false, nodeId: null, nodeName: null, element };
 }
 
 function sendState(): void {

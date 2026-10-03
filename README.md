@@ -88,6 +88,7 @@ src/tagueamento/
   shared/dicionario.ts   # termos em inglês: TRADUCOES, MANTER, SINALIZAR (edite aqui)
   shared/forms.ts        # link pré-preenchido do Forms do "Outro" (link modelo PENDENTE)
   shared/classification.ts # tabela componente → evento/ação (spec 4.2) e cabeçalhos ignorados
+  shared/review.ts       # regras da revisão: campos por evento/canal, pendências, troca de evento
   data/                  # Excel de regions (template), canais.json e a lista gerada
   main/router.ts         # recebe as mensagens "tag:" no main thread
   main/messaging.ts      # postToTagUi (cópia adaptada de src/main/messaging.ts)
@@ -95,15 +96,19 @@ src/tagueamento/
   main/cardStructure.ts  # acha as linhas do card ("Specs" + nome + Tag com valor)
   main/variantCheck.ts   # Fase 2.1: importa pela chave e confere as 10 variantes
   main/setupStorage.ts   # memória da última escolha do setup (clientStorage, chave própria)
-  main/selection.ts      # listener de seleção próprio (só na tela "Selecione uma tela")
+  main/selection.ts      # listener de seleção próprio (seleção de tela e revisão)
+  main/elementInfo.ts    # dados do elemento escolhido para um evento manual
   main/traversal/        # cópias adaptadas da descoberta, ordem de leitura e identificação
   main/mapping/          # mapeamento do frame, setas do protótipo, execução (tela/página)
   ui/TagueamentoApp.tsx  # raiz do fluxo na UI
   ui/bridge.ts           # postToTagMain / onTagMessage (cópia adaptada do mainBridge)
-  ui/screens/            # telas: SetupScreen, FrameSelect, MappingPreview, CardDiagnostic, NamingTester
+  ui/screens/            # telas: SetupScreen, FrameSelect, MappingProgress, Review, ReviewSummary,
+                         #        CardDiagnostic, NamingTester
+  ui/state/reviewStore.ts # estado da revisão (edições, eventos, manuais) — só em memória
   ui/regionsData.ts      # lista de regions embutida (gerada no build)
   ui/diagnosticReport.ts # relatório em texto do diagnóstico (botão "Copiar")
-  ui/components/         # cópias de TitleBar, Button, Icon, Stepper, EmptyState + SearchSelect, SetupBar
+  ui/components/         # cópias de TitleBar, Button, Icon, Stepper, EmptyState
+                         # + SearchSelect, SetupBar, ParamField, ReviewCard
 ```
 
 Pontos de contato com o código da acessibilidade (os únicos):

@@ -206,6 +206,8 @@ export interface MappedItem {
   notas: string[];
   /** Parâmetros de tempo de execução que o PD preenche na revisão (spec 5.1). */
   paraPd: string[];
+  /** true quando o componente não está na tabela 4.2 (vira select_content até o PD confirmar). */
+  naoReconhecido: boolean;
 }
 
 export interface MappedScreen {
@@ -235,10 +237,24 @@ export interface MappingResult {
 }
 
 export interface TagSelectionState {
+  /** true quando a seleção é um único frame/grupo (tela). */
   valid: boolean;
   nodeId: string | null;
   nodeName: string | null;
   nodeType?: string;
   width?: number;
   height?: number;
+  /** Qualquer camada única selecionada (usado no "Adicionar evento manual"). */
+  element?: { id: string; name: string; type: string } | null;
+}
+
+/** Fase 6: dados do elemento escolhido para um evento manual. */
+export interface ElementInfo {
+  nodeId: string;
+  /** Nome do componente (conjunto de variantes / componente principal) ou da camada. */
+  componente: string;
+  /** Primeiro texto visível do elemento. */
+  label: string | null;
+  /** Frame de primeiro nível que contém o elemento (para avisar se é de outra tela). */
+  frameId: string | null;
 }

@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useReducer, useState } from "react";
 import { onTagMessage, postToTagMain } from "./bridge";
 import {
   AllVariantsCheck,
   CardDiagnosis,
+  ElementInfo,
   MappingResult,
   SetupSelection,
   TagSelectionState,
@@ -13,7 +14,10 @@ import { REGIONS } from "./regionsData";
 import { CardDiagnostic } from "./screens/CardDiagnostic";
 import { SetupScreen } from "./screens/SetupScreen";
 import { FrameSelect } from "./screens/FrameSelect";
-import { MappingPreview } from "./screens/MappingPreview";
+import { MappingProgress } from "./screens/MappingProgress";
+import { Review } from "./screens/Review";
+import { ReviewSummary } from "./screens/ReviewSummary";
+import { initialReviewState, reviewReducer } from "./state/reviewStore";
 import { FormsStatus } from "./components/SetupBar";
 
 /**
@@ -27,10 +31,12 @@ import { FormsStatus } from "./components/SetupBar";
  * Fase 1: base isolada + canal próprio com o main thread (tag:ui-ready → tag:ready).
  * Fase 2: ferramenta temporária "Diagnóstico do card" (2.1: verificação de todas as variantes).
  * Fase 3: setup (Canal, Produto, Fluxo, Modo), "Outro" + Forms, memória da última escolha.
- * Fase 4: seleção de frame (tela por tela) ou página inteira → mapeamento → prévia.
+ * Fase 4: seleção de frame (tela por tela) ou página inteira → mapeamento.
+ * Fase 6: revisão editável (Tela X de N, Pular revisão, evento manual) → resumo,
+ *         com a geração bloqueada enquanto houver pendência.
  */
 
-type TagScreen = "setup" | "frame" | "mapping" | "diagnostic";
+type TagScreen = "setup" | "frame" | "mapping" | "review" | "summary" | "diagnostic";
 
 /** Se o main thread não responder com a última escolha, abre o setup vazio depois deste tempo. */
 const LAST_SETUP_TIMEOUT_MS = 800;
@@ -57,6 +63,11 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
   const [mapping, setMapping] = useState<MappingResult | null>(null);
   const [mappingProgress, setMappingProgress] = useState<{ done: number; total: number } | null>(null);
   const [mappingError, setMappingError] = useState<string | null>(null);
+
+  // Revisão (Fase 6)
+  const [review, dispatchReview] = useReducer(reviewReducer, null);
+  const [reviewScreen, setReviewScreen] = useState(0);
+  const [elementInfo, setElementInfo] = useState<ElementInfo | null>(null);
 
   // Diagnóstico (Fase 2)
   const [diagnosis, setDiagnosis] = useState<CardDiagnosis | null>(null);
@@ -85,6 +96,9 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
           break;
         case "tag:mapping-result":
           setMapping(message.result);
+          break;
+        case "tag:element-info-result":
+          setElementInfo(message.info);
           break;
         case "tag:mapping-error":
           setMappingError(message.message);
@@ -120,9 +134,18 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
     };
   }, []);
 
-  // O listener de seleção do tagueamento só fica ligado na tela "Selecione uma tela".
+  // Resultado do mapeamento → abre a revisão (se tiver pelo menos uma tela).
   useEffect(() => {
-    if (screen !== "frame") return;
+    if (!mapping || !setup || screen !== "mapping" || mapping.screens.length === 0) return;
+    dispatchReview({ type: "init", state: initialReviewState(mapping, setup) });
+    setReviewScreen(0);
+    setScreen("review");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapping]);
+
+  // O listener de seleção do tagueamento só fica ligado na seleção de tela e na revisão (evento manual).
+  useEffect(() => {
+    if (screen !== "frame" && screen !== "review") return;
     postToTagMain({ type: "tag:watch-selection", enabled: true });
     return () => postToTagMain({ type: "tag:watch-selection", enabled: false });
   }, [screen]);
@@ -212,16 +235,52 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
 
   if (screen === "mapping" && setup) {
     return (
-      <MappingPreview
+      <MappingProgress
         setup={setup}
         formsStatus={formsStatus}
-        result={mapping}
         progress={mappingProgress}
         error={mappingError}
-        remapLabel={setup.modo === "tela" ? "Mapear outra tela" : "Mapear de novo"}
-        onFocusNode={(nodeId) => postToTagMain({ type: "tag:focus-node", nodeId })}
-        onRemap={() => (setup.modo === "tela" ? setScreen("frame") : startMapping(setup))}
+        avisos={mapping && mapping.screens.length === 0 ? mapping.avisos : []}
+        onRetry={() => (setup.modo === "tela" ? setScreen("frame") : startMapping(setup))}
         onEditSetup={() => setScreen("setup")}
+        onClose={closePlugin}
+      />
+    );
+  }
+
+  if (screen === "review" && setup && review) {
+    return (
+      <Review
+        setup={setup}
+        formsStatus={formsStatus}
+        state={review}
+        screenIndex={reviewScreen}
+        selection={selection}
+        elementInfo={elementInfo}
+        dispatch={dispatchReview}
+        onScreenIndex={setReviewScreen}
+        onRequestElementInfo={(nodeId) => postToTagMain({ type: "tag:element-info", nodeId })}
+        onClearElementInfo={() => setElementInfo(null)}
+        onFocusNode={(nodeId) => postToTagMain({ type: "tag:focus-node", nodeId })}
+        onFinish={() => setScreen("summary")}
+        onEditSetup={() => setScreen("setup")}
+        onRemap={() => (setup.modo === "tela" ? setScreen("frame") : startMapping(setup))}
+        remapLabel={setup.modo === "tela" ? "Mapear outra tela" : "Mapear de novo"}
+        onClose={closePlugin}
+      />
+    );
+  }
+
+  if (screen === "summary" && setup && review) {
+    return (
+      <ReviewSummary
+        setup={setup}
+        state={review}
+        onGoToScreen={(index) => {
+          setReviewScreen(index);
+          setScreen("review");
+        }}
+        onBack={() => setScreen("review")}
         onClose={closePlugin}
       />
     );

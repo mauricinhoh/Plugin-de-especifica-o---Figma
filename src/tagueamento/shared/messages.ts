@@ -14,6 +14,7 @@
 import {
   AllVariantsCheck,
   CardDiagnosis,
+  ElementInfo,
   MappingResult,
   SetupSelection,
   TagSelectionState,
@@ -49,7 +50,9 @@ export type TagUiToMainMessage =
   /** Fase 4: mapeia o frame selecionado ("tela") ou a página inteira ("pagina"), conforme setup.modo. */
   | { type: "tag:run-mapping"; setup: SetupSelection }
   /** Fase 4: seleciona e enquadra um node no canvas. */
-  | { type: "tag:focus-node"; nodeId: string };
+  | { type: "tag:focus-node"; nodeId: string }
+  /** Fase 6: pede os dados do elemento escolhido para um evento manual. */
+  | { type: "tag:element-info"; nodeId: string };
 
 // ---------- Main -> UI ----------
 
@@ -68,7 +71,8 @@ export type TagMainToUiMessage =
   | { type: "tag:selection-state"; state: TagSelectionState }
   | { type: "tag:mapping-progress"; done: number; total: number }
   | { type: "tag:mapping-result"; result: MappingResult }
-  | { type: "tag:mapping-error"; message: string };
+  | { type: "tag:mapping-error"; message: string }
+  | { type: "tag:element-info-result"; info: ElementInfo | null };
 
 /** true quando a mensagem pertence ao tagueamento (prefixo "tag:"). */
 export function isTagMessageType(type: unknown): boolean {

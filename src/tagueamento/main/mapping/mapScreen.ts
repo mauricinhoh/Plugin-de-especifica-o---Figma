@@ -134,7 +134,8 @@ export function mapScreen(
     params: screenParams,
     pendencias: [...nomeTelaInfo.pendencias],
     notas: nomeTelaInfo.notas.map((nota) => `Nome da tela — ${nota}`),
-    paraPd: []
+    paraPd: [],
+    naoReconhecido: false
   });
 
   // 2. Componentes, na ordem espacial
@@ -158,7 +159,8 @@ export function mapScreen(
       params: {},
       pendencias: [],
       notas: [],
-      paraPd: []
+      paraPd: [],
+      naoReconhecido: found.classe === "nao_reconhecido"
     };
     if (found.classe === "nao_reconhecido") {
       item.pendencias.push("Componente não reconhecido: confirme se é mesmo um select_content");

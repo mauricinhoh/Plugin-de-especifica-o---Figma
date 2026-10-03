@@ -3391,7 +3391,8 @@
       params: screenParams,
       pendencias: [...nomeTelaInfo.pendencias],
       notas: nomeTelaInfo.notas.map((nota) => `Nome da tela \u2014 ${nota}`),
-      paraPd: []
+      paraPd: [],
+      naoReconhecido: false
     });
     const ordered = sortByReadingOrder2(discovered.map((item) => item.node));
     const byId = new Map(discovered.map((item) => [item.node.id, item]));
@@ -3411,7 +3412,8 @@
         params: {},
         pendencias: [],
         notas: [],
-        paraPd: []
+        paraPd: [],
+        naoReconhecido: found.classe === "nao_reconhecido"
       };
       if (found.classe === "nao_reconhecido") {
         item.pendencias.push("Componente n\xE3o reconhecido: confirme se \xE9 mesmo um select_content");
@@ -3531,6 +3533,7 @@
   var listening = false;
   function currentState() {
     const selection = figma.currentPage.selection;
+    const element = selection.length === 1 ? { id: selection[0].id, name: selection[0].name, type: selection[0].type } : null;
     if (selection.length === 1 && isScreenNode(selection[0])) {
       const node = selection[0];
       return {
@@ -3539,10 +3542,11 @@
         nodeName: node.name,
         nodeType: node.type,
         width: Math.round(node.width),
-        height: Math.round(node.height)
+        height: Math.round(node.height),
+        element
       };
     }
-    return { valid: false, nodeId: null, nodeName: null };
+    return { valid: false, nodeId: null, nodeName: null, element };
   }
   function sendState() {
     postToTagUi({ type: "tag:selection-state", state: currentState() });
@@ -3556,6 +3560,26 @@
       listening = false;
     }
     if (enabled) sendState();
+  }
+
+  // src/tagueamento/main/elementInfo.ts
+  function topLevelFrameId2(node) {
+    let current = node;
+    while (current && current.parent) {
+      const parent = current.parent;
+      if (parent.type === "PAGE" || parent.type === "SECTION") {
+        return current.type === "FRAME" || current.type === "GROUP" ? current.id : null;
+      }
+      current = parent;
+    }
+    return null;
+  }
+  async function elementInfo(nodeId) {
+    const node = await figma.getNodeByIdAsync(nodeId);
+    if (!node || !("visible" in node)) return null;
+    const scene = node;
+    const componente = scene.type === "INSTANCE" || scene.type === "COMPONENT" ? displayName(await resolveComponentNames(scene)) : scene.name;
+    return { nodeId, componente, label: firstVisibleText(scene), frameId: topLevelFrameId2(scene) };
   }
 
   // src/tagueamento/main/router.ts
@@ -3669,6 +3693,9 @@
         break;
       case "tag:focus-node":
         void focusNode2(message.nodeId);
+        break;
+      case "tag:element-info":
+        void elementInfo(message.nodeId).then((info) => postToTagUi({ type: "tag:element-info-result", info }));
         break;
       default:
         break;
