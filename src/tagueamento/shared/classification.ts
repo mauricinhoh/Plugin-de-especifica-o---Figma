@@ -15,6 +15,7 @@
  * Ajustes do Mau (03/10/2026, testes da Fase 4):
  *  - Table: o componente inteiro vira um item (select_content), sem entrar nele.
  *  - Breadcrumb: não é mapeado (nem ele nem o que tem dentro).
+ *  - Input Search: é o componente de search (vira um item só, sem entrar nele).
  *
  * Dados puros: para mudar a classificação, edite só este arquivo.
  */
@@ -41,7 +42,8 @@ const LABEL: ActionSource = { kind: "label" };
 const PD: ActionSource = { kind: "pd" };
 
 export const CLASSIFICATION: ClassificationRule[] = [
-  { names: ["Search"], classe: "search", acao: "Buscar" },
+  // "Input Search": o componente inteiro é o search, sem entrar nele (ajuste do Mau, 03/10/2026).
+  { names: ["Search", "Input Search"], classe: "search", acao: "Buscar" },
   { names: ["Alert", "Toast", "Flag", "Flag Cooperado"], classe: "feedback" },
   { names: ["Modal", "Drawer"], classe: "modal_view" },
   {

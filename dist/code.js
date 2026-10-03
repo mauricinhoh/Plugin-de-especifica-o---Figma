@@ -2891,7 +2891,8 @@
   var LABEL = { kind: "label" };
   var PD = { kind: "pd" };
   var CLASSIFICATION = [
-    { names: ["Search"], classe: "search", acao: "Buscar" },
+    // "Input Search": o componente inteiro é o search, sem entrar nele (ajuste do Mau, 03/10/2026).
+    { names: ["Search", "Input Search"], classe: "search", acao: "Buscar" },
     { names: ["Alert", "Toast", "Flag", "Flag Cooperado"], classe: "feedback" },
     { names: ["Modal", "Drawer"], classe: "modal_view" },
     {
