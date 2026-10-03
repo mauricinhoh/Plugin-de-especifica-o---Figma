@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AllVariantsCheck, CardDiagnosis, DiagnosedLayer, DiagnosedProperty, TestCardResult } from "../../shared/types";
 import { VariantCheckPanel } from "./VariantCheckPanel";
+import { NamingTester } from "./NamingTester";
 import { TitleBar } from "../components/TitleBar";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
@@ -158,9 +159,12 @@ export function CardDiagnostic({
 
   return (
     <>
-      <TitleBar title="Diagnóstico do card" showBack onBack={onBack} onClose={onClose} />
+      <TitleBar title="Ferramentas de desenvolvimento" showBack onBack={onBack} onClose={onClose} />
       <div className="scroll-area" style={{ padding: "4px 20px 24px" }}>
-        <h3 style={sectionTitle}>Verificação completa</h3>
+        <h3 style={sectionTitle}>Testar nomenclatura</h3>
+        <NamingTester />
+
+        <h3 style={sectionTitle}>Verificação completa do card</h3>
         <VariantCheckPanel result={allVariants} checking={checkingAllVariants} onCheck={onCheckAllVariants} />
 
         <h3 style={sectionTitle}>Card selecionado</h3>

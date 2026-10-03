@@ -202,6 +202,8 @@ export interface MappedItem {
   params: Record<string, string>;
   /** Pontos que o PD precisa resolver na revisão (destacados). */
   pendencias: string[];
+  /** Informações (não bloqueiam), ex.: termo em inglês trocado pelo dicionário. */
+  notas: string[];
   /** Parâmetros de tempo de execução que o PD preenche na revisão (spec 5.1). */
   paraPd: string[];
 }

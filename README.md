@@ -84,7 +84,8 @@ src/tagueamento/
   shared/messages.ts     # protocolo próprio — toda mensagem começa com "tag:"
   shared/types.ts        # tipos próprios do tagueamento
   shared/gaCard.ts       # chave/nome do card de GA + parâmetros por evento (spec 7.2)
-  shared/naming.ts       # normalização de nomenclatura (spec 6.2)
+  shared/naming.ts       # normalização de nomenclatura (spec 6.2, passos 1-9)
+  shared/dicionario.ts   # termos em inglês: TRADUCOES, MANTER, SINALIZAR (edite aqui)
   shared/forms.ts        # link pré-preenchido do Forms do "Outro" (link modelo PENDENTE)
   shared/classification.ts # tabela componente → evento/ação (spec 4.2) e cabeçalhos ignorados
   data/                  # Excel de regions (template), canais.json e a lista gerada
@@ -99,7 +100,7 @@ src/tagueamento/
   main/mapping/          # mapeamento do frame, setas do protótipo, execução (tela/página)
   ui/TagueamentoApp.tsx  # raiz do fluxo na UI
   ui/bridge.ts           # postToTagMain / onTagMessage (cópia adaptada do mainBridge)
-  ui/screens/            # telas: SetupScreen, FrameSelect, MappingPreview, CardDiagnostic
+  ui/screens/            # telas: SetupScreen, FrameSelect, MappingPreview, CardDiagnostic, NamingTester
   ui/regionsData.ts      # lista de regions embutida (gerada no build)
   ui/diagnosticReport.ts # relatório em texto do diagnóstico (botão "Copiar")
   ui/components/         # cópias de TitleBar, Button, Icon, Stepper, EmptyState + SearchSelect, SetupBar

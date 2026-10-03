@@ -119,6 +119,12 @@ function ItemCard({ item, onFocus }: { item: MappedItem; onFocus: () => void }) 
           Na revisão, o PD preenche: <span style={mono}>{item.paraPd.join(", ")}</span>
         </div>
       )}
+      {item.notas.map((nota, index) => (
+        <div key={`n${index}`} style={{ marginTop: 6, display: "flex", gap: 6, fontSize: 11.5, color: "var(--color-text-muted)" }}>
+          <Icon name="info" size={12} color="var(--color-text-subtle)" />
+          <span style={{ overflowWrap: "anywhere", minWidth: 0 }}>{nota}</span>
+        </div>
+      ))}
       {item.pendencias.map((pendencia, index) => (
         <div key={index} style={{ marginTop: 6, display: "flex", gap: 6, fontSize: 12, fontWeight: 700, color: "var(--color-warning)" }}>
           <Icon name="alert-triangle" size={13} color="var(--color-warning)" />

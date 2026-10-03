@@ -1,9 +1,13 @@
 /**
  * Normalização de nomenclatura do TAGUEAMENTO (TAGUEAMENTO_SPEC.md, seção 6).
  *
- * Fase 3: passos 1 a 8 do algoritmo da seção 6.2 — usados no "Outro" do
- * setup. A Fase 5 acrescenta o passo 9 (dicionário de termos em inglês e
- * sinalizações) e aplica a normalização aos demais parâmetros.
+ * Fase 3: passos 1 a 8 do algoritmo da seção 6.2.
+ * Fase 5: passo 9 — dicionário de termos em inglês (ver dicionario.ts):
+ * troca os conhecidos e sinaliza os da lista SINALIZAR. `normalizeWithReport`
+ * devolve o valor e o que foi trocado/sinalizado, para a revisão mostrar ao PD.
+ *
+ * Só vale para textos da tela e digitados pelo PD — nunca para os valores do
+ * Excel de regions (já validados; decisão do Mau, 03/10/2026).
  *
  * Regras (6.1):
  *  - Region: tudo maiúsculo, sem acento, underscore (AREA_NAO_LOGADA).
@@ -11,11 +15,26 @@
  *  - Demais parâmetros: primeira letra maiúscula, sem acento, underscore.
  *  - Números por extenso e sem acento, nunca dígitos (3 → Tres).
  *  - Máximo de 100 caracteres; nenhum caractere especial além de "_".
+ *  - Sem termos em inglês: troca pelo dicionário; desconhecidos da lista SINALIZAR viram pendência.
  *
  * Funções puras (sem `figma`, sem DOM): podem rodar na UI e no main thread.
  */
 
+import { MANTER, SINALIZAR, TRADUCOES } from "./dicionario";
+
 export const MAX_VALUE_LENGTH = 100;
+
+export type NamingKind = "region" | "subregion" | "param";
+
+export interface NamingReport {
+  value: string;
+  /** Termos em inglês trocados pelo dicionário (ex.: { de: "Search", para: "Buscar" }). */
+  trocas: { de: string; para: string }[];
+  /** Termos da lista SINALIZAR encontrados (não trocados). */
+  sinalizados: string[];
+  /** true quando o valor passou de 100 caracteres e foi cortado. */
+  cortado: boolean;
+}
 
 const UNITS = ["zero", "um", "dois", "tres", "quatro", "cinco", "seis", "sete", "oito", "nove"];
 const TEENS = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
@@ -76,7 +95,48 @@ export function numberToWords(n: number): string {
 }
 
 function removeAccents(text: string): string {
-  return text.normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Padrão de palavra inteira, sem diferenciar caixa; os espaços da expressão aceitam espaço, "_" ou "-". */
+function wordPattern(term: string): RegExp {
+  const body = removeAccents(term).trim().split(/\s+/).map(escapeRegExp).join("[\\s_-]+");
+  return new RegExp("(^|[^A-Za-z0-9])(" + body + ")(?=$|[^A-Za-z0-9])", "gi");
+}
+
+const MANTER_KEYS = new Set(MANTER.map((term) => removeAccents(term).toLowerCase()));
+
+// Expressões mais longas primeiro ("Sign in" antes de "Sign"); termos de MANTER nunca são trocados.
+const TRANSLATIONS = TRADUCOES.filter(([en]) => !MANTER_KEYS.has(removeAccents(en).toLowerCase()))
+  .sort((a, b) => b[0].length - a[0].length)
+  .map(([en, pt]) => ({ en, pt, pattern: wordPattern(en) }));
+
+const FLAGS = SINALIZAR.filter((term) => !MANTER_KEYS.has(removeAccents(term).toLowerCase())).map((term) => ({
+  term,
+  pattern: wordPattern(term)
+}));
+
+/** Passo 9, aplicado sobre o texto ainda legível (antes da formatação). */
+function applyDictionary(text: string): { text: string; trocas: NamingReport["trocas"]; sinalizados: string[] } {
+  let result = removeAccents(text);
+  const trocas: NamingReport["trocas"] = [];
+  for (const { pt, pattern } of TRANSLATIONS) {
+    pattern.lastIndex = 0;
+    result = result.replace(pattern, (_match: string, before: string, found: string) => {
+      trocas.push({ de: found, para: pt });
+      return before + pt;
+    });
+  }
+  const sinalizados: string[] = [];
+  for (const { term, pattern } of FLAGS) {
+    pattern.lastIndex = 0;
+    if (pattern.test(result)) sinalizados.push(term);
+  }
+  return { text: result, trocas, sinalizados };
 }
 
 /** Corta em `max` caracteres, preferindo cortar logo antes de um underscore. */
@@ -98,20 +158,47 @@ function baseNormalize(text: string): string {
   return value;
 }
 
+/**
+ * Normaliza com relatório (passos 1 a 9). Region: tudo maiúsculo; Subregion:
+ * aceita "N/A"; demais: primeira letra maiúscula, resto minúsculo (passo 7);
+ * máximo de 100 caracteres (passo 8).
+ */
+export function normalizeWithReport(text: string, kind: NamingKind): NamingReport {
+  if (kind === "subregion" && text.trim().toUpperCase() === "N/A") {
+    return { value: "N/A", trocas: [], sinalizados: [], cortado: false };
+  }
+  const dictionary = applyDictionary(text);
+  const base = baseNormalize(dictionary.text);
+  let cased: string;
+  if (kind === "region") {
+    cased = base.toUpperCase();
+  } else {
+    const lower = base.toLowerCase();
+    cased = lower.charAt(0).toUpperCase() + lower.slice(1);
+  }
+  const value = truncate(cased, MAX_VALUE_LENGTH);
+  return { value, trocas: dictionary.trocas, sinalizados: dictionary.sinalizados, cortado: value.length < cased.length };
+}
+
 /** Region: tudo maiúsculo. "Área não logada" → "AREA_NAO_LOGADA". */
 export function normalizeRegion(text: string): string {
-  return truncate(baseNormalize(text).toUpperCase(), MAX_VALUE_LENGTH);
+  return normalizeWithReport(text, "region").value;
 }
 
 /** Demais parâmetros: primeira letra maiúscula, resto minúsculo. "Tentar novamente" → "Tentar_novamente". */
 export function normalizeParam(text: string): string {
-  const value = baseNormalize(text).toLowerCase();
-  const cased = value.charAt(0).toUpperCase() + value.slice(1);
-  return truncate(cased, MAX_VALUE_LENGTH);
+  return normalizeWithReport(text, "param").value;
 }
 
 /** Subregion: como os demais parâmetros, mas aceita "N/A" (em qualquer caixa). */
 export function normalizeSubregion(text: string): string {
-  if (text.trim().toUpperCase() === "N/A") return "N/A";
-  return normalizeParam(text);
+  return normalizeWithReport(text, "subregion").value;
+}
+
+/** Textos curtos para o PD: notas (trocas feitas) e pendências (sinalizados, corte). */
+export function describeReport(report: NamingReport): { notas: string[]; pendencias: string[] } {
+  const notas = report.trocas.map((troca) => `Termo em inglês trocado: "${troca.de}" → ${troca.para.replace(/ /g, "_")}`);
+  const pendencias = report.sinalizados.map((term) => `Termo em inglês sem tradução: "${term}" — revise`);
+  if (report.cortado) pendencias.push(`Valor cortado em ${MAX_VALUE_LENGTH} caracteres — revise`);
+  return { notas, pendencias };
 }

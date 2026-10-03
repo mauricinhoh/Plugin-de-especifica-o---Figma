@@ -3011,6 +3011,46 @@
     });
   }
 
+  // src/tagueamento/shared/dicionario.ts
+  var TRADUCOES = [
+    ["Search", "Buscar"],
+    // spec 4.2
+    ["Back", "Voltar"],
+    ["Next", "Proximo"],
+    ["Cancel", "Cancelar"],
+    ["Close", "Fechar"],
+    ["Confirm", "Confirmar"],
+    ["Continue", "Continuar"],
+    ["Send", "Enviar"],
+    ["Submit", "Enviar"],
+    ["Save", "Salvar"],
+    ["Edit", "Editar"],
+    ["Delete", "Excluir"],
+    ["Remove", "Remover"],
+    ["Add", "Adicionar"],
+    ["Share", "Compartilhar"],
+    ["Download", "Baixar"],
+    ["Upload", "Anexar"],
+    ["Settings", "Configuracoes"],
+    ["Profile", "Perfil"],
+    ["Password", "Senha"],
+    ["Help", "Ajuda"],
+    ["Home", "Inicio"],
+    ["Filter", "Filtrar"],
+    ["Select", "Selecionar"],
+    ["Expand", "Expandir"],
+    ["Open", "Abrir"],
+    ["Sign in", "Entrar"],
+    ["Sign up", "Cadastrar"],
+    ["Logout", "Sair"],
+    ["Try again", "Tentar novamente"],
+    ["Retry", "Tentar novamente"],
+    ["Error", "Erro"],
+    ["Success", "Sucesso"]
+  ];
+  var MANTER = ["Click", "Screen", "Modal", "Login", "Pix", "Token", "App", "Web", "N/A"];
+  var SINALIZAR = [];
+
   // src/tagueamento/shared/naming.ts
   var MAX_VALUE_LENGTH = 100;
   var UNITS = ["zero", "um", "dois", "tres", "quatro", "cinco", "seis", "sete", "oito", "nove"];
@@ -3063,7 +3103,37 @@
     return groups.join(" ");
   }
   function removeAccents(text) {
-    return text.normalize("NFD").replace(/[̀-ͯ]/g, "");
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+  function escapeRegExp(text) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+  function wordPattern(term) {
+    const body = removeAccents(term).trim().split(/\s+/).map(escapeRegExp).join("[\\s_-]+");
+    return new RegExp("(^|[^A-Za-z0-9])(" + body + ")(?=$|[^A-Za-z0-9])", "gi");
+  }
+  var MANTER_KEYS = new Set(MANTER.map((term) => removeAccents(term).toLowerCase()));
+  var TRANSLATIONS = TRADUCOES.filter(([en]) => !MANTER_KEYS.has(removeAccents(en).toLowerCase())).sort((a, b) => b[0].length - a[0].length).map(([en, pt]) => ({ en, pt, pattern: wordPattern(en) }));
+  var FLAGS = SINALIZAR.filter((term) => !MANTER_KEYS.has(removeAccents(term).toLowerCase())).map((term) => ({
+    term,
+    pattern: wordPattern(term)
+  }));
+  function applyDictionary(text) {
+    let result = removeAccents(text);
+    const trocas = [];
+    for (const { pt, pattern } of TRANSLATIONS) {
+      pattern.lastIndex = 0;
+      result = result.replace(pattern, (_match, before, found) => {
+        trocas.push({ de: found, para: pt });
+        return before + pt;
+      });
+    }
+    const sinalizados = [];
+    for (const { term, pattern } of FLAGS) {
+      pattern.lastIndex = 0;
+      if (pattern.test(result)) sinalizados.push(term);
+    }
+    return { text: result, trocas, sinalizados };
   }
   function truncate(value, max) {
     if (value.length <= max) return value;
@@ -3080,10 +3150,27 @@
     value = value.replace(/_+/g, "_").replace(/^_+|_+$/g, "");
     return value;
   }
-  function normalizeParam(text) {
-    const value = baseNormalize(text).toLowerCase();
-    const cased = value.charAt(0).toUpperCase() + value.slice(1);
-    return truncate(cased, MAX_VALUE_LENGTH);
+  function normalizeWithReport(text, kind) {
+    if (kind === "subregion" && text.trim().toUpperCase() === "N/A") {
+      return { value: "N/A", trocas: [], sinalizados: [], cortado: false };
+    }
+    const dictionary = applyDictionary(text);
+    const base = baseNormalize(dictionary.text);
+    let cased;
+    if (kind === "region") {
+      cased = base.toUpperCase();
+    } else {
+      const lower = base.toLowerCase();
+      cased = lower.charAt(0).toUpperCase() + lower.slice(1);
+    }
+    const value = truncate(cased, MAX_VALUE_LENGTH);
+    return { value, trocas: dictionary.trocas, sinalizados: dictionary.sinalizados, cortado: value.length < cased.length };
+  }
+  function describeReport(report) {
+    const notas = report.trocas.map((troca) => `Termo em ingl\xEAs trocado: "${troca.de}" \u2192 ${troca.para.replace(/ /g, "_")}`);
+    const pendencias = report.sinalizados.map((term) => `Termo em ingl\xEAs sem tradu\xE7\xE3o: "${term}" \u2014 revise`);
+    if (report.cortado) pendencias.push(`Valor cortado em ${MAX_VALUE_LENGTH} caracteres \u2014 revise`);
+    return { notas, pendencias };
   }
 
   // src/tagueamento/main/traversal/componentIdentity.ts
@@ -3238,7 +3325,13 @@
     return text.split(/\s+/).filter((word) => /[A-Za-z0-9\u00C0-\u024F]/.test(word)).slice(0, 2).join(" ");
   }
   function screenNameOf(frameName) {
-    return normalizeParam(firstTwoWords(frameName));
+    return normalizeWithReport(firstTwoWords(frameName), "param").value;
+  }
+  function contentTypeOf(base, nomeTela) {
+    const baseReport = normalizeWithReport(base, "param");
+    const combined = normalizeWithReport(nomeTela ? `${baseReport.value}_${nomeTela}` : baseReport.value, "param");
+    const { notas, pendencias } = describeReport(__spreadProps(__spreadValues({}, baseReport), { cortado: combined.cortado }));
+    return { value: combined.value, notas, pendencias };
   }
   function contentBase(acao, label, componente) {
     if (acao && typeof acao === "object" && acao.kind === "pd") {
@@ -3251,8 +3344,9 @@
   function mapScreen(frame, discovered, setup, graph, nomeTelaById) {
     var _a2, _b, _c, _d;
     const keys = keysFor(setup.plataforma);
-    const nomeTela = screenNameOf(frame.name);
-    const nomeTelaPalavras = firstTwoWords(frame.name);
+    const nomeTelaReport = normalizeWithReport(firstTwoWords(frame.name), "param");
+    const nomeTela = nomeTelaReport.value;
+    const nomeTelaInfo = describeReport(nomeTelaReport);
     const largura = Math.round(frame.width);
     const plataformaPelaLargura = frame.width > WEB_WIDTH_THRESHOLD ? "WEB" : "APP";
     const avisos = [];
@@ -3295,7 +3389,8 @@
       origem: "tela",
       label: null,
       params: screenParams,
-      pendencias: [],
+      pendencias: [...nomeTelaInfo.pendencias],
+      notas: nomeTelaInfo.notas.map((nota) => `Nome da tela \u2014 ${nota}`),
       paraPd: []
     });
     const ordered = sortByReadingOrder2(discovered.map((item) => item.node));
@@ -3315,6 +3410,7 @@
         label,
         params: {},
         pendencias: [],
+        notas: [],
         paraPd: []
       };
       if (found.classe === "nao_reconhecido") {
@@ -3325,8 +3421,13 @@
           const rule = found.ruleName ? (_d = findClassification([found.ruleName])) == null ? void 0 : _d.rule : void 0;
           const { base: contentText, pendencia } = contentBase(rule == null ? void 0 : rule.acao, label, found.componentName);
           if (pendencia) item.pendencias.push(pendencia);
+          const contentType = contentText ? contentTypeOf(contentText, nomeTela) : null;
+          if (contentType) {
+            item.notas.push(...contentType.notas);
+            item.pendencias.push(...contentType.pendencias);
+          }
           item.params = __spreadProps(__spreadValues({
-            content_type: contentText ? normalizeParam(`${contentText} ${nomeTelaPalavras}`) : ""
+            content_type: contentType ? contentType.value : ""
           }, base), {
             action: "Click",
             local_name: nomeTela,
@@ -3337,7 +3438,13 @@
           break;
         }
         case "modal_view": {
-          const modalName = label ? normalizeParam(label) : "";
+          const modalReport = label ? normalizeWithReport(label, "param") : null;
+          const modalName = modalReport ? modalReport.value : "";
+          if (modalReport) {
+            const info = describeReport(modalReport);
+            item.notas.push(...info.notas);
+            item.pendencias.push(...info.pendencias);
+          }
           if (!modalName) item.pendencias.push("Modal sem t\xEDtulo: preencha o modal_name");
           item.params = __spreadValues({}, base);
           if (modalName) item.params.modal_name = modalName;

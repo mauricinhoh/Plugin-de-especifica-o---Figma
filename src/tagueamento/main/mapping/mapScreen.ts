@@ -20,7 +20,7 @@
 
 import { MappedItem, MappedScreen, Plataforma, SetupSelection } from "../../shared/types";
 import { ActionSource, EVENT_BY_CLASS, findClassification } from "../../shared/classification";
-import { normalizeParam } from "../../shared/naming";
+import { describeReport, normalizeWithReport } from "../../shared/naming";
 import { discoverItems, DiscoveredItem, firstVisibleText } from "../traversal/discovery";
 import { sortByReadingOrder } from "../traversal/readingOrder";
 import { PrototypeGraph } from "./prototype";
@@ -54,7 +54,15 @@ export function firstTwoWords(text: string): string {
 }
 
 export function screenNameOf(frameName: string): string {
-  return normalizeParam(firstTwoWords(frameName));
+  return normalizeWithReport(firstTwoWords(frameName), "param").value;
+}
+
+/** content_type = [base]_[nome da tela], com o dicionário aplicado só à base (o nome da tela já vem normalizado). */
+function contentTypeOf(base: string, nomeTela: string) {
+  const baseReport = normalizeWithReport(base, "param");
+  const combined = normalizeWithReport(nomeTela ? `${baseReport.value}_${nomeTela}` : baseReport.value, "param");
+  const { notas, pendencias } = describeReport({ ...baseReport, cortado: combined.cortado });
+  return { value: combined.value, notas, pendencias };
 }
 
 /** Base do content_type: label (2 palavras) ou a ação da tabela. */
@@ -79,8 +87,9 @@ export function mapScreen(
   nomeTelaById: Map<string, string>
 ): MappedScreen {
   const keys = keysFor(setup.plataforma);
-  const nomeTela = screenNameOf(frame.name);
-  const nomeTelaPalavras = firstTwoWords(frame.name);
+  const nomeTelaReport = normalizeWithReport(firstTwoWords(frame.name), "param");
+  const nomeTela = nomeTelaReport.value;
+  const nomeTelaInfo = describeReport(nomeTelaReport);
   const largura = Math.round(frame.width);
   const plataformaPelaLargura: Plataforma = frame.width > WEB_WIDTH_THRESHOLD ? "WEB" : "APP";
   const avisos: string[] = [];
@@ -123,7 +132,8 @@ export function mapScreen(
     origem: "tela",
     label: null,
     params: screenParams,
-    pendencias: [],
+    pendencias: [...nomeTelaInfo.pendencias],
+    notas: nomeTelaInfo.notas.map((nota) => `Nome da tela — ${nota}`),
     paraPd: []
   });
 
@@ -147,6 +157,7 @@ export function mapScreen(
       label,
       params: {},
       pendencias: [],
+      notas: [],
       paraPd: []
     };
     if (found.classe === "nao_reconhecido") {
@@ -158,8 +169,13 @@ export function mapScreen(
         const rule = found.ruleName ? findClassification([found.ruleName])?.rule : undefined;
         const { base: contentText, pendencia } = contentBase(rule?.acao, label, found.componentName);
         if (pendencia) item.pendencias.push(pendencia);
+        const contentType = contentText ? contentTypeOf(contentText, nomeTela) : null;
+        if (contentType) {
+          item.notas.push(...contentType.notas);
+          item.pendencias.push(...contentType.pendencias);
+        }
         item.params = {
-          content_type: contentText ? normalizeParam(`${contentText} ${nomeTelaPalavras}`) : "",
+          content_type: contentType ? contentType.value : "",
           ...base,
           action: "Click",
           local_name: nomeTela,
@@ -170,7 +186,13 @@ export function mapScreen(
         break;
       }
       case "modal_view": {
-        const modalName = label ? normalizeParam(label) : "";
+        const modalReport = label ? normalizeWithReport(label, "param") : null;
+        const modalName = modalReport ? modalReport.value : "";
+        if (modalReport) {
+          const info = describeReport(modalReport);
+          item.notas.push(...info.notas);
+          item.pendencias.push(...info.pendencias);
+        }
         if (!modalName) item.pendencias.push("Modal sem título: preencha o modal_name");
         item.params = { ...base };
         if (modalName) item.params.modal_name = modalName;

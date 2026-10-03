@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { ModoGeracao, RegionsData, SetupSelection } from "../../shared/types";
-import { normalizeRegion, normalizeSubregion } from "../../shared/naming";
+import { describeReport, normalizeWithReport } from "../../shared/naming";
 import { TitleBar } from "../components/TitleBar";
 import { Stepper } from "../components/Stepper";
 import { Button } from "../components/Button";
@@ -41,14 +41,28 @@ const textInput: React.CSSProperties = {
   background: "var(--color-surface)"
 };
 
-function CodePreview({ label, value, pending }: { label: string; value: string; pending?: boolean }) {
+function CodePreview({ label, value, pending, notas = [], pendencias = [] }: { label: string; value: string; pending?: boolean; notas?: string[]; pendencias?: string[] }) {
   return (
-    <div style={{ marginTop: 6, fontSize: 11.5, color: "var(--color-text-muted)", display: "flex", gap: 6, flexWrap: "wrap" }}>
-      <span>{label}:</span>
-      <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: pending ? "var(--color-text-disabled)" : "var(--color-primary-ink)" }}>
-        {value}
-      </span>
-    </div>
+    <>
+      <div style={{ marginTop: 6, fontSize: 11.5, color: "var(--color-text-muted)", display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <span>{label}:</span>
+        <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: pending ? "var(--color-text-disabled)" : "var(--color-primary-ink)", overflowWrap: "anywhere" }}>
+          {value}
+        </span>
+      </div>
+      {notas.map((nota, index) => (
+        <div key={`n${index}`} style={{ marginTop: 4, display: "flex", gap: 6, fontSize: 11.5, color: "var(--color-text-muted)" }}>
+          <Icon name="info" size={12} color="var(--color-text-subtle)" />
+          <span>{nota}</span>
+        </div>
+      ))}
+      {pendencias.map((pendencia, index) => (
+        <div key={`p${index}`} style={{ marginTop: 4, display: "flex", gap: 6, fontSize: 11.5, fontWeight: 700, color: "var(--color-warning)" }}>
+          <Icon name="alert-triangle" size={12} color="var(--color-warning)" />
+          <span>{pendencia}</span>
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -149,9 +163,12 @@ export function SetupScreen({ data, initial, onComplete, onExit, onClose, onOpen
   const produtoOutro = produtoValue === OUTRO;
   const fluxoOutro = fluxoValue === OUTRO;
 
-  const region = produtoOutro ? normalizeRegion(produtoTexto) : produto?.region ?? "";
+  // Só o texto digitado no "Outro" passa pelo dicionário; o que vem do Excel já foi validado.
+  const produtoReport = produtoOutro ? normalizeWithReport(produtoTexto, "region") : null;
+  const region = produtoReport ? produtoReport.value : produto?.region ?? "";
   const fluxo = produto && !fluxoOutro && fluxoValue !== NA ? produto.fluxos.find((item) => item.nome === fluxoValue) ?? null : null;
-  const subregion = fluxoValue === NA ? "N/A" : fluxoOutro ? normalizeSubregion(fluxoTexto) : fluxo?.subregion ?? "";
+  const fluxoReport = fluxoOutro ? normalizeWithReport(fluxoTexto, "subregion") : null;
+  const subregion = fluxoValue === NA ? "N/A" : fluxoReport ? fluxoReport.value : fluxo?.subregion ?? "";
 
   const produtoOptions: SearchOption[] = canal
     ? [
@@ -299,7 +316,7 @@ export function SetupScreen({ data, initial, onComplete, onExit, onClose, onOpen
               autoFocus
               style={textInput}
             />
-            <CodePreview label="Region" value={region || "—"} pending={!region} />
+            <CodePreview label="Region" value={region || "—"} pending={!region} {...(produtoReport ? describeReport(produtoReport) : {})} />
           </div>
         )}
 
@@ -325,7 +342,7 @@ export function SetupScreen({ data, initial, onComplete, onExit, onClose, onOpen
               autoFocus
               style={textInput}
             />
-            <CodePreview label="Subregion" value={subregion || "—"} pending={!subregion} />
+            <CodePreview label="Subregion" value={subregion || "—"} pending={!subregion} {...(fluxoReport ? describeReport(fluxoReport) : {})} />
           </div>
         )}
 
@@ -363,7 +380,7 @@ export function SetupScreen({ data, initial, onComplete, onExit, onClose, onOpen
             onClick={onOpenDiagnostic}
             style={{ border: "none", background: "transparent", fontSize: 11.5, fontWeight: 700, color: "var(--color-text-subtle)", textDecoration: "underline" }}
           >
-            Diagnóstico do card (desenvolvimento)
+            Ferramentas de desenvolvimento
           </button>
         </div>
       </div>
