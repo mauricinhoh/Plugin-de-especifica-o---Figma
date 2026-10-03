@@ -7,6 +7,7 @@ import { Icon } from "./Icon";
 interface Step0Props {
   designerName: string;
   onSelectAccessibility: () => void;
+  onSelectTagueamento: () => void;
   onClose: () => void;
   hasUsageHistory: boolean;
   onDownloadDocx: () => void;
@@ -15,6 +16,7 @@ interface Step0Props {
 export function Step0({
   designerName,
   onSelectAccessibility,
+  onSelectTagueamento,
   onClose,
   hasUsageHistory,
   onDownloadDocx
@@ -59,8 +61,7 @@ export function Step0({
             icon={<Icon name="tag" size={20} />}
             title="Tagueamento"
             description="Marcação de eventos de analytics"
-            badge="Em breve"
-            disabled
+            onClick={onSelectTagueamento}
           />
         </div>
 

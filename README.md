@@ -71,6 +71,33 @@ src/
     accessibility-rules.ts  # TRANSFORMA os dados acima em regras do motor — não edite componentes aqui
 ```
 
+## Tagueamento (Google Analytics) — em desenvolvimento
+
+O fluxo de tagueamento é um módulo **isolado** em `src/tagueamento/`, desenvolvido
+por fases (especificação: `TAGUEAMENTO_SPEC.md`, no Projeto do Claude). Ele não
+compartilha lógica com a acessibilidade: onde precisa de algo parecido, usa uma
+**cópia** dentro do próprio módulo. As telas e regras da acessibilidade nunca são
+editadas por causa do tagueamento.
+
+```
+src/tagueamento/
+  shared/messages.ts     # protocolo próprio — toda mensagem começa com "tag:"
+  main/router.ts         # recebe as mensagens "tag:" no main thread
+  main/messaging.ts      # postToTagUi (cópia adaptada de src/main/messaging.ts)
+  ui/TagueamentoApp.tsx  # raiz do fluxo na UI
+  ui/bridge.ts           # postToTagMain / onTagMessage (cópia adaptada do mainBridge)
+  ui/components/         # cópias de TitleBar, Button, Icon, Stepper, EmptyState
+```
+
+Pontos de contato com o código da acessibilidade (os únicos):
+- `src/ui/components/Step0.tsx` — o card "Tagueamento" da tela inicial chama `onSelectTagueamento`.
+- `src/ui/App.tsx` — a tela `"tagueamento"` renderiza `<TagueamentoApp onExit />`.
+- `src/main/code.ts` — no início do `figma.ui.onmessage`, mensagens com prefixo `"tag:"` vão para `src/tagueamento/main/router.ts`.
+- `tsconfig.json` / `tsconfig.main.json` — incluem as pastas do módulo no typecheck.
+
+O desenvolvimento acontece na branch git `tagueamento`; a `main` guarda a versão
+da acessibilidade em produção.
+
 ## Base de regras de acessibilidade
 
 As regras reais vêm da planilha `Extracao_Acessibilidade_Core_Web_70_Componentes.xlsx`

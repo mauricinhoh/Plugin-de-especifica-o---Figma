@@ -19,8 +19,10 @@ import { Generating } from "./components/Generating";
 import { Done } from "./components/Done";
 import { Icon } from "./components/Icon";
 import { downloadHandoffDocx } from "./docx/generateHandoffDocx";
+// Tagueamento: módulo isolado em src/tagueamento (ponto de contato único).
+import { TagueamentoApp } from "../tagueamento/ui/TagueamentoApp";
 
-type Screen = "step0" | "step1" | "context-choice" | "incompatibility" | "step2" | "generating" | "done";
+type Screen = "step0" | "step1" | "context-choice" | "incompatibility" | "step2" | "generating" | "done" | "tagueamento";
 
 interface SelectionMeta {
   nodeType?: string;
@@ -275,8 +277,11 @@ export function App() {
             // listener de "selectionchange" já estar ativo ou não.
             postToMain({ type: "request-selection-state" });
           }}
+          onSelectTagueamento={() => setScreen("tagueamento")}
         />
       )}
+
+      {screen === "tagueamento" && <TagueamentoApp onExit={() => setScreen("step0")} />}
 
       {screen === "step1" && (
         <Step1

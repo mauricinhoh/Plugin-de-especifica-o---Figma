@@ -2280,6 +2280,34 @@
     previewMarkerGroup = null;
   }
 
+  // src/tagueamento/shared/messages.ts
+  var TAG_MESSAGE_PREFIX = "tag:";
+  function isTagMessageType(type) {
+    return typeof type === "string" && type.startsWith(TAG_MESSAGE_PREFIX);
+  }
+
+  // src/tagueamento/main/messaging.ts
+  function postToTagUi(message) {
+    figma.ui.postMessage(message);
+  }
+
+  // src/tagueamento/main/router.ts
+  function isTagueamentoMessage(message) {
+    return typeof message === "object" && message !== null && isTagMessageType(message.type);
+  }
+  function handleTagueamentoMessage(message) {
+    switch (message.type) {
+      case "tag:ui-ready":
+        postToTagUi({ type: "tag:ready", fileName: figma.root.name });
+        break;
+      case "tag:close-plugin":
+        figma.closePlugin();
+        break;
+      default:
+        break;
+    }
+  }
+
   // src/main/code.ts
   var UI_WIDTH = 420;
   var UI_HEIGHT = 700;
@@ -2481,6 +2509,10 @@
     }
   }
   figma.ui.onmessage = (message) => {
+    if (isTagueamentoMessage(message)) {
+      handleTagueamentoMessage(message);
+      return;
+    }
     switch (message.type) {
       case "ui-ready":
         if (!selectionListenerRegistered) {

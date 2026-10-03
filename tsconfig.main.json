@@ -14,5 +14,5 @@
     "noEmit": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/main", "src/shared", "src/rules"]
+  "include": ["src/main", "src/shared", "src/rules", "src/tagueamento/main", "src/tagueamento/shared"]
 }

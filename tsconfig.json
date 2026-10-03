@@ -18,5 +18,5 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/ui", "src/shared", "src/rules"]
+  "include": ["src/ui", "src/shared", "src/rules", "src/tagueamento/ui", "src/tagueamento/shared"]
 }

@@ -22,6 +22,8 @@ import { generateMarkers } from "./generation/markers";
 import { generatePanel } from "./generation/panel";
 import { countExistingMarkers, deleteExistingMarkup, tagAsScreenOutput } from "./generation/existingMarkup";
 import { clearPreviewMarker, showPreviewMarker } from "./generation/previewMarker";
+// Tagueamento: módulo isolado em src/tagueamento (ponto de contato único).
+import { handleTagueamentoMessage, isTagueamentoMessage } from "../tagueamento/main/router";
 
 const UI_WIDTH = 420;
 const UI_HEIGHT = 700;
@@ -323,6 +325,12 @@ function safely(label: string, fn: () => void): void {
 }
 
 figma.ui.onmessage = (message: UiToMainMessage) => {
+  // Mensagens do tagueamento (prefixo "tag:") vão direto para o módulo
+  // dele e não passam por nenhuma lógica da acessibilidade abaixo.
+  if (isTagueamentoMessage(message)) {
+    handleTagueamentoMessage(message);
+    return;
+  }
   switch (message.type) {
     case "ui-ready":
       // Registrado primeiro e de forma protegida contra duplicação:
