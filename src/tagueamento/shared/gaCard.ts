@@ -21,6 +21,12 @@ export const GA_CARD_SET_KEY = "051df160d03349be02f026974d98735ec96a5128";
 /** Toggle que esconde o card inteiro — o plugin NUNCA altera. */
 export const GA_CARD_SHOW_TOGGLE = "Mostrar atributos";
 
+/**
+ * Toggle que liga/desliga as linhas message, UTM e hiring_Id. Regra do Mau
+ * (03/10/2026): na geração, deve vir SEMPRE desligada (quase nunca é usada).
+ */
+export const GA_CARD_TOGGLES_ALWAYS_OFF = ["message"];
+
 /** Propriedade de variante que escolhe o evento do card. */
 export const GA_CARD_EVENT_PROPERTY = "Evento";
 
@@ -68,7 +74,29 @@ export const GA_EVENTS: GaEventSchema[] = [
       "hiring_id*"
     ]
   },
-  { key: "page_view", params: ["page_name", "region", "subregion*", "previous_page", "target_page*"] },
+  {
+    // Lista completa confirmada pela foto do card web (03/10/2026): mesmos
+    // opcionais do screen_view, com os nomes web nas linhas de tela.
+    key: "page_view",
+    params: [
+      "page_name",
+      "region",
+      "subregion*",
+      "previous_page",
+      "target_page*",
+      "code*",
+      "status*",
+      "title*",
+      "message*",
+      "details*",
+      "utm_source*",
+      "utm_medium*",
+      "utm_campaing*",
+      "utm_content*",
+      "utm_term*",
+      "hiring_id*"
+    ]
+  },
   {
     key: "select_content",
     params: ["content_type", "region", "subregion*", "action", "local_name", "local_type", "previous_page"]

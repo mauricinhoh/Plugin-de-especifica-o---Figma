@@ -2318,7 +2318,29 @@
         "hiring_id*"
       ]
     },
-    { key: "page_view", params: ["page_name", "region", "subregion*", "previous_page", "target_page*"] },
+    {
+      // Lista completa confirmada pela foto do card web (03/10/2026): mesmos
+      // opcionais do screen_view, com os nomes web nas linhas de tela.
+      key: "page_view",
+      params: [
+        "page_name",
+        "region",
+        "subregion*",
+        "previous_page",
+        "target_page*",
+        "code*",
+        "status*",
+        "title*",
+        "message*",
+        "details*",
+        "utm_source*",
+        "utm_medium*",
+        "utm_campaing*",
+        "utm_content*",
+        "utm_term*",
+        "hiring_id*"
+      ]
+    },
     {
       key: "select_content",
       params: ["content_type", "region", "subregion*", "action", "local_name", "local_type", "previous_page"]
