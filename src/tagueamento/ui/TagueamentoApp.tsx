@@ -15,7 +15,7 @@ import { FrameSelect } from "./screens/FrameSelect";
 import { MappingProgress } from "./screens/MappingProgress";
 import { Review } from "./screens/Review";
 import { ReviewSummary } from "./screens/ReviewSummary";
-import { buildGenerationRequest, initialReviewState, reviewReducer } from "./state/reviewStore";
+import { buildGenerationRequest, initialReviewState, reviewReducer, totalPendencias } from "./state/reviewStore";
 import { Done, Generating } from "./screens/Generation";
 import { PageTaggedChoice } from "./screens/PageTaggedChoice";
 import { FormsStatus } from "./components/SetupBar";
@@ -275,10 +275,12 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
         onRequestElementInfo={(nodeId) => postToTagMain({ type: "tag:element-info", nodeId })}
         onClearElementInfo={() => setElementReply(null)}
         onFocusNode={(nodeId) => postToTagMain({ type: "tag:focus-node", nodeId })}
-        onFinish={() => setScreen("summary")}
+        onFinish={() => {
+          // Sem pendências: vai direto para a geração (sem a tela "Revisão concluída").
+          if (review && totalPendencias(review) === 0) startGeneration();
+          else setScreen("summary");
+        }}
         onEditSetup={() => setScreen("setup")}
-        onRemap={() => (setup.modo === "tela" ? setScreen("frame") : startPageMode())}
-        remapLabel={setup.modo === "tela" ? "Mapear outra tela" : "Mapear de novo"}
         onClose={closePlugin}
       />
     );
@@ -330,7 +332,7 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
         }}
         onNew={() => {
           if (generationError) {
-            setScreen("summary");
+            setScreen("review");
             return;
           }
           setGeneration(null);

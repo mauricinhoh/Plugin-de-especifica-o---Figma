@@ -33,8 +33,6 @@ interface ReviewProps {
   onFocusNode: (nodeId: string) => void;
   onFinish: () => void;
   onEditSetup: () => void;
-  onRemap: () => void;
-  remapLabel: string;
   onClose: () => void;
 }
 
@@ -52,8 +50,6 @@ export function Review({
   onFocusNode,
   onFinish,
   onEditSetup,
-  onRemap,
-  remapLabel,
   onClose
 }: ReviewProps) {
   const screen = state.screens[screenIndex];
@@ -260,15 +256,6 @@ export function Review({
           )}
         </div>
 
-        <div style={{ marginTop: 16, textAlign: "center" }}>
-          <button
-            type="button"
-            onClick={onRemap}
-            style={{ border: "none", background: "transparent", fontSize: 12, fontWeight: 800, color: "var(--color-text-subtle)", textDecoration: "underline" }}
-          >
-            {remapLabel} (descarta as edições)
-          </button>
-        </div>
       </div>
 
       <div style={{ borderTop: "1px solid var(--color-border)", padding: "12px 20px 16px", display: "flex", gap: 8 }}>
