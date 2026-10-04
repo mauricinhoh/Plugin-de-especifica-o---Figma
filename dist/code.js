@@ -3112,8 +3112,7 @@
           if (!modalName) item.pendencias.push("Modal sem t\xEDtulo: preencha o modal_name");
           item.params = __spreadValues({}, base);
           if (modalName) item.params.modal_name = modalName;
-          if (setup.plataforma === "APP") item.params.firebase_screen = nomeTela;
-          else if (modalName) item.params.page_name = modalName;
+          item.params[setup.plataforma === "APP" ? "firebase_screen" : "page_name"] = nomeTela;
           break;
         }
         case "feedback":

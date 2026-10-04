@@ -146,10 +146,6 @@ export function reviewReducer(state: ReviewState | null, action: ReviewAction): 
         } else {
           const report = normalizeWithReport(action.raw, "param");
           values[action.field] = report.value;
-          // modal_view web: page_name do card = nome da modal (spec 5.2).
-          if (action.field === "modal_name" && item.evento === "modal_view" && state.plataforma === "WEB") {
-            values.page_name = report.value;
-          }
           const info = describeReport(report);
           if (info.notas.length > 0) notes[action.field] = info.notas;
           if (report.sinalizados.length > 0 || report.cortado) {

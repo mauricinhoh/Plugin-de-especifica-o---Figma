@@ -207,9 +207,9 @@ export function mapScreen(
         if (!modalName) item.pendencias.push("Modal sem título: preencha o modal_name");
         item.params = { ...base };
         if (modalName) item.params.modal_name = modalName;
-        // Card: APP firebase_screen = tela em que a modal foi acionada; WEB page_name = <Nome_da_modal>.
-        if (setup.plataforma === "APP") item.params.firebase_screen = nomeTela;
-        else if (modalName) item.params.page_name = modalName;
+        // Tela em que a modal está (nome do frame): APP firebase_screen, WEB page_name
+        // (decisão do Mau, 04/10/2026).
+        item.params[setup.plataforma === "APP" ? "firebase_screen" : "page_name"] = nomeTela;
         break;
       }
       case "feedback":

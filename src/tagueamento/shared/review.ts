@@ -162,8 +162,8 @@ export function defaultsFor(evento: string, context: ScreenContext): Record<stri
   const previousKey = context.plataforma === "APP" ? "firebase_previous_screen" : "previous_page";
   const { required, optional } = fieldsFor(evento, context.plataforma);
   const all = [...required, ...optional];
-  if (all.includes(screenKey) && evento !== "modal_view") values[screenKey] = context.nomeTela;
-  if (evento === "modal_view" && context.plataforma === "APP") values.firebase_screen = context.nomeTela;
+  // Inclui o modal_view: a tela é o frame em que a modal está (APP e WEB).
+  if (all.includes(screenKey)) values[screenKey] = context.nomeTela;
   if (all.includes(previousKey)) values[previousKey] = context.telaAnterior ?? PREVIOUS_SCREEN_PLACEHOLDER;
   if (evento === "select_content") {
     values.action = "Click";
