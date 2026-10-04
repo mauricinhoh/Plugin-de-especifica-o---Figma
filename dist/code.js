@@ -3037,9 +3037,6 @@
     const base = { region: setup.region, subregion: setup.subregion };
     const items = [];
     const temModal = discovered.some((item) => item.classe === "modal_view");
-    if (temModal) {
-      avisos.push(`Frame com modal/drawer: sem ${setup.plataforma === "APP" ? "screen_view" : "page_view"}, a tela de fundo \xE9 mapeada no frame dela.`);
-    }
     const screenParams = __spreadProps(__spreadValues({
       [keys.screen]: nomeTela
     }, base), {

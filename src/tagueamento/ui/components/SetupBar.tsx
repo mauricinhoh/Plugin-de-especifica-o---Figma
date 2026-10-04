@@ -63,7 +63,7 @@ export function SetupBar({ setup, formsStatus, screenName, onEdit }: SetupBarPro
         <button
           type="button"
           onClick={onEdit}
-          style={{ border: "none", background: "transparent", fontSize: 12, fontWeight: 800, color: "var(--color-primary)", padding: 4 }}
+          style={{ alignSelf: "center", border: "none", background: "transparent", fontSize: 12, fontWeight: 800, color: "var(--color-primary)", padding: 4 }}
         >
           Alterar
         </button>

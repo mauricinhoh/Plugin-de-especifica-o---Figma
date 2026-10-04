@@ -127,9 +127,6 @@ export function mapScreen(
   // 1. Card de tela — não entra quando o frame tem Modal/Drawer (a tela de
   //    baixo já é mapeada em outro frame).
   const temModal = discovered.some((item) => item.classe === "modal_view");
-  if (temModal) {
-    avisos.push(`Frame com modal/drawer: sem ${setup.plataforma === "APP" ? "screen_view" : "page_view"}, a tela de fundo é mapeada no frame dela.`);
-  }
   const screenParams: Record<string, string> = {
     [keys.screen]: nomeTela,
     ...base,

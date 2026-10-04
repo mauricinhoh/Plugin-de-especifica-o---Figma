@@ -120,10 +120,6 @@ export function Review({
           </div>
         )}
 
-        <div style={{ marginTop: 12, fontSize: 12.5, fontWeight: 800, color: pendingCount > 0 ? "var(--color-warning)" : "var(--color-primary-ink)" }}>
-          {screen.items.length} {screen.items.length === 1 ? "card" : "cards"} ·{" "}
-          {pendingCount > 0 ? `${pendingCount} ${pendingCount === 1 ? "pendência" : "pendências"}` : "sem pendências"}
-        </div>
         {screen.avisos.map((aviso, index) => (
           <div key={index} style={{ marginTop: 6, display: "flex", gap: 6, fontSize: 12, fontWeight: 700, color: "var(--color-warning)" }}>
             <Icon name="alert-triangle" size={13} color="var(--color-warning)" />
@@ -148,8 +144,11 @@ export function Review({
               fontWeight: 800
             }}
           >
-            Só pendências ({pendingCount})
+            Pendências ({pendingCount})
           </button>
+          <span style={{ marginLeft: "auto", fontSize: 12.5, fontWeight: 800, color: "var(--color-text-muted)" }}>
+            {screen.items.length} {screen.items.length === 1 ? "card" : "cards"}
+          </span>
         </div>
 
         {visibleItems.map(({ item, numero }) => (

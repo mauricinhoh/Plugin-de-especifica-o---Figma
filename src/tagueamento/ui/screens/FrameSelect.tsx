@@ -50,7 +50,7 @@ export function FrameSelect({ setup, formsStatus, selection, onMap, onDeleteOutp
   return (
     <>
       <TitleBar title="Tagueamento" showBack onBack={onEditSetup} onClose={onClose} />
-      <Stepper current={1} progress={1} />
+      {!tagged && <Stepper current={1} progress={1} />}
       <div className="scroll-area" style={{ padding: "18px 24px 24px" }}>
         <FormsNotice formsStatus={formsStatus} />
 
