@@ -25,6 +25,18 @@ export interface ReviewState {
   screens: ReviewScreen[];
 }
 
+/** Ordem da lista: card de tela e modal_view sempre primeiro (nº 1); o resto mantém a ordem. */
+function rankOf(item: ReviewItem): number {
+  return item.origem === "tela" ? 0 : item.evento === "modal_view" ? 1 : 2;
+}
+
+export function orderItems(items: ReviewItem[]): ReviewItem[] {
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => rankOf(a.item) - rankOf(b.item) || a.index - b.index)
+    .map((entry) => entry.item);
+}
+
 let keyCounter = 0;
 const nextKey = () => `r${++keyCounter}`;
 
@@ -115,7 +127,7 @@ function updateItem(state: ReviewState, screenIndex: number, key: string, update
         const next = update(item, screen);
         if (next) items.push(next);
       }
-      return { ...screen, items };
+      return { ...screen, items: orderItems(items) };
     })
   };
 }
@@ -179,7 +191,7 @@ export function reviewReducer(state: ReviewState | null, action: ReviewAction): 
             confirmado: false,
             insideModal: false
           };
-          return { ...screen, items: [...screen.items, item] };
+          return { ...screen, items: orderItems([...screen.items, item]) };
         })
       };
     default:

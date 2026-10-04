@@ -13,7 +13,7 @@
 import { MappingResult, SetupSelection } from "../../shared/types";
 import { buildPrototypeGraph } from "./prototype";
 import { discoverItems, mapScreen, screenNameOf } from "./mapScreen";
-import { findTagOutput } from "../generation/existingOutput";
+import { findTagOutput, frameIdOfOutput, tagOutputIndex } from "../generation/existingOutput";
 
 type ScreenNode = FrameNode | GroupNode;
 
@@ -40,7 +40,8 @@ const yieldToFigma = () => new Promise<void>((resolve) => setTimeout(resolve, 0)
 /** Situação da página: quantos frames e quais já têm tagueamento gerado. */
 export function pageTagStatus(): { total: number; tagged: string[] } {
   const frames = topLevelFrames();
-  return { total: frames.length, tagged: frames.filter((frame) => findTagOutput(frame).length > 0).map((frame) => frame.name) };
+  const index = tagOutputIndex();
+  return { total: frames.length, tagged: frames.filter((frame) => findTagOutput(frame, index).length > 0).map((frame) => frame.name) };
 }
 
 export async function runMapping(
@@ -54,12 +55,21 @@ export async function runMapping(
   let targets: ScreenNode[];
   if (setup.modo === "tela") {
     const selection = figma.currentPage.selection;
-    if (selection.length !== 1 || !isScreenNode(selection[0])) {
+    let selected: SceneNode | null = selection.length === 1 ? selection[0] : null;
+    // Grupo/card/marcador de tagueamento selecionado → mapeia a tela dele.
+    const ownerId = selected ? frameIdOfOutput(selected) : null;
+    if (ownerId) selected = (await figma.getNodeByIdAsync(ownerId)) as SceneNode | null;
+    if (!selected || !isScreenNode(selected)) {
       throw new Error("Selecione um único frame para mapear.");
     }
-    targets = [selection[0]];
+    targets = [selected];
   } else {
-    targets = skipTagged ? pageFrames.filter((frame) => findTagOutput(frame).length === 0) : pageFrames;
+    if (skipTagged) {
+      const index = tagOutputIndex();
+      targets = pageFrames.filter((frame) => findTagOutput(frame, index).length === 0);
+    } else {
+      targets = pageFrames;
+    }
     if (targets.length === 0) {
       result.avisos.push(
         pageFrames.length === 0

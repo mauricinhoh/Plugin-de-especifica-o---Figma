@@ -11,15 +11,22 @@
 import { TagSelectionState } from "../shared/types";
 import { postToTagUi } from "./messaging";
 import { isScreenNode } from "./mapping/runMapping";
-import { countTaggedCards } from "./generation/existingOutput";
+import { countTaggedCards, frameIdOfOutput } from "./generation/existingOutput";
 
 let listening = false;
 
-function currentState(): TagSelectionState {
+async function currentState(): Promise<TagSelectionState> {
   const selection = figma.currentPage.selection;
   const element = selection.length === 1 ? { id: selection[0].id, name: selection[0].name, type: selection[0].type } : null;
-  if (selection.length === 1 && isScreenNode(selection[0])) {
-    const node = selection[0];
+  // Clicou no grupo/card/marcador de tagueamento → trata como a tela dele.
+  let screen: SceneNode | null = selection.length === 1 ? selection[0] : null;
+  const ownerId = screen ? frameIdOfOutput(screen) : null;
+  if (ownerId) {
+    const owner = (await figma.getNodeByIdAsync(ownerId)) as SceneNode | null;
+    screen = owner && !owner.removed && isScreenNode(owner) ? owner : null;
+  }
+  if (screen && isScreenNode(screen)) {
+    const node = screen;
     return {
       valid: true,
       nodeId: node.id,
@@ -34,8 +41,12 @@ function currentState(): TagSelectionState {
   return { valid: false, nodeId: null, nodeName: null, element };
 }
 
+let sequence = 0;
 function sendState(): void {
-  postToTagUi({ type: "tag:selection-state", state: currentState() });
+  const mine = ++sequence;
+  void currentState().then((state) => {
+    if (mine === sequence) postToTagUi({ type: "tag:selection-state", state });
+  });
 }
 
 export function watchSelection(enabled: boolean): void {

@@ -80,11 +80,11 @@ interface DoneProps {
   error?: string | null;
   onShow: () => void;
   onNew: () => void;
-  onExit: () => void;
+  onExit?: () => void;
   onClose: () => void;
 }
 
-export function Done({ result, deleted, error, onShow, onNew, onExit, onClose }: DoneProps) {
+export function Done({ result, deleted, error, onShow, onNew, onClose }: DoneProps) {
   const reduced = usePrefersReducedMotionCopy();
   const cards = result ? result.screens.reduce((sum, screen) => sum + screen.cards, 0) : 0;
   const avisos = result ? [...result.avisos, ...result.screens.flatMap((screen) => screen.avisos.map((aviso) => `${screen.nomeTela}: ${aviso}`))] : [];
@@ -174,9 +174,6 @@ export function Done({ result, deleted, error, onShow, onNew, onExit, onClose }:
         )}
         <Button variant="secondary" fullWidth onClick={onNew}>
           {failed ? "Voltar à revisão" : "Novo tagueamento"}
-        </Button>
-        <Button variant="ghost" fullWidth onClick={onExit}>
-          Voltar ao início
         </Button>
       </div>
     </>

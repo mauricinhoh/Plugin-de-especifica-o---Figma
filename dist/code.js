@@ -3364,6 +3364,9 @@
     if (typeof acao === "string") return { base: acao };
     return { base: null, pendencia: "Componente sem texto: preencha a a\xE7\xE3o" };
   }
+  function isTopItem(item) {
+    return item.origem === "tela" || item.evento === "modal_view";
+  }
   function mapScreen(frame, discovered, setup, graph, nomeTelaById) {
     var _a2, _b, _c, _d;
     const keys = keysFor(setup.plataforma);
@@ -3499,6 +3502,8 @@
       }
       items.push(item);
     }
+    const ordenados = [...items.filter(isTopItem), ...items.filter((item) => !isTopItem(item))];
+    ordenados.forEach((item, index) => item.numero = index + 1);
     return {
       frameId: frame.id,
       frameName: frame.name,
@@ -3511,7 +3516,7 @@
       // Sugestões da tela alvo na revisão: as telas finais do fluxo (ou, sem
       // final claro, as telas logo à frente).
       destinos: finais.length > 0 ? finais : destinos,
-      items,
+      items: ordenados,
       avisos
     };
   }
@@ -3521,34 +3526,56 @@
   var CARD_NODE_KEY = "tagueamento.nodeId";
   var CARD_NUMBER_KEY = "tagueamento.numero";
   var OUTPUT_GROUP_PREFIX = "Tagueamento \u2014 ";
-  function containersOf(frame) {
-    const containers = [figma.currentPage];
-    const parent = frame.parent;
-    if (parent && parent.type === "SECTION") containers.push(parent);
-    return containers;
-  }
-  function findTagOutput(frame) {
-    const found = [];
-    for (const container of containersOf(frame)) {
-      for (const child of container.children) {
-        if (child.getPluginData(OUTPUT_SCREEN_KEY) === frame.id && !found.includes(child)) found.push(child);
+  function tagOutputIndex() {
+    var _a2;
+    const index = /* @__PURE__ */ new Map();
+    const matches = figma.currentPage.findAllWithCriteria({ pluginData: { keys: [OUTPUT_SCREEN_KEY] } });
+    for (const node of matches) {
+      const frameId = node.getPluginData(OUTPUT_SCREEN_KEY);
+      if (!frameId) continue;
+      let ancestor = node.parent;
+      let nested = false;
+      while (ancestor && ancestor.type !== "PAGE") {
+        if (ancestor.getPluginData(OUTPUT_SCREEN_KEY) === frameId) {
+          nested = true;
+          break;
+        }
+        ancestor = ancestor.parent;
       }
+      if (nested) continue;
+      const list = (_a2 = index.get(frameId)) != null ? _a2 : [];
+      list.push(node);
+      index.set(frameId, list);
     }
-    return found;
+    return index;
   }
-  function countTaggedCards(frame) {
-    let count = 0;
-    for (const group of findTagOutput(frame)) {
-      if ("findAll" in group) {
-        count += group.findAll((node) => node.getPluginData(CARD_NUMBER_KEY) !== "" && node.type === "INSTANCE").length;
-      }
-    }
+  function findTagOutput(frame, index = tagOutputIndex()) {
+    var _a2;
+    return (_a2 = index.get(frame.id)) != null ? _a2 : [];
+  }
+  function cardsIn(node) {
+    const isCard = (n) => n.type === "INSTANCE" && n.getPluginData(CARD_NUMBER_KEY) !== "";
+    let count = isCard(node) ? 1 : 0;
+    if ("findAll" in node) count += node.findAll(isCard).length;
     return count;
   }
+  function countTaggedCards(frame, index) {
+    return findTagOutput(frame, index).reduce((sum, node) => sum + cardsIn(node), 0);
+  }
+  function frameIdOfOutput(node) {
+    let current = node;
+    while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
+      const frameId = current.getPluginData(OUTPUT_SCREEN_KEY);
+      if (frameId) return frameId;
+      current = current.parent;
+    }
+    return null;
+  }
   function deleteTagOutput(frame) {
-    const count = countTaggedCards(frame);
-    for (const group of findTagOutput(frame)) {
-      if (!group.removed) group.remove();
+    const outputs = findTagOutput(frame);
+    const count = outputs.reduce((sum, node) => sum + cardsIn(node), 0);
+    for (const node of outputs) {
+      if (!node.removed) node.remove();
     }
     return count;
   }
@@ -3572,7 +3599,8 @@
   var yieldToFigma = () => new Promise((resolve) => setTimeout(resolve, 0));
   function pageTagStatus() {
     const frames = topLevelFrames();
-    return { total: frames.length, tagged: frames.filter((frame) => findTagOutput(frame).length > 0).map((frame) => frame.name) };
+    const index = tagOutputIndex();
+    return { total: frames.length, tagged: frames.filter((frame) => findTagOutput(frame, index).length > 0).map((frame) => frame.name) };
   }
   async function runMapping(setup, onProgress, skipTagged = false) {
     const pageFrames = topLevelFrames();
@@ -3580,12 +3608,20 @@
     let targets;
     if (setup.modo === "tela") {
       const selection = figma.currentPage.selection;
-      if (selection.length !== 1 || !isScreenNode(selection[0])) {
+      let selected = selection.length === 1 ? selection[0] : null;
+      const ownerId = selected ? frameIdOfOutput(selected) : null;
+      if (ownerId) selected = await figma.getNodeByIdAsync(ownerId);
+      if (!selected || !isScreenNode(selected)) {
         throw new Error("Selecione um \xFAnico frame para mapear.");
       }
-      targets = [selection[0]];
+      targets = [selected];
     } else {
-      targets = skipTagged ? pageFrames.filter((frame) => findTagOutput(frame).length === 0) : pageFrames;
+      if (skipTagged) {
+        const index = tagOutputIndex();
+        targets = pageFrames.filter((frame) => findTagOutput(frame, index).length === 0);
+      } else {
+        targets = pageFrames;
+      }
       if (targets.length === 0) {
         result.avisos.push(
           pageFrames.length === 0 ? "Esta p\xE1gina n\xE3o tem frames de primeiro n\xEDvel." : "Todas as telas desta p\xE1gina j\xE1 t\xEAm tagueamento, e voc\xEA escolheu pular essas."
@@ -3610,11 +3646,17 @@
 
   // src/tagueamento/main/selection.ts
   var listening = false;
-  function currentState() {
+  async function currentState() {
     const selection = figma.currentPage.selection;
     const element = selection.length === 1 ? { id: selection[0].id, name: selection[0].name, type: selection[0].type } : null;
-    if (selection.length === 1 && isScreenNode(selection[0])) {
-      const node = selection[0];
+    let screen = selection.length === 1 ? selection[0] : null;
+    const ownerId = screen ? frameIdOfOutput(screen) : null;
+    if (ownerId) {
+      const owner = await figma.getNodeByIdAsync(ownerId);
+      screen = owner && !owner.removed && isScreenNode(owner) ? owner : null;
+    }
+    if (screen && isScreenNode(screen)) {
+      const node = screen;
       return {
         valid: true,
         nodeId: node.id,
@@ -3628,8 +3670,12 @@
     }
     return { valid: false, nodeId: null, nodeName: null, element };
   }
+  var sequence = 0;
   function sendState() {
-    postToTagUi({ type: "tag:selection-state", state: currentState() });
+    const mine = ++sequence;
+    void currentState().then((state) => {
+      if (mine === sequence) postToTagUi({ type: "tag:selection-state", state });
+    });
   }
   function watchSelection(enabled) {
     if (enabled && !listening) {
@@ -3685,6 +3731,11 @@
     await loadFontsOf(node);
     node.characters = text;
   }
+  function withBrackets(value) {
+    const trimmed = value.trim();
+    if (trimmed.startsWith("<") && trimmed.endsWith(">")) return trimmed;
+    return `<${trimmed.replace(/^<+|>+$/g, "")}>`;
+  }
   async function fillCard(card, evento, values, numero, plataforma) {
     var _a2;
     const avisos = [];
@@ -3720,7 +3771,7 @@
       const value = values[param];
       if (!value || isEmptyValue(value)) continue;
       try {
-        await setText(row.valueNode, value);
+        await setText(row.valueNode, withBrackets(value));
       } catch (error) {
         avisos.push(`N\xE3o foi poss\xEDvel escrever "${param}": ${error instanceof Error ? error.message : String(error)}`);
       }
@@ -3897,7 +3948,9 @@
       result.cards += 1;
       try {
         if (item.origem === "tela") {
-          created.push(createScreenMarker(frameBox, item.numero, item.evento));
+          const screenMarker = createScreenMarker(frameBox, item.numero, item.evento);
+          screenMarker.setPluginData(OUTPUT_SCREEN_KEY, frame.id);
+          created.push(screenMarker);
         } else {
           const target = await figma.getNodeByIdAsync(item.nodeId);
           const bounds = target && "absoluteBoundingBox" in target ? target.absoluteBoundingBox : null;
@@ -3906,6 +3959,7 @@
           } else {
             const marker = createComponentMarker(bounds, item.numero, item.evento, item.componente);
             marker.setPluginData(CARD_NODE_KEY, item.nodeId);
+            marker.setPluginData(OUTPUT_SCREEN_KEY, frame.id);
             created.push(marker);
           }
         }

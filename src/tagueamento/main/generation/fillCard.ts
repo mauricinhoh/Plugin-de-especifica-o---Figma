@@ -44,6 +44,17 @@ async function setText(node: TextNode, text: string): Promise<void> {
   node.characters = text;
 }
 
+/**
+ * Todo valor de parâmetro vai para o card entre sinais de menor e maior:
+ * "<texto_do_parametro>" (decisão do Mau, 03/10/2026). Valor que já vem
+ * entre < > fica como está.
+ */
+export function withBrackets(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.startsWith("<") && trimmed.endsWith(">")) return trimmed;
+  return `<${trimmed.replace(/^<+|>+$/g, "")}>`;
+}
+
 export async function fillCard(
   card: InstanceNode,
   evento: string,
@@ -88,7 +99,7 @@ export async function fillCard(
     const value = values[param];
     if (!value || isEmptyValue(value)) continue; // mantém o placeholder do card
     try {
-      await setText(row.valueNode, value);
+      await setText(row.valueNode, withBrackets(value));
     } catch (error) {
       avisos.push(`Não foi possível escrever "${param}": ${error instanceof Error ? error.message : String(error)}`);
     }

@@ -111,7 +111,9 @@ async function generateScreen(
     // Marcador sobre a tela
     try {
       if (item.origem === "tela") {
-        created.push(createScreenMarker(frameBox, item.numero, item.evento));
+        const screenMarker = createScreenMarker(frameBox, item.numero, item.evento);
+        screenMarker.setPluginData(OUTPUT_SCREEN_KEY, frame.id);
+        created.push(screenMarker);
       } else {
         const target = (await figma.getNodeByIdAsync(item.nodeId)) as SceneNode | null;
         const bounds = target && "absoluteBoundingBox" in target ? target.absoluteBoundingBox : null;
@@ -120,6 +122,7 @@ async function generateScreen(
         } else {
           const marker = createComponentMarker(bounds, item.numero, item.evento, item.componente);
           marker.setPluginData(CARD_NODE_KEY, item.nodeId);
+          marker.setPluginData(OUTPUT_SCREEN_KEY, frame.id);
           created.push(marker);
         }
       }

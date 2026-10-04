@@ -82,6 +82,10 @@ function contentBase(
   return { base: null, pendencia: "Componente sem texto: preencha a ação" };
 }
 
+function isTopItem(item: { origem: string; evento: string }): boolean {
+  return item.origem === "tela" || item.evento === "modal_view";
+}
+
 export function mapScreen(
   frame: SceneNode,
   discovered: DiscoveredItem[],
@@ -227,6 +231,11 @@ export function mapScreen(
     items.push(item);
   }
 
+  // screen_view / page_view / modal_view sempre no topo (nº 1) — decisão do
+  // Mau, 03/10/2026. Os demais seguem a ordem espacial.
+  const ordenados = [...items.filter(isTopItem), ...items.filter((item) => !isTopItem(item))];
+  ordenados.forEach((item, index) => (item.numero = index + 1));
+
   return {
     frameId: frame.id,
     frameName: frame.name,
@@ -239,7 +248,7 @@ export function mapScreen(
     // Sugestões da tela alvo na revisão: as telas finais do fluxo (ou, sem
     // final claro, as telas logo à frente).
     destinos: finais.length > 0 ? finais : destinos,
-    items,
+    items: ordenados,
     avisos
   };
 }
