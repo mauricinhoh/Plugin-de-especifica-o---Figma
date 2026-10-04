@@ -3,9 +3,10 @@
  * (TAGUEAMENTO_SPEC.md, seção 9). Usado quando o PD escolhe "Outro" no
  * Produto ou no Fluxo do setup.
  *
- * Link modelo enviado pelo Mau em 03/10/2026. Cada pergunta do Forms tem um
- * código (parâmetro "r…" na URL); o plugin troca o valor de cada um, entre aspas
- * e só com texto (ver toFormsText).
+ * Link modelo enviado pelo Mau em 03/10/2026 e corrigido em 04/10/2026 (duas
+ * letras I/l trocadas no id). Cada pergunta do Forms tem um
+ * código (parâmetro "r…" na URL); o plugin troca o valor de cada um, só com
+ * texto (ver toFormsText).
  *
  * Ordem confirmada pelo Mau em 04/10/2026 (placeholders do link modelo):
  * Canal ("Teste_onze"), Produto ("Teste_tres"), Tarefa do usuário
@@ -14,7 +15,7 @@
  */
 
 export const FORMS_BASE_URL =
-  "https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=TJYjMh9uuki3BUlzUSgajG227yoCw7RAhsNy6TP6BKRUMzNDODIKRkEzRFJGMU5KUENIUTU1STk2RS4u";
+  "https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=TJYjMh9uuki3BUIzUSgajG227yoCw7RAhsNy6TP6BKRUMzNDODlKRkEzRFJGMU5KUENIUTU1STk2RS4u";
 
 export interface FormsPayload {
   canal: string;
@@ -58,12 +59,12 @@ export function toFormsText(value: string): string {
 
 /**
  * Monta o link pré-preenchido, ou null quando o Forms não está configurado.
- * Formato igual ao link modelo do Forms: cada valor vai entre aspas,
- * código="valor".
+ * Formato igual ao link modelo do Forms (corrigido pelo Mau em 04/10/2026):
+ * código=valor, sem aspas.
  */
 export function buildFormsUrl(payload: FormsPayload): string | null {
   if (!isFormsConfigured()) return null;
-  const params = FIELD_ORDER.map((field) => `${FORMS_FIELDS[field]}="${toFormsText(payload[field])}"`).join("&");
+  const params = FIELD_ORDER.map((field) => `${FORMS_FIELDS[field]}=${toFormsText(payload[field])}`).join("&");
   return `${FORMS_BASE_URL}&${params}`;
 }
 
