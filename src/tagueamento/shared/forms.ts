@@ -4,14 +4,13 @@
  * Produto ou no Fluxo do setup.
  *
  * Link modelo enviado pelo Mau em 03/10/2026. Cada pergunta do Forms tem um
- * código (parâmetro "r…" na URL); o plugin troca o valor de cada um, com
- * encodeURIComponent.
+ * código (parâmetro "r…" na URL); o plugin troca o valor de cada um, entre aspas
+ * e só com texto (ver toFormsText).
  *
- * ATENÇÃO — A CONFIRMAR NO TESTE: a ligação código → pergunta abaixo segue a
- * ORDEM dos parâmetros no link (que se supõe ser a ordem das perguntas do
- * formulário: Canal, Produto, Tarefa do usuário, Region, Subregion, Arquivo
- * Figma). Se no teste algum valor cair na pergunta errada, basta trocar os
- * códigos de lugar em FORMS_FIELDS.
+ * Ordem confirmada pelo Mau em 04/10/2026 (placeholders do link modelo):
+ * Canal ("Teste_onze"), Produto ("Teste_tres"), Tarefa do usuário
+ * ("Teste_quarto"), Region ("Teste_cinco"), Subregion ("Teste_seis"),
+ * Arquivo Figma ("Teste_sete").
  */
 
 export const FORMS_BASE_URL =
@@ -43,10 +42,28 @@ export function isFormsConfigured(): boolean {
   return FORMS_BASE_URL.trim().length > 0 && FIELD_ORDER.every((field) => FORMS_FIELDS[field]);
 }
 
-/** Monta o link pré-preenchido, ou null quando o Forms não está configurado. */
+/**
+ * Valor do link "só texto" (decisão do Mau, 04/10/2026): sem acento, sem
+ * espaço e sem símbolo, para o link não ter códigos como %20. Espaço e
+ * qualquer símbolo viram "_" ("App Sicredi" → "App_Sicredi").
+ */
+export function toFormsText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z0-9_]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+}
+
+/**
+ * Monta o link pré-preenchido, ou null quando o Forms não está configurado.
+ * Formato igual ao link modelo do Forms: cada valor vai entre aspas,
+ * código="valor".
+ */
 export function buildFormsUrl(payload: FormsPayload): string | null {
   if (!isFormsConfigured()) return null;
-  const params = FIELD_ORDER.map((field) => `${FORMS_FIELDS[field]}=${encodeURIComponent(payload[field])}`).join("&");
+  const params = FIELD_ORDER.map((field) => `${FORMS_FIELDS[field]}="${toFormsText(payload[field])}"`).join("&");
   return `${FORMS_BASE_URL}&${params}`;
 }
 
