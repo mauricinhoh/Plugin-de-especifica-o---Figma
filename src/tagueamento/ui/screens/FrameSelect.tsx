@@ -4,7 +4,7 @@ import { TitleBar } from "../components/TitleBar";
 import { Stepper } from "../components/Stepper";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
-import { FormsStatus, SetupBar } from "../components/SetupBar";
+import { FormsNotice, FormsStatus } from "../components/SetupBar";
 
 /**
  * Fase 4 — "Selecione uma tela" (modo Tela por tela).
@@ -52,11 +52,11 @@ export function FrameSelect({ setup, formsStatus, selection, onMap, onDeleteOutp
       <TitleBar title="Tagueamento" showBack onBack={onEditSetup} onClose={onClose} />
       <Stepper current={1} progress={1} />
       <div className="scroll-area" style={{ padding: "18px 24px 24px" }}>
-        <SetupBar setup={setup} formsStatus={formsStatus} onEdit={onEditSetup} />
+        <FormsNotice formsStatus={formsStatus} />
 
         {tagged ? (
           <>
-            <h2 style={{ fontSize: 21, fontWeight: 900, letterSpacing: "-.025em", margin: "20px 0 0", overflowWrap: "anywhere" }}>
+            <h2 style={{ fontSize: 21, fontWeight: 900, letterSpacing: "-.025em", margin: formsStatus ? "20px 0 0" : 0, overflowWrap: "anywhere" }}>
               O que deseja fazer com essa tela {selection.nodeName}?
             </h2>
             <p style={{ marginTop: 6, fontSize: "13.5px", lineHeight: 1.45, color: "var(--color-text-muted)" }}>
@@ -65,7 +65,7 @@ export function FrameSelect({ setup, formsStatus, selection, onMap, onDeleteOutp
           </>
         ) : (
           <>
-            <h2 style={{ fontSize: 21, fontWeight: 900, letterSpacing: "-.025em", margin: "20px 0 0" }}>Selecione uma tela</h2>
+            <h2 style={{ fontSize: 21, fontWeight: 900, letterSpacing: "-.025em", margin: formsStatus ? "20px 0 0" : 0 }}>Selecione uma tela</h2>
             <p style={{ marginTop: 6, fontSize: "13.5px", lineHeight: 1.45, color: "var(--color-text-muted)" }}>
               Escolha no canvas o frame que você quer taguear.
             </p>
