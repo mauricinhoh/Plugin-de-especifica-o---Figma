@@ -108,7 +108,7 @@ export function Review({
       <TitleBar title="Tagueamento" showBack onBack={onEditSetup} onClose={onClose} />
       <Stepper current={2} progress={total > 0 ? (screenIndex + 1) / total : 1} />
       <div className="scroll-area" style={{ padding: "16px 20px 20px" }}>
-        <SetupBar setup={setup} formsStatus={formsStatus} onEdit={onEditSetup} />
+        <SetupBar setup={setup} formsStatus={formsStatus} screenName={screen.nomeTela || screen.frameName} onEdit={onEditSetup} />
 
         {isPageMode && total > 1 && (
           <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 8 }}>
@@ -124,20 +124,16 @@ export function Review({
           </div>
         )}
 
-        <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 12, background: "var(--color-surface-muted)", border: "1px solid var(--color-border)", overflow: "hidden" }}>
-          <div style={{ fontSize: 15, fontWeight: 900, overflowWrap: "anywhere" }}>{screen.nomeTela || "(sem nome)"}</div>
-          <div style={{ fontSize: 11.5, color: "var(--color-text-muted)", marginTop: 2, overflowWrap: "anywhere" }}>{screen.frameName}</div>
-          <div style={{ fontSize: 12, marginTop: 6, fontWeight: 700, color: pendingCount > 0 ? "var(--color-warning)" : "var(--color-primary-ink)" }}>
-            {screen.items.length} {screen.items.length === 1 ? "card" : "cards"} ·{" "}
-            {pendingCount > 0 ? `${pendingCount} ${pendingCount === 1 ? "pendência" : "pendências"}` : "sem pendências"}
-          </div>
-          {screen.avisos.map((aviso, index) => (
-            <div key={index} style={{ marginTop: 6, display: "flex", gap: 6, fontSize: 12, fontWeight: 700, color: "var(--color-warning)" }}>
-              <Icon name="alert-triangle" size={13} color="var(--color-warning)" />
-              <span style={{ overflowWrap: "anywhere", minWidth: 0 }}>{aviso}</span>
-            </div>
-          ))}
+        <div style={{ marginTop: 12, fontSize: 12.5, fontWeight: 800, color: pendingCount > 0 ? "var(--color-warning)" : "var(--color-primary-ink)" }}>
+          {screen.items.length} {screen.items.length === 1 ? "card" : "cards"} ·{" "}
+          {pendingCount > 0 ? `${pendingCount} ${pendingCount === 1 ? "pendência" : "pendências"}` : "sem pendências"}
         </div>
+        {screen.avisos.map((aviso, index) => (
+          <div key={index} style={{ marginTop: 6, display: "flex", gap: 6, fontSize: 12, fontWeight: 700, color: "var(--color-warning)" }}>
+            <Icon name="alert-triangle" size={13} color="var(--color-warning)" />
+            <span style={{ overflowWrap: "anywhere", minWidth: 0 }}>{aviso}</span>
+          </div>
+        ))}
 
         <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8 }}>
           <button

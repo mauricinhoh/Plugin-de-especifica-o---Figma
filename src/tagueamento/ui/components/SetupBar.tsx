@@ -14,40 +14,51 @@ export type FormsStatus = "opened" | "not-configured" | null;
 interface SetupBarProps {
   setup: SetupSelection;
   formsStatus?: FormsStatus;
+  /** Nome da tela em revisão, mostrado pequeno no topo do card (opcional). */
+  screenName?: string;
   onEdit: () => void;
 }
 
-export function SetupBar({ setup, formsStatus, onEdit }: SetupBarProps) {
+function ContextLine({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div style={{ fontSize: 12, lineHeight: 1.45, overflowWrap: "anywhere" }}>
+      <span style={{ fontWeight: 800, color: "var(--color-text-dark)" }}>{label}: </span>
+      <span style={{ fontFamily: mono ? "var(--font-mono)" : undefined, fontSize: mono ? 11.5 : 12, color: mono ? "var(--color-primary-ink)" : "var(--color-text-dark)" }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+export function SetupBar({ setup, formsStatus, screenName, onEdit }: SetupBarProps) {
   return (
     <>
       <div
         style={{
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-start",
           gap: 10,
-          padding: "9px 12px",
+          padding: "10px 12px",
           borderRadius: "var(--radius-md)",
           background: "var(--color-surface-muted)",
           border: "1px solid var(--color-border)"
         }}
       >
-        <Icon name={setup.plataforma === "APP" ? "smartphone" : "monitor"} size={15} color="var(--color-text-muted)" />
+        <div style={{ paddingTop: 2 }}>
+          <Icon name={setup.plataforma === "APP" ? "smartphone" : "monitor"} size={15} color="var(--color-text-muted)" />
+        </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {setup.canal} · {setup.produto}
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              color: "var(--color-primary-ink)",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis"
-            }}
-          >
-            {setup.region} · {setup.subregion}
-          </div>
+          {screenName && (
+            <div
+              title={screenName}
+              style={{ fontSize: 11, fontWeight: 800, color: "var(--color-text-muted)", marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+            >
+              Tela: {screenName}
+            </div>
+          )}
+          <ContextLine label="Canal" value={setup.canal} />
+          <ContextLine label="Region" value={setup.region} mono />
+          <ContextLine label="Subregion" value={setup.subregion} mono />
         </div>
         <button
           type="button"
@@ -57,7 +68,15 @@ export function SetupBar({ setup, formsStatus, onEdit }: SetupBarProps) {
           Alterar
         </button>
       </div>
+      <FormsNotice formsStatus={formsStatus} />
+    </>
+  );
+}
 
+/** Aviso do Forms do "Outro" (formulário aberto / link não configurado). */
+export function FormsNotice({ formsStatus }: { formsStatus?: FormsStatus }) {
+  return (
+    <>
       {formsStatus === "opened" && (
         <div
           role="status"
