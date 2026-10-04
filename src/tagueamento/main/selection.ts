@@ -35,7 +35,8 @@ async function currentState(): Promise<TagSelectionState> {
       width: Math.round(node.width),
       height: Math.round(node.height),
       element,
-      taggedCards: countTaggedCards(node)
+      taggedCards: countTaggedCards(node),
+      layerCount: "findAll" in node ? node.findAll(() => true).length : 0
     };
   }
   return { valid: false, nodeId: null, nodeName: null, element };

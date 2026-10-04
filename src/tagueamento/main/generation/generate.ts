@@ -14,7 +14,7 @@
  * Componente que sumiu do arquivo não trava a geração: vira aviso.
  */
 
-import { GenerationRequest, GenerationResult, GeneratedScreen, GenerationScreen } from "../../shared/types";
+import { GenerationItem, GenerationRequest, GenerationResult, GenerationStage, GeneratedScreen, GenerationScreen } from "../../shared/types";
 import { GA_CARD_EVENT_PROPERTY, GA_CARD_SET_KEY, eventKeyFromVariantName } from "../../shared/gaCard";
 import { fillCard } from "./fillCard";
 import { createComponentMarker, createScreenMarker, MARKER_FONT } from "./markers";
@@ -72,9 +72,15 @@ function placeInFrameContainer(group: GroupNode, frame: SceneNode): void {
 async function generateScreen(
   screen: GenerationScreen,
   request: GenerationRequest,
-  variants: Map<string, ComponentNode>
+  variants: Map<string, ComponentNode>,
+  onItemDone: () => void
 ): Promise<GeneratedScreen> {
-  const result: GeneratedScreen = { frameId: screen.frameId, nomeTela: screen.nomeTela, cards: 0, groupId: null, avisos: [] };
+  const result: GeneratedScreen = { frameId: screen.frameId, nomeTela: screen.nomeTela, cards: 0, groupId: null, avisos: [], avisosDetalhados: [] };
+  // Aviso de um card: o texto de sempre + o card a que se refere (para "Ir para").
+  const warn = (item: GenerationItem, mensagem: string, cardId: string | null) => {
+    result.avisos.push(`Card ${item.numero}: ${mensagem}`);
+    result.avisosDetalhados?.push({ numero: item.numero, componente: item.componente, label: item.label ?? null, mensagem, cardId });
+  };
   const frame = (await figma.getNodeByIdAsync(screen.frameId)) as SceneNode | null;
   if (!frame || !("absoluteBoundingBox" in frame) || !frame.absoluteBoundingBox) {
     result.avisos.push(`A tela "${screen.nomeTela}" não existe mais no arquivo.`);
@@ -94,14 +100,16 @@ async function generateScreen(
   for (const item of screen.items) {
     const variant = variants.get(item.evento);
     if (!variant) {
-      result.avisos.push(`Card ${item.numero}: variante do evento "${item.evento}" não encontrada na biblioteca.`);
+      warn(item, `variante do evento "${item.evento}" não encontrada na biblioteca.`, null);
+      onItemDone();
       continue;
     }
     let card: InstanceNode;
     try {
       card = variant.createInstance();
     } catch (error) {
-      result.avisos.push(`Card ${item.numero}: não foi possível criar (${errorMessage(error)}).`);
+      warn(item, `não foi possível criar (${errorMessage(error)}).`, null);
+      onItemDone();
       continue;
     }
     card.name = `${item.numero}. ${item.evento} — ${item.componente}`;
@@ -109,9 +117,9 @@ async function generateScreen(
     card.setPluginData(CARD_NODE_KEY, item.nodeId);
     card.setPluginData(CARD_NUMBER_KEY, String(item.numero));
     try {
-      result.avisos.push(...(await fillCard(card, item.evento, item.values, item.numero, request.plataforma)).map((a) => `Card ${item.numero}: ${a}`));
+      for (const aviso of await fillCard(card, item.evento, item.values, item.numero, request.plataforma)) warn(item, aviso, card.id);
     } catch (error) {
-      result.avisos.push(`Card ${item.numero}: erro ao preencher (${errorMessage(error)}).`);
+      warn(item, `erro ao preencher (${errorMessage(error)}).`, card.id);
     }
 
     // Nova coluna quando o card passaria da altura do frame (sempre cabe pelo menos um por coluna).
@@ -137,7 +145,7 @@ async function generateScreen(
         const target = (await figma.getNodeByIdAsync(item.nodeId)) as SceneNode | null;
         const bounds = target && "absoluteBoundingBox" in target ? target.absoluteBoundingBox : null;
         if (!target || !bounds) {
-          result.avisos.push(`Card ${item.numero}: o componente "${item.componente}" não existe mais — card criado sem marcador.`);
+          warn(item, "O componente não existe mais — card criado sem marcador.", card.id);
         } else {
           const marker = createComponentMarker(bounds, item.numero, item.evento, item.componente);
           marker.setPluginData(CARD_NODE_KEY, item.nodeId);
@@ -146,8 +154,9 @@ async function generateScreen(
         }
       }
     } catch (error) {
-      result.avisos.push(`Card ${item.numero}: marcador não criado (${errorMessage(error)}).`);
+      warn(item, `marcador não criado (${errorMessage(error)}).`, card.id);
     }
+    onItemDone();
   }
 
   if (created.length > 0) {
@@ -160,18 +169,41 @@ async function generateScreen(
   return result;
 }
 
+/** Erro da geração com um código conhecido (a UI mostra os passos para resolver). */
+export type GenerationFailure = Error & { code?: "biblioteca" };
+
 export async function generateCards(
   request: GenerationRequest,
-  onProgress: (done: number, total: number) => void
+  onProgress: (done: number, total: number, stage: GenerationStage, stageDone: number, stageTotal: number) => void
 ): Promise<GenerationResult> {
   const result: GenerationResult = { screens: [], avisos: [] };
-  const variants = await loadVariants();
+  const screensTotal = request.screens.length;
+  const itemsTotal = request.screens.reduce((sum, screen) => sum + screen.items.length, 0);
+
+  // 1. Carrega o card da biblioteca (importado pela chave).
+  onProgress(0, screensTotal, "biblioteca", 0, 1);
+  let variants: Map<string, ComponentNode>;
+  try {
+    variants = await loadVariants();
+  } catch (error) {
+    const failure: GenerationFailure = new Error(errorMessage(error));
+    failure.code = "biblioteca";
+    throw failure;
+  }
   await figma.loadFontAsync(MARKER_FONT);
 
-  onProgress(0, request.screens.length);
-  for (let index = 0; index < request.screens.length; index++) {
-    result.screens.push(await generateScreen(request.screens[index], request, variants));
-    onProgress(index + 1, request.screens.length);
+  // 2. Cria, preenche e posiciona cada card com o marcador dele (tela por tela).
+  let itemsDone = 0;
+  onProgress(0, screensTotal, "cards", 0, itemsTotal);
+  for (let index = 0; index < screensTotal; index++) {
+    result.screens.push(
+      await generateScreen(request.screens[index], request, variants, () => {
+        itemsDone += 1;
+        onProgress(index, screensTotal, "cards", itemsDone, itemsTotal);
+      })
+    );
+    // 3. O agrupamento "Tagueamento — tela" acontece no fim de cada tela.
+    onProgress(index + 1, screensTotal, "agrupando", index + 1, screensTotal);
     await yieldToFigma();
   }
   return result;

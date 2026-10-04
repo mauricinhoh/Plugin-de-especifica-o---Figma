@@ -10,10 +10,10 @@
  * (a tela anterior pode estar em outro frame).
  */
 
-import { MappingResult, SetupSelection } from "../../shared/types";
+import { MappingPlanItem, MappingResult, PageTagStatus, SetupSelection } from "../../shared/types";
 import { buildPrototypeGraph } from "./prototype";
 import { mapScreen, screenNameOf } from "./mapScreen";
-import { findTagOutput, frameIdOfOutput, tagOutputIndex } from "../generation/existingOutput";
+import { countTaggedCards, findTagOutput, frameIdOfOutput, tagOutputIndex } from "../generation/existingOutput";
 
 import { yieldToFigma } from "../util";
 import { discoverItems } from "../traversal/discovery";
@@ -44,16 +44,30 @@ export function topLevelFrames(): ScreenNode[] {
 
 
 /** Situação da página: quantos frames e quais já têm tagueamento gerado. */
-export function pageTagStatus(): { total: number; tagged: string[] } {
+export function pageTagStatus(): PageTagStatus {
   const frames = topLevelFrames();
   const index = tagOutputIndex();
-  return { total: frames.length, tagged: frames.filter((frame) => findTagOutput(frame, index).length > 0).map((frame) => frame.name) };
+  const tagged = frames.filter((frame) => findTagOutput(frame, index).length > 0);
+  return {
+    total: frames.length,
+    tagged: tagged.map((frame) => frame.name),
+    taggedFrames: tagged.map((frame) => ({ frameId: frame.id, name: frame.name, cards: countTaggedCards(frame, index) }))
+  };
+}
+
+/** Informação extra de progresso, só para a tela de mapeamento mostrar a lista de telas. */
+export interface MappingProgressExtra {
+  plan?: MappingPlanItem[];
+  currentFrameId?: string;
+  finished?: { frameId: string; cards: number };
+  componentsFound?: number;
 }
 
 export async function runMapping(
   setup: SetupSelection,
-  onProgress: (done: number, total: number) => void,
-  skipTagged = false
+  onProgress: (done: number, total: number, extra?: MappingProgressExtra) => void,
+  skipTagged = false,
+  skipFrameIds: string[] = []
 ): Promise<MappingResult> {
   const pageFrames = topLevelFrames();
   const result: MappingResult = { modo: setup.modo, screens: [], avisos: [] };
@@ -73,6 +87,8 @@ export async function runMapping(
     if (skipTagged) {
       const index = tagOutputIndex();
       targets = pageFrames.filter((frame) => findTagOutput(frame, index).length === 0);
+    } else if (skipFrameIds.length > 0) {
+      targets = pageFrames.filter((frame) => !skipFrameIds.includes(frame.id));
     } else {
       targets = pageFrames;
     }
@@ -92,12 +108,21 @@ export async function runMapping(
   const graph = await buildPrototypeGraph(graphFrames);
   const nomeTelaById = new Map(graphFrames.map((frame) => [frame.id, screenNameOf(frame.name)]));
 
-  onProgress(0, targets.length);
+  const plan: MappingPlanItem[] | undefined =
+    setup.modo === "pagina"
+      ? pageFrames.map((frame) => ({ frameId: frame.id, name: frame.name, skipped: !targets.includes(frame) }))
+      : undefined;
+  onProgress(0, targets.length, { plan, currentFrameId: targets[0]?.id });
   for (let index = 0; index < targets.length; index++) {
     const frame = targets[index];
     const discovered = await discoverItems(frame);
-    result.screens.push(mapScreen(frame, discovered, setup, graph, nomeTelaById));
-    onProgress(index + 1, targets.length);
+    onProgress(index, targets.length, { currentFrameId: frame.id, componentsFound: discovered.length });
+    const screen = mapScreen(frame, discovered, setup, graph, nomeTelaById);
+    result.screens.push(screen);
+    onProgress(index + 1, targets.length, {
+      finished: { frameId: frame.id, cards: screen.items.length },
+      currentFrameId: targets[index + 1]?.id
+    });
     await yieldToFigma();
   }
   return result;

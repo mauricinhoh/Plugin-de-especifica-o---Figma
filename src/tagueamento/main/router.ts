@@ -16,7 +16,7 @@ import { postToTagUi } from "./messaging";
 import { loadLastSetup, saveLastSetup } from "./setupStorage";
 import { watchSelection } from "./selection";
 import { pageTagStatus, runMapping } from "./mapping/runMapping";
-import { generateCards } from "./generation/generate";
+import { generateCards, GenerationFailure } from "./generation/generate";
 import { deleteTagOutput } from "./generation/existingOutput";
 import { GenerationRequest, SetupSelection } from "../shared/types";
 import { elementInfo } from "./elementInfo";
@@ -41,12 +41,13 @@ export function isTagueamentoMessage(message: unknown): message is TagUiToMainMe
  * pedido mais recente — se o PD voltou ao setup e mapeou de novo, o
  * resultado do pedido antigo é ignorado lá.
  */
-async function runMappingAndReport(requestId: number, setup: SetupSelection, skipTagged: boolean): Promise<void> {
+async function runMappingAndReport(requestId: number, setup: SetupSelection, skipTagged: boolean, skipFrameIds: string[]): Promise<void> {
   try {
     const result = await runMapping(
       setup,
-      (done, total) => postToTagUi({ type: "tag:mapping-progress", requestId, done, total }),
-      skipTagged
+      (done, total, extra) => postToTagUi({ type: "tag:mapping-progress", requestId, done, total, ...extra }),
+      skipTagged,
+      skipFrameIds
     );
     postToTagUi({ type: "tag:mapping-result", requestId, result });
   } catch (error) {
@@ -64,11 +65,15 @@ async function runGeneration(request: GenerationRequest): Promise<void> {
   if (generationInProgress) return;
   generationInProgress = true;
   try {
-    const result = await generateCards(request, (done, total) => postToTagUi({ type: "tag:generation-progress", done, total }));
+    const result = await generateCards(request, (done, total, stage, stageDone, stageTotal) =>
+      postToTagUi({ type: "tag:generation-progress", done, total, stage, stageDone, stageTotal })
+    );
     postToTagUi({ type: "tag:generation-result", result });
   } catch (error) {
+    const code = (error as GenerationFailure).code === "biblioteca" ? "biblioteca" : "desconhecido";
     postToTagUi({
       type: "tag:generation-error",
+      code,
       message: `Não foi possível gerar os cards: ${error instanceof Error ? error.message : String(error)}`
     });
   } finally {
@@ -83,8 +88,12 @@ async function deleteOutput(frameId: string): Promise<void> {
     return;
   }
   await ensurePageOf(frame);
+  // Fecha o passo de histórico antes e depois, para a exclusão ser UM passo
+  // só no Ctrl+Z do Figma.
+  figma.commitUndo();
   const cards = deleteTagOutput(frame as SceneNode);
-  postToTagUi({ type: "tag:output-deleted", frameName: frame.name, cards });
+  figma.commitUndo();
+  postToTagUi({ type: "tag:output-deleted", frameId: frame.id, frameName: frame.name, cards });
 }
 
 async function focusNodes(nodeIds: string[]): Promise<void> {
@@ -98,7 +107,10 @@ async function focusNodes(nodeIds: string[]): Promise<void> {
     return;
   }
   await ensurePageOf(nodes[0]);
-  figma.viewport.scrollAndZoomIntoView(nodes.filter((node) => pageOf(node)?.id === figma.currentPage.id));
+  const onPage = nodes.filter((node) => pageOf(node)?.id === figma.currentPage.id);
+  // Seleciona e enquadra (os cards gerados, ou o card de um aviso).
+  figma.currentPage.selection = onPage;
+  figma.viewport.scrollAndZoomIntoView(onPage);
 }
 
 async function focusNode(nodeId: string): Promise<void> {
@@ -136,7 +148,7 @@ export function handleTagueamentoMessage(message: TagUiToMainMessage): void {
       watchSelection(message.enabled);
       break;
     case "tag:run-mapping":
-      void runMappingAndReport(message.requestId, message.setup, message.skipTagged === true);
+      void runMappingAndReport(message.requestId, message.setup, message.skipTagged === true, message.skipFrameIds ?? []);
       break;
     case "tag:focus-node":
       runSafely(focusNode(message.nodeId), "Não foi possível mostrar a camada");

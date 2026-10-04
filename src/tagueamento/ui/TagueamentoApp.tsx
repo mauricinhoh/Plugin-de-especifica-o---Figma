@@ -19,6 +19,11 @@ import { buildGenerationRequest, initialReviewState, reviewReducer, totalPendenc
 import { Done, Generating } from "./screens/Generation";
 import { PageTaggedChoice } from "./screens/PageTaggedChoice";
 import { FormsStatus } from "./components/SetupBar";
+import { MappingLive } from "./screens/MappingProgress";
+import { GenerationLive } from "./screens/Generation";
+import { pendenciasOf } from "../shared/review";
+import { screenPendencias } from "./state/reviewStore";
+import "./styles/tag.css";
 
 /**
  * Raiz do fluxo de TAGUEAMENTO.
@@ -58,7 +63,18 @@ interface TagueamentoAppProps {
   onExit: () => void;
 }
 
-export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
+/** Envolve o fluxo para os estilos "tag-" (display: contents não muda o layout). */
+export function TagueamentoApp(props: TagueamentoAppProps) {
+  return (
+    <div className="tag-flow" style={{ display: "contents" }}>
+      <TagFlow {...props} />
+    </div>
+  );
+}
+
+const EMPTY_GENERATION: GenerationLive = { libDone: false, cardsDone: 0, cardsTotal: 0, groupsDone: 0, screensTotal: 0 };
+
+function TagFlow({ onExit }: TagueamentoAppProps) {
   const [screen, setScreen] = useState<TagScreen>("setup");
   const [fileName, setFileName] = useState<string | null>(null);
 
@@ -71,7 +87,7 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
   // Mapeamento (Fase 4)
   const [selection, setSelection] = useState<TagSelectionState>(NO_SELECTION);
   const [mapping, setMapping] = useState<MappingResult | null>(null);
-  const [mappingProgress, setMappingProgress] = useState<{ done: number; total: number } | null>(null);
+  const [mappingLive, setMappingLive] = useState<MappingLive | null>(null);
   const [mappingError, setMappingError] = useState<string | null>(null);
 
   // Revisão (Fase 6)
@@ -89,10 +105,12 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
 
   // Geração (Fase 7)
   const [pageStatus, setPageStatus] = useState<PageTagStatus | null>(null);
-  const [generationProgress, setGenerationProgress] = useState({ done: 0, total: 0 });
+  const [generationLive, setGenerationLive] = useState<GenerationLive>(EMPTY_GENERATION);
   const [generation, setGeneration] = useState<GenerationResult | null>(null);
-  const [generationError, setGenerationError] = useState<string | null>(null);
-  const [deleted, setDeleted] = useState<{ frameName: string; cards: number } | null>(null);
+  const [generationError, setGenerationError] = useState<{ message: string; code?: string } | null>(null);
+  const [deleted, setDeleted] = useState<{ frameId?: string; frameName: string; cards: number } | null>(null);
+  // "Resolver pendências": abre a revisão filtrada, com este card aberto.
+  const [focusPending, setFocusPending] = useState<{ key: string | null } | null>(null);
 
   // Diagnóstico (Fase 2)
 
@@ -124,7 +142,17 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
           break;
         case "tag:mapping-progress":
           if (message.requestId !== mappingRequest.current) break;
-          setMappingProgress({ done: message.done, total: message.total });
+          setMappingLive((current) => {
+            const base: MappingLive = current ?? { done: 0, total: 0, plan: null, currentFrameId: null, finished: {}, componentsFound: null };
+            return {
+              done: message.done,
+              total: message.total,
+              plan: message.plan ?? base.plan,
+              currentFrameId: message.currentFrameId ?? (message.finished ? null : base.currentFrameId),
+              finished: message.finished ? { ...base.finished, [message.finished.frameId]: message.finished.cards } : base.finished,
+              componentsFound: message.componentsFound ?? base.componentsFound
+            };
+          });
           break;
         case "tag:mapping-result":
           if (message.requestId !== mappingRequest.current) break;
@@ -141,7 +169,18 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
           setPageStatus(message.status);
           break;
         case "tag:generation-progress":
-          setGenerationProgress({ done: message.done, total: message.total });
+          setGenerationLive((current) => {
+            const next = { ...current, screensTotal: message.total };
+            if (message.stage === "cards") {
+              next.libDone = true;
+              next.cardsDone = message.stageDone ?? current.cardsDone;
+              next.cardsTotal = message.stageTotal ?? current.cardsTotal;
+            } else if (message.stage === "agrupando") {
+              next.libDone = true;
+              next.groupsDone = message.stageDone ?? current.groupsDone;
+            }
+            return next;
+          });
           break;
         case "tag:generation-result":
           setGeneration(message.result);
@@ -150,13 +189,13 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
           setScreen("done");
           break;
         case "tag:generation-error":
-          setGenerationError(message.message);
+          setGenerationError({ message: message.message, code: message.code });
           setGeneration(null);
           setDeleted(null);
           setScreen("done");
           break;
         case "tag:output-deleted":
-          setDeleted({ frameName: message.frameName, cards: message.cards });
+          setDeleted({ frameId: message.frameId, frameName: message.frameName, cards: message.cards });
           setGeneration(null);
           setGenerationError(null);
           setScreen("done");
@@ -217,13 +256,13 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
 
   const closePlugin = () => postToTagMain({ type: "tag:close-plugin" });
 
-  function startMapping(selectionSetup: SetupSelection, skipTagged = false) {
+  function startMapping(selectionSetup: SetupSelection, skipTagged = false, skipFrameIds: string[] = []) {
     setMapping(null);
     setMappingError(null);
-    setMappingProgress(null);
+    setMappingLive(null);
     setScreen("mapping");
     mappingRequest.current += 1;
-    postToTagMain({ type: "tag:run-mapping", requestId: mappingRequest.current, setup: selectionSetup, skipTagged });
+    postToTagMain({ type: "tag:run-mapping", requestId: mappingRequest.current, setup: selectionSetup, skipTagged, skipFrameIds });
   }
 
   // Página inteira: antes de mapear, vê se alguma tela já tem tagueamento (pergunta uma vez).
@@ -241,7 +280,8 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
 
   function startGeneration() {
     if (!review) return;
-    setGenerationProgress({ done: 0, total: review.screens.length });
+    setGenerationLive({ ...EMPTY_GENERATION, screensTotal: review.screens.length });
+    setGenerationError(null);
     setScreen("generating");
     postToTagMain({ type: "tag:generate", request: buildGenerationRequest(review) });
   }
@@ -294,7 +334,8 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
       <MappingProgress
         setup={setup}
         formsStatus={formsStatus}
-        progress={mappingProgress}
+        screenName={selection.nodeName}
+        live={mappingLive}
         error={mappingError}
         avisos={mapping && mapping.screens.length === 0 ? mapping.avisos : []}
         onRetry={() => (setup.modo === "tela" ? setScreen("frame") : startPageMode())}
@@ -313,6 +354,8 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
         screenIndex={reviewScreen}
         selection={selection}
         elementReply={elementReply}
+        focusPending={focusPending}
+        onFocusPendingHandled={() => setFocusPending(null)}
         dispatch={dispatchReview}
         onScreenIndex={setReviewScreen}
         onRequestElementInfo={(nodeId) => postToTagMain({ type: "tag:element-info", nodeId })}
@@ -338,8 +381,18 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
           setReviewScreen(index);
           setScreen("review");
         }}
+        onResolve={() => {
+          // Primeira tela com pendência, já filtrada e com o primeiro card pendente aberto.
+          const index = review.screens.findIndex((item) => screenPendencias(review, item) > 0);
+          const target = review.screens[Math.max(0, index)];
+          const first = target.items.find((item) => pendenciasOf(item, review.plataforma).length > 0);
+          setReviewScreen(Math.max(0, index));
+          setFocusPending({ key: first ? first.key : null });
+          setScreen("review");
+        }}
         onGenerate={startGeneration}
         onBack={() => setScreen("review")}
+        onEditSetup={() => setScreen("setup")}
         onClose={closePlugin}
       />
     );
@@ -350,8 +403,7 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
     return (
       <PageTaggedChoice
         status={pageStatus}
-        onRedoAll={() => startMapping(setup, false)}
-        onSkip={() => startMapping(setup, true)}
+        onContinue={(skipFrameIds) => startMapping(setup, false, skipFrameIds)}
         onBack={() => setScreen("setup")}
         onClose={closePlugin}
       />
@@ -359,7 +411,7 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
   }
 
   if (screen === "generating") {
-    return <Generating done={generationProgress.done} total={generationProgress.total} />;
+    return <Generating live={generationLive} />;
   }
 
   if (screen === "done") {
@@ -373,16 +425,24 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
           if (ids.length > 0) postToTagMain({ type: "tag:focus-nodes", nodeIds: ids });
           else if (selection.nodeId) postToTagMain({ type: "tag:focus-nodes", nodeIds: [selection.nodeId] });
         }}
+        onGoTo={(nodeId) => postToTagMain({ type: "tag:focus-nodes", nodeIds: [nodeId] })}
         onNew={() => {
-          if (generationError) {
-            setScreen("review");
-            return;
-          }
           setGeneration(null);
           setDeleted(null);
           if (setup?.modo === "tela") setScreen("frame");
           else setScreen("setup");
         }}
+        onRetry={startGeneration}
+        onBackToReview={() => {
+          setGenerationError(null);
+          setScreen("review");
+        }}
+        onTagThisScreen={() => {
+          setDeleted(null);
+          if (setup) setSetup({ ...setup, modo: "tela" });
+          setScreen("frame");
+        }}
+        onExit={onExit}
         onClose={closePlugin}
       />
     );

@@ -77,6 +77,33 @@ const icons: Record<string, IconElement[]> = {
     { type: "path", d: "M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" },
     { type: "path", d: "M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" },
     { type: "path", d: "M2 2l20 20" }
+  ],
+  // Acrescentados no redesign do tagueamento (03/10/2026) — traços da Lucide
+  // ("layers", "lock", "pencil", "trash-2", "skip-forward"), mesma licença ISC.
+  // Retângulos e polígonos da Lucide foram escritos como <path> equivalente.
+  layers: [
+    { type: "path", d: "m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" },
+    { type: "path", d: "m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" },
+    { type: "path", d: "m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" }
+  ],
+  lock: [
+    { type: "path", d: "M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z" },
+    { type: "path", d: "M7 11V7a5 5 0 0 1 10 0v4" }
+  ],
+  pencil: [
+    { type: "path", d: "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" },
+    { type: "path", d: "m15 5 4 4" }
+  ],
+  trash: [
+    { type: "path", d: "M3 6h18" },
+    { type: "path", d: "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" },
+    { type: "path", d: "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" },
+    { type: "path", d: "M10 11v6" },
+    { type: "path", d: "M14 11v6" }
+  ],
+  skip: [
+    { type: "path", d: "M5 4l10 8-10 8V4Z" },
+    { type: "path", d: "M19 5v14" }
   ]
 };
 
@@ -87,6 +114,8 @@ interface IconProps {
   strokeWidth?: number;
   className?: string;
 }
+
+export type IconName = keyof typeof icons;
 
 export function Icon({ name, size = 16, color = "currentColor", strokeWidth = 2.2, className }: IconProps) {
   const elements = icons[name];

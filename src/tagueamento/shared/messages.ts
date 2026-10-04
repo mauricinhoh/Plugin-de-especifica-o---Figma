@@ -16,6 +16,8 @@ import {
   GenerationRequest,
   GenerationResult,
   MappingResult,
+  GenerationStage,
+  MappingPlanItem,
   PageTagStatus,
   SetupSelection,
   TagSelectionState
@@ -39,7 +41,15 @@ export type TagUiToMainMessage =
   /** Fase 4: liga/desliga o acompanhamento da seleção (listener próprio do tagueamento). */
   | { type: "tag:watch-selection"; enabled: boolean }
   /** Fase 4: mapeia o frame selecionado ("tela") ou a página inteira ("pagina"), conforme setup.modo. */
-  | { type: "tag:run-mapping"; requestId: number; setup: SetupSelection; skipTagged?: boolean }
+  | {
+      type: "tag:run-mapping";
+      requestId: number;
+      setup: SetupSelection;
+      /** Pula todas as telas já tagueadas (página inteira). */
+      skipTagged?: boolean;
+      /** Pula só estas telas (página inteira, lista com checkbox). */
+      skipFrameIds?: string[];
+    }
   /** Fase 4: seleciona e enquadra um node no canvas. */
   | { type: "tag:focus-node"; nodeId: string }
   /** Fase 6: pede os dados do elemento escolhido para um evento manual. */
@@ -64,14 +74,36 @@ export type TagMainToUiMessage =
   | { type: "tag:ready"; fileName: string }
   | { type: "tag:last-setup"; setup: SetupSelection | null }
   | { type: "tag:selection-state"; state: TagSelectionState }
-  | { type: "tag:mapping-progress"; requestId: number; done: number; total: number }
+  | {
+      type: "tag:mapping-progress";
+      requestId: number;
+      done: number;
+      total: number;
+      /** Lista de telas (enviada no início, na página inteira), com as puladas. */
+      plan?: MappingPlanItem[];
+      /** Tela sendo mapeada agora. */
+      currentFrameId?: string;
+      /** Tela que acabou de ser mapeada e quantos cards ela teve. */
+      finished?: { frameId: string; cards: number };
+      /** Componentes encontrados na tela atual. */
+      componentsFound?: number;
+    }
   | { type: "tag:mapping-result"; requestId: number; result: MappingResult }
   | { type: "tag:mapping-error"; requestId: number; message: string }
   | { type: "tag:element-info-result"; info: ElementInfo | null }
-  | { type: "tag:generation-progress"; done: number; total: number }
+  | {
+      type: "tag:generation-progress";
+      /** Telas concluídas / total de telas. */
+      done: number;
+      total: number;
+      /** Etapa atual e o contador dela (cards criados e preenchidos, por exemplo). */
+      stage?: GenerationStage;
+      stageDone?: number;
+      stageTotal?: number;
+    }
   | { type: "tag:generation-result"; result: GenerationResult }
-  | { type: "tag:generation-error"; message: string }
-  | { type: "tag:output-deleted"; frameName: string; cards: number }
+  | { type: "tag:generation-error"; message: string; /** "biblioteca" = card da biblioteca indisponível. */ code?: "biblioteca" | "desconhecido" }
+  | { type: "tag:output-deleted"; frameId?: string; frameName: string; cards: number }
   | { type: "tag:page-tag-status-result"; status: PageTagStatus };
 
 /** true quando a mensagem pertence ao tagueamento (prefixo "tag:"). */

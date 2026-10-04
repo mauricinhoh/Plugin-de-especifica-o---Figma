@@ -129,6 +129,8 @@ export interface TagSelectionState {
   element?: { id: string; name: string; type: string } | null;
   /** Cards de tagueamento já gerados para a tela selecionada (0 = nenhum). */
   taggedCards?: number;
+  /** Quantidade de camadas dentro da tela (só informativo). */
+  layerCount?: number;
 }
 
 /** Fase 6: dados do elemento escolhido para um evento manual. */
@@ -151,6 +153,8 @@ export interface GenerationItem {
   componente: string;
   evento: string;
   origem: "tela" | "componente" | "manual";
+  /** Texto do componente (só para os avisos da tela de resultado). */
+  label?: string | null;
   /** Valores revisados, com o nome do parâmetro igual ao do card. */
   values: Record<string, string>;
 }
@@ -174,6 +178,27 @@ export interface GeneratedScreen {
   /** Grupo "Tagueamento — …" criado (para "Mostrar na tela"). */
   groupId: string | null;
   avisos: string[];
+  /** Os mesmos avisos dos cards, com o card a que se referem (para "Ir para"). */
+  avisosDetalhados?: GenerationWarning[];
+}
+
+export interface GenerationWarning {
+  numero: number;
+  componente: string;
+  label: string | null;
+  mensagem: string;
+  /** Card criado no canvas (para "Ir para"), ou null se o card não foi criado. */
+  cardId: string | null;
+}
+
+/** Etapas reais da geração, na ordem em que o código as executa. */
+export type GenerationStage = "biblioteca" | "cards" | "agrupando";
+
+/** Tela da página inteira na lista de progresso do mapeamento. */
+export interface MappingPlanItem {
+  frameId: string;
+  name: string;
+  skipped: boolean;
 }
 
 export interface GenerationResult {
@@ -186,4 +211,6 @@ export interface PageTagStatus {
   total: number;
   /** Nomes dos frames que já têm tagueamento gerado. */
   tagged: string[];
+  /** Os mesmos frames, com id e quantidade de cards (lista com checkbox). */
+  taggedFrames?: { frameId: string; name: string; cards: number }[];
 }

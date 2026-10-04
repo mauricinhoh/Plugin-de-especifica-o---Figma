@@ -1,23 +1,26 @@
 import React, { useEffect, useId, useState } from "react";
 import { Icon } from "./Icon";
+import { Dropdown } from "./Dropdown";
 
 /**
- * Campo de parâmetro da revisão (Fase 6). O PD digita livremente; ao sair do
- * campo, o valor é corrigido pelas regras de nomenclatura (quem faz isso é
- * quem recebe `onCommit`). Mostra notas do dicionário e pendências do campo.
+ * Campo de parâmetro da revisão (redesign 03/10/2026). O PD digita livremente;
+ * ao sair do campo, o valor é corrigido pelas regras de nomenclatura (quem faz
+ * isso é quem recebe `onCommit`). Mostra notas do dicionário e pendências.
+ * Sem <select>/<datalist> nativos: seletor customizado e sugestões em chips.
  */
 
 interface ParamFieldProps {
   field: string;
   value: string;
   optional?: boolean;
-  /** Região/subregion: só leitura (vêm do setup). */
-  readOnlyNote?: string;
+  /** Region/subregion: travados (vêm do setup). */
+  locked?: boolean;
+  onEditSetup?: () => void;
   /** Seletor em vez de texto livre (ex.: local_type). */
   options?: string[];
-  /** Sugestões (ex.: telas de destino do protótipo). */
+  /** Sugestões (ex.: telas do protótipo). */
   suggestions?: string[];
-  /** Campo obrigatório vazio ou com termo sinalizado. */
+  /** Campo com pendência (obrigatório vazio, termo sinalizado…). */
   pending?: boolean;
   notes?: string[];
   /** Pendência do campo com botão "Manter assim". */
@@ -26,13 +29,12 @@ interface ParamFieldProps {
   onAccept?: () => void;
 }
 
-const labelStyle: React.CSSProperties = { fontFamily: "var(--font-mono)", fontSize: 11.5, fontWeight: 700 };
-
 export function ParamField({
   field,
   value,
   optional,
-  readOnlyNote,
+  locked,
+  onEditSetup,
   options,
   suggestions,
   pending,
@@ -42,7 +44,6 @@ export function ParamField({
   onAccept
 }: ParamFieldProps) {
   const id = useId();
-  const listId = `${id}-sugestoes`;
   const isPlaceholder = value.trim().startsWith("<") && value.trim().endsWith(">");
   const [draft, setDraft] = useState(isPlaceholder ? "" : value);
 
@@ -51,80 +52,83 @@ export function ParamField({
     setDraft(isPlaceholder ? "" : value);
   }, [value, isPlaceholder]);
 
-  const border = pending ? "var(--color-warning-border)" : "var(--color-border-strong)";
-  const background = readOnlyNote ? "var(--color-surface-muted)" : pending ? "var(--color-warning-bg-soft)" : "var(--color-surface)";
+  const emptyRequired = !optional && pending && draft.trim() === "";
+  const placeholder = isPlaceholder ? value : optional ? "opcional" : field === "content_type" ? "ex.: Botao_ajuda" : "Preencha o valor";
+  const visibleSuggestions = (suggestions ?? []).filter((suggestion) => suggestion !== draft);
 
   return (
-    <div style={{ marginTop: 10 }}>
-      <label htmlFor={id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ ...labelStyle, color: pending ? "var(--color-warning)" : "var(--color-text-dark)" }}>
+    <div className="tag-param">
+      <label className="tag-param__label" htmlFor={id}>
+        <span className="tag-param__name tag-ellipsis">
           {field}
           {optional ? "*" : ""}
         </span>
-        {readOnlyNote && <span style={{ fontSize: 10.5, color: "var(--color-text-subtle)" }}>{readOnlyNote}</span>}
+        {emptyRequired && <span className="tag-param__req">Obrigatório</span>}
+        {locked && <span className="tag-param__from">vem do setup</span>}
       </label>
 
-      {options ? (
-        <select
-          id={id}
-          value={value}
-          onChange={(event) => onCommit(event.target.value)}
-          style={{ marginTop: 4, width: "100%", height: 34, borderRadius: 8, border: `1px solid ${border}`, padding: "0 8px", fontSize: 12.5, background }}
-        >
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+      {locked ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="tag-locked" style={{ flex: 1, minWidth: 0 }} id={id} aria-readonly="true">
+            <Icon name="lock" size={13} color="#8A9382" />
+            <span className="tag-locked__value tag-ellipsis" title={value}>
+              {value}
+            </span>
+          </div>
+          {onEditSetup && (
+            <button type="button" className="tag-link" style={{ fontSize: 11.5, marginTop: 6 }} onClick={onEditSetup}>
+              Alterar
+            </button>
+          )}
+        </div>
+      ) : options ? (
+        <div style={{ marginTop: 6 }}>
+          <Dropdown
+            id={id}
+            compact
+            ariaLabel={field}
+            placeholder="Escolha"
+            options={options.map((option) => ({ value: option, label: option }))}
+            value={value || null}
+            onChange={onCommit}
+          />
+        </div>
       ) : (
         <>
           <input
             id={id}
+            className={`tag-input${pending ? " tag-input--pending" : ""}`}
             value={draft}
-            readOnly={!!readOnlyNote}
-            list={suggestions && suggestions.length > 0 ? listId : undefined}
-            placeholder={isPlaceholder ? value : optional ? "opcional" : "preencha"}
+            placeholder={placeholder}
             onChange={(event) => setDraft(event.target.value)}
             onBlur={() => {
-              if (readOnlyNote) return;
               if (draft !== (isPlaceholder ? "" : value)) onCommit(draft);
             }}
             onKeyDown={(event) => {
               if (event.key === "Enter") (event.target as HTMLInputElement).blur();
             }}
-            style={{
-              marginTop: 4,
-              width: "100%",
-              height: 34,
-              borderRadius: 8,
-              border: `1px solid ${border}`,
-              padding: "0 10px",
-              fontFamily: "var(--font-mono)",
-              fontSize: 12,
-              background,
-              color: readOnlyNote ? "var(--color-text-muted)" : "var(--color-text-dark)",
-              outline: "none"
-            }}
           />
-          {suggestions && suggestions.length > 0 && (
-            <datalist id={listId}>
-              {suggestions.map((suggestion) => (
-                <option key={suggestion} value={suggestion} />
+          {visibleSuggestions.length > 0 && (
+            <div className="tag-suggest">
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-subtle)" }}>Sugestões:</span>
+              {visibleSuggestions.map((suggestion) => (
+                <button key={suggestion} type="button" className="tag-suggest__chip tag-ellipsis" title={suggestion} onClick={() => onCommit(suggestion)}>
+                  {suggestion}
+                </button>
               ))}
-            </datalist>
+            </div>
           )}
         </>
       )}
 
       {notes.map((nota, index) => (
-        <div key={`n${index}`} style={{ marginTop: 4, display: "flex", gap: 5, fontSize: 11, color: "var(--color-text-muted)" }}>
+        <div key={`n${index}`} style={{ marginTop: 5, display: "flex", gap: 5, fontSize: 11, color: "var(--color-text-muted)" }}>
           <Icon name="info" size={11} color="var(--color-text-subtle)" />
           <span style={{ overflowWrap: "anywhere", minWidth: 0 }}>{nota}</span>
         </div>
       ))}
       {flagText.map((texto, index) => (
-        <div key={`f${index}`} style={{ marginTop: 4, display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, fontWeight: 700, color: "var(--color-warning)" }}>
+        <div key={`f${index}`} style={{ marginTop: 5, display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, fontWeight: 700, color: "var(--color-warning)" }}>
           <Icon name="alert-triangle" size={12} color="var(--color-warning)" />
           <span style={{ flex: 1, overflowWrap: "anywhere", minWidth: 0 }}>{texto}</span>
           {onAccept && index === 0 && (

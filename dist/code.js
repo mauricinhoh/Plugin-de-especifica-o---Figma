@@ -3225,9 +3225,15 @@
   function pageTagStatus() {
     const frames = topLevelFrames();
     const index = tagOutputIndex();
-    return { total: frames.length, tagged: frames.filter((frame) => findTagOutput(frame, index).length > 0).map((frame) => frame.name) };
+    const tagged = frames.filter((frame) => findTagOutput(frame, index).length > 0);
+    return {
+      total: frames.length,
+      tagged: tagged.map((frame) => frame.name),
+      taggedFrames: tagged.map((frame) => ({ frameId: frame.id, name: frame.name, cards: countTaggedCards(frame, index) }))
+    };
   }
-  async function runMapping(setup, onProgress, skipTagged = false) {
+  async function runMapping(setup, onProgress, skipTagged = false, skipFrameIds = []) {
+    var _a2, _b;
     const pageFrames = topLevelFrames();
     const result = { modo: setup.modo, screens: [], avisos: [] };
     let targets;
@@ -3244,6 +3250,8 @@
       if (skipTagged) {
         const index = tagOutputIndex();
         targets = pageFrames.filter((frame) => findTagOutput(frame, index).length === 0);
+      } else if (skipFrameIds.length > 0) {
+        targets = pageFrames.filter((frame) => !skipFrameIds.includes(frame.id));
       } else {
         targets = pageFrames;
       }
@@ -3258,12 +3266,18 @@
     for (const target of targets) if (!graphFrames.includes(target)) graphFrames.push(target);
     const graph = await buildPrototypeGraph(graphFrames);
     const nomeTelaById = new Map(graphFrames.map((frame) => [frame.id, screenNameOf(frame.name)]));
-    onProgress(0, targets.length);
+    const plan = setup.modo === "pagina" ? pageFrames.map((frame) => ({ frameId: frame.id, name: frame.name, skipped: !targets.includes(frame) })) : void 0;
+    onProgress(0, targets.length, { plan, currentFrameId: (_a2 = targets[0]) == null ? void 0 : _a2.id });
     for (let index = 0; index < targets.length; index++) {
       const frame = targets[index];
       const discovered = await discoverItems(frame);
-      result.screens.push(mapScreen(frame, discovered, setup, graph, nomeTelaById));
-      onProgress(index + 1, targets.length);
+      onProgress(index, targets.length, { currentFrameId: frame.id, componentsFound: discovered.length });
+      const screen = mapScreen(frame, discovered, setup, graph, nomeTelaById);
+      result.screens.push(screen);
+      onProgress(index + 1, targets.length, {
+        finished: { frameId: frame.id, cards: screen.items.length },
+        currentFrameId: (_b = targets[index + 1]) == null ? void 0 : _b.id
+      });
       await yieldToFigma();
     }
     return result;
@@ -3290,7 +3304,8 @@
         width: Math.round(node.width),
         height: Math.round(node.height),
         element,
-        taggedCards: countTaggedCards(node)
+        taggedCards: countTaggedCards(node),
+        layerCount: "findAll" in node ? node.findAll(() => true).length : 0
       };
     }
     return { valid: false, nodeId: null, nodeName: null, element };
@@ -3565,8 +3580,13 @@
     group.x = absX - parent.absoluteTransform[0][2];
     group.y = absY - parent.absoluteTransform[1][2];
   }
-  async function generateScreen(screen, request, variants) {
-    const result = { frameId: screen.frameId, nomeTela: screen.nomeTela, cards: 0, groupId: null, avisos: [] };
+  async function generateScreen(screen, request, variants, onItemDone) {
+    const result = { frameId: screen.frameId, nomeTela: screen.nomeTela, cards: 0, groupId: null, avisos: [], avisosDetalhados: [] };
+    const warn = (item, mensagem, cardId) => {
+      var _a2, _b;
+      result.avisos.push(`Card ${item.numero}: ${mensagem}`);
+      (_b = result.avisosDetalhados) == null ? void 0 : _b.push({ numero: item.numero, componente: item.componente, label: (_a2 = item.label) != null ? _a2 : null, mensagem, cardId });
+    };
     const frame = await figma.getNodeByIdAsync(screen.frameId);
     if (!frame || !("absoluteBoundingBox" in frame) || !frame.absoluteBoundingBox) {
       result.avisos.push(`A tela "${screen.nomeTela}" n\xE3o existe mais no arquivo.`);
@@ -3583,14 +3603,16 @@
     for (const item of screen.items) {
       const variant = variants.get(item.evento);
       if (!variant) {
-        result.avisos.push(`Card ${item.numero}: variante do evento "${item.evento}" n\xE3o encontrada na biblioteca.`);
+        warn(item, `variante do evento "${item.evento}" n\xE3o encontrada na biblioteca.`, null);
+        onItemDone();
         continue;
       }
       let card;
       try {
         card = variant.createInstance();
       } catch (error) {
-        result.avisos.push(`Card ${item.numero}: n\xE3o foi poss\xEDvel criar (${errorMessage(error)}).`);
+        warn(item, `n\xE3o foi poss\xEDvel criar (${errorMessage(error)}).`, null);
+        onItemDone();
         continue;
       }
       card.name = `${item.numero}. ${item.evento} \u2014 ${item.componente}`;
@@ -3598,9 +3620,9 @@
       card.setPluginData(CARD_NODE_KEY, item.nodeId);
       card.setPluginData(CARD_NUMBER_KEY, String(item.numero));
       try {
-        result.avisos.push(...(await fillCard(card, item.evento, item.values, item.numero, request.plataforma)).map((a) => `Card ${item.numero}: ${a}`));
+        for (const aviso of await fillCard(card, item.evento, item.values, item.numero, request.plataforma)) warn(item, aviso, card.id);
       } catch (error) {
-        result.avisos.push(`Card ${item.numero}: erro ao preencher (${errorMessage(error)}).`);
+        warn(item, `erro ao preencher (${errorMessage(error)}).`, card.id);
       }
       if (y > frameBox.y && y + card.height > bottomLimit) {
         x += columnWidth + GAP_BETWEEN_COLUMNS;
@@ -3622,7 +3644,7 @@
           const target = await figma.getNodeByIdAsync(item.nodeId);
           const bounds = target && "absoluteBoundingBox" in target ? target.absoluteBoundingBox : null;
           if (!target || !bounds) {
-            result.avisos.push(`Card ${item.numero}: o componente "${item.componente}" n\xE3o existe mais \u2014 card criado sem marcador.`);
+            warn(item, "O componente n\xE3o existe mais \u2014 card criado sem marcador.", card.id);
           } else {
             const marker = createComponentMarker(bounds, item.numero, item.evento, item.componente);
             marker.setPluginData(CARD_NODE_KEY, item.nodeId);
@@ -3631,8 +3653,9 @@
           }
         }
       } catch (error) {
-        result.avisos.push(`Card ${item.numero}: marcador n\xE3o criado (${errorMessage(error)}).`);
+        warn(item, `marcador n\xE3o criado (${errorMessage(error)}).`, card.id);
       }
+      onItemDone();
     }
     if (created.length > 0) {
       const group = figma.group(created, figma.currentPage);
@@ -3645,12 +3668,28 @@
   }
   async function generateCards(request, onProgress) {
     const result = { screens: [], avisos: [] };
-    const variants = await loadVariants();
+    const screensTotal = request.screens.length;
+    const itemsTotal = request.screens.reduce((sum, screen) => sum + screen.items.length, 0);
+    onProgress(0, screensTotal, "biblioteca", 0, 1);
+    let variants;
+    try {
+      variants = await loadVariants();
+    } catch (error) {
+      const failure = new Error(errorMessage(error));
+      failure.code = "biblioteca";
+      throw failure;
+    }
     await figma.loadFontAsync(MARKER_FONT2);
-    onProgress(0, request.screens.length);
-    for (let index = 0; index < request.screens.length; index++) {
-      result.screens.push(await generateScreen(request.screens[index], request, variants));
-      onProgress(index + 1, request.screens.length);
+    let itemsDone = 0;
+    onProgress(0, screensTotal, "cards", 0, itemsTotal);
+    for (let index = 0; index < screensTotal; index++) {
+      result.screens.push(
+        await generateScreen(request.screens[index], request, variants, () => {
+          itemsDone += 1;
+          onProgress(index, screensTotal, "cards", itemsDone, itemsTotal);
+        })
+      );
+      onProgress(index + 1, screensTotal, "agrupando", index + 1, screensTotal);
       await yieldToFigma();
     }
     return result;
@@ -3683,12 +3722,13 @@
   function isTagueamentoMessage(message) {
     return typeof message === "object" && message !== null && isTagMessageType(message.type);
   }
-  async function runMappingAndReport(requestId, setup, skipTagged) {
+  async function runMappingAndReport(requestId, setup, skipTagged, skipFrameIds) {
     try {
       const result = await runMapping(
         setup,
-        (done, total) => postToTagUi({ type: "tag:mapping-progress", requestId, done, total }),
-        skipTagged
+        (done, total, extra) => postToTagUi(__spreadValues({ type: "tag:mapping-progress", requestId, done, total }, extra)),
+        skipTagged,
+        skipFrameIds
       );
       postToTagUi({ type: "tag:mapping-result", requestId, result });
     } catch (error) {
@@ -3704,11 +3744,16 @@
     if (generationInProgress) return;
     generationInProgress = true;
     try {
-      const result = await generateCards(request, (done, total) => postToTagUi({ type: "tag:generation-progress", done, total }));
+      const result = await generateCards(
+        request,
+        (done, total, stage, stageDone, stageTotal) => postToTagUi({ type: "tag:generation-progress", done, total, stage, stageDone, stageTotal })
+      );
       postToTagUi({ type: "tag:generation-result", result });
     } catch (error) {
+      const code = error.code === "biblioteca" ? "biblioteca" : "desconhecido";
       postToTagUi({
         type: "tag:generation-error",
+        code,
         message: `N\xE3o foi poss\xEDvel gerar os cards: ${error instanceof Error ? error.message : String(error)}`
       });
     } finally {
@@ -3722,8 +3767,10 @@
       return;
     }
     await ensurePageOf(frame);
+    figma.commitUndo();
     const cards = deleteTagOutput(frame);
-    postToTagUi({ type: "tag:output-deleted", frameName: frame.name, cards });
+    figma.commitUndo();
+    postToTagUi({ type: "tag:output-deleted", frameId: frame.id, frameName: frame.name, cards });
   }
   async function focusNodes(nodeIds) {
     const nodes = [];
@@ -3736,10 +3783,12 @@
       return;
     }
     await ensurePageOf(nodes[0]);
-    figma.viewport.scrollAndZoomIntoView(nodes.filter((node) => {
+    const onPage = nodes.filter((node) => {
       var _a2;
       return ((_a2 = pageOf(node)) == null ? void 0 : _a2.id) === figma.currentPage.id;
-    }));
+    });
+    figma.currentPage.selection = onPage;
+    figma.viewport.scrollAndZoomIntoView(onPage);
   }
   async function focusNode2(nodeId) {
     const node = await figma.getNodeByIdAsync(nodeId);
@@ -3752,6 +3801,7 @@
     }
   }
   function handleTagueamentoMessage(message) {
+    var _a2;
     switch (message.type) {
       case "tag:ui-ready":
         postToTagUi({ type: "tag:ready", fileName: figma.root.name });
@@ -3773,7 +3823,7 @@
         watchSelection(message.enabled);
         break;
       case "tag:run-mapping":
-        void runMappingAndReport(message.requestId, message.setup, message.skipTagged === true);
+        void runMappingAndReport(message.requestId, message.setup, message.skipTagged === true, (_a2 = message.skipFrameIds) != null ? _a2 : []);
         break;
       case "tag:focus-node":
         runSafely(focusNode2(message.nodeId), "N\xE3o foi poss\xEDvel mostrar a camada");

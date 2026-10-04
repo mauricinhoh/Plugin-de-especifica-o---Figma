@@ -223,7 +223,7 @@ export function buildGenerationRequest(state: ReviewState): GenerationRequest {
         }
         values.region = state.region;
         values.subregion = state.subregion;
-        return { numero: index + 1, nodeId: item.nodeId, componente: item.componente, evento: item.evento, origem: item.origem, values };
+        return { numero: index + 1, nodeId: item.nodeId, componente: item.componente, label: item.label, evento: item.evento, origem: item.origem, values };
       })
     }))
   };

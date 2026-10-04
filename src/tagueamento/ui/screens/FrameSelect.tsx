@@ -7,10 +7,8 @@ import { Icon } from "../components/Icon";
 import { FormsNotice, FormsStatus } from "../components/SetupBar";
 
 /**
- * Fase 4 — "Selecione uma tela" (modo Tela por tela).
- * CÓPIA adaptada da Etapa 1 da acessibilidade (src/ui/components/Step1.tsx):
- * mesmo visual do card de seleção, sem o fluxo de "tela já marcada" (que
- * entra na Fase 7, com chaves próprias do tagueamento).
+ * Telas 05/06 (Selecione uma tela) e 17 (Tela já tagueada) do redesign de
+ * 03/10/2026. Mesmas ações de antes: mapear, refazer ou excluir os marcadores.
  */
 
 interface FrameSelectProps {
@@ -33,222 +31,221 @@ function isTypingTarget(element: Element | null): boolean {
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (element as HTMLElement).isContentEditable;
 }
 
-export function FrameSelect({ setup, formsStatus, selection, onMap, onDeleteOutput, onEditSetup, onExit, onClose }: FrameSelectProps) {
-  // Tela que já tem tagueamento: pergunta o que fazer (spec 3.3, igual à acessibilidade).
+function metaOf(selection: TagSelectionState): string {
+  const parts: string[] = [];
+  if (selection.nodeType) parts.push(selection.nodeType === "FRAME" ? "Frame" : selection.nodeType === "GROUP" ? "Grupo" : selection.nodeType);
+  if (selection.width !== undefined && selection.height !== undefined) parts.push(`${selection.width}×${selection.height}`);
+  if (selection.layerCount !== undefined) parts.push(`${selection.layerCount} ${selection.layerCount === 1 ? "camada" : "camadas"}`);
+  return parts.join(" · ");
+}
+
+export function FrameSelect({ formsStatus, selection, onMap, onDeleteOutput, onEditSetup, onClose }: FrameSelectProps) {
   const tagged = selection.valid && (selection.taggedCards ?? 0) > 0;
+  const cards = selection.taggedCards ?? 0;
+
   useEffect(() => {
     function handleKeydown(event: KeyboardEvent) {
       if (event.key !== "Enter" || isTypingTarget(document.activeElement) || !selection.valid || tagged) return;
+      // Enter num botão focado já dispara o clique dele.
+      if (document.activeElement && document.activeElement.tagName === "BUTTON") return;
       onMap();
     }
     window.addEventListener("keydown", handleKeydown);
     return () => window.removeEventListener("keydown", handleKeydown);
   }, [selection.valid, tagged, onMap]);
 
-  const metaDims = selection.width !== undefined && selection.height !== undefined;
+  // 17 · Tela já tagueada
+  if (tagged) {
+    return (
+      <>
+        <TitleBar title="Tagueamento" showBack onBack={onEditSetup} onClose={onClose} />
+        <div className="scroll-area">
+          <div style={{ padding: "28px 24px 20px" }}>
+            <FormsNotice formsStatus={formsStatus} />
+            <span className="tag-pill tag-pill--ok" style={{ marginTop: formsStatus ? 16 : 0 }}>
+              <Icon name="tag" size={12} color="#266009" />
+              Já tagueada · {cards} {cards === 1 ? "card" : "cards"}
+            </span>
+            <h2 className="tag-h2" style={{ marginTop: 12, display: "flex", gap: 6, minWidth: 0, flexWrap: "nowrap" }}>
+              <span style={{ flex: "0 0 auto" }}>O que fazer com</span>
+              <span style={{ display: "flex", minWidth: 0 }}>
+                <span className="tag-ellipsis" style={{ color: "var(--color-primary)" }} title={selection.nodeName ?? ""}>
+                  {selection.nodeName}
+                </span>
+                <span style={{ flex: "0 0 auto" }}>?</span>
+              </span>
+            </h2>
 
+            <div
+              style={{
+                marginTop: 16,
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: 12,
+                borderRadius: 12,
+                border: "1px solid var(--color-border)",
+                background: "var(--color-surface-subtle)"
+              }}
+            >
+              <div style={{ width: 34, height: 34, flex: "0 0 34px", borderRadius: 9, background: "#fff", border: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icon name="frame" size={16} color="#5C6459" />
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div className="tag-ellipsis" style={{ fontSize: 13.5, fontWeight: 800 }} title={selection.nodeName ?? ""}>
+                  {selection.nodeName}
+                </div>
+                <div className="tag-mono tag-ellipsis" style={{ fontSize: 11, fontWeight: 700, color: "#4E6A3C", marginTop: 1 }}>
+                  {metaOf(selection)}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+              <button type="button" className="tag-choice" onClick={onMap}>
+                <span className="tag-choice__icon">
+                  <Icon name="refresh" size={19} color="#33820D" />
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span className="tag-choice__title" style={{ display: "block" }}>
+                    Refazer o tagueamento
+                  </span>
+                  <span className="tag-choice__desc" style={{ display: "block" }}>
+                    Mapeia de novo. {cards === 1 ? "O card antigo só sai" : `Os ${cards} cards antigos só saem`} quando você gerar os novos.
+                  </span>
+                </span>
+                <Icon name="chevron-right" size={16} color="#8A9382" />
+              </button>
+              <button type="button" className="tag-choice tag-choice--danger" onClick={onDeleteOutput}>
+                <span className="tag-choice__icon">
+                  <Icon name="trash" size={19} color="#C73434" />
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span className="tag-choice__title" style={{ display: "block" }}>
+                    Excluir marcadores
+                  </span>
+                  <span className="tag-choice__desc" style={{ display: "block" }}>
+                    Remove {cards === 1 ? "o card" : `os ${cards} cards`} desta tela. Dá para desfazer com Ctrl+Z.
+                  </span>
+                </span>
+                <Icon name="chevron-right" size={16} color="#8A9382" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // 05/06 · Selecione uma tela
   return (
     <>
       <TitleBar title="Tagueamento" showBack onBack={onEditSetup} onClose={onClose} />
-      {!tagged && <Stepper current={1} progress={1} />}
-      <div className="scroll-area" style={{ padding: "18px 24px 24px" }}>
-        <FormsNotice formsStatus={formsStatus} />
+      <Stepper current={1} progress={1} />
+      <div className="scroll-area">
+        <div className="tag-body">
+          <FormsNotice formsStatus={formsStatus} />
+          <h2 className="tag-h2" style={{ marginTop: formsStatus ? 18 : 0 }}>
+            Selecione uma tela
+          </h2>
+          <p className="tag-sub">Escolha no canvas o frame que você quer taguear.</p>
 
-        {tagged ? (
-          <>
-            <h2 style={{ fontSize: 21, fontWeight: 900, letterSpacing: "-.025em", margin: formsStatus ? "20px 0 0" : 0, overflowWrap: "anywhere" }}>
-              O que deseja fazer com essa tela {selection.nodeName}?
-            </h2>
-            <p style={{ marginTop: 6, fontSize: "13.5px", lineHeight: 1.45, color: "var(--color-text-muted)" }}>
-              Ela já tem {selection.taggedCards} {selection.taggedCards === 1 ? "card" : "cards"} de tagueamento.
-            </p>
-          </>
-        ) : (
-          <>
-            <h2 style={{ fontSize: 21, fontWeight: 900, letterSpacing: "-.025em", margin: formsStatus ? "20px 0 0" : 0 }}>Selecione uma tela</h2>
-            <p style={{ marginTop: 6, fontSize: "13.5px", lineHeight: 1.45, color: "var(--color-text-muted)" }}>
-              Escolha no canvas o frame que você quer taguear.
-            </p>
-          </>
-        )}
-
-        {!selection.valid ? (
-          <>
-            <div
-              style={{
-                marginTop: 18,
-                border: "1.5px dashed var(--color-border-strong)",
-                borderRadius: 12,
-                background: "var(--color-surface-subtle)",
-                padding: "26px 22px",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                textAlign: "center"
-              }}
-            >
+          {!selection.valid ? (
+            <>
               <div
                 style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 13,
-                  background: "#fff",
-                  border: "1px solid var(--color-border)",
+                  marginTop: 20,
+                  border: "1.5px dashed #D3DACB",
+                  borderRadius: 12,
+                  background: "#F9FBF7",
+                  padding: "26px 22px",
                   display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
-                  justifyContent: "center"
+                  textAlign: "center"
                 }}
               >
-                <Icon name="frame" size={22} color="var(--color-text-subtle)" />
-              </div>
-              <div style={{ marginTop: 14, fontSize: "14.5px", fontWeight: 800 }}>Nenhuma tela selecionada</div>
-              <div style={{ marginTop: 4, fontSize: "12.5px", lineHeight: 1.45, color: "var(--color-text-muted)", maxWidth: 250 }}>
-                Clique em um frame no canvas do Figma — o plugin acompanha sua seleção em tempo real.
-              </div>
-            </div>
-            <div style={{ marginTop: 18 }}>
-              <span style={{ fontSize: "10.5px", fontWeight: 900, textTransform: "uppercase", letterSpacing: ".09em", color: "var(--color-text-subtle)" }}>
-                Aceita
-              </span>
-              <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {CHIPS.map((chip) => (
-                  <span
-                    key={chip}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 5,
-                      padding: "6px 11px",
-                      borderRadius: 999,
-                      background: "var(--color-surface-muted)",
-                      border: "1px solid var(--color-border)",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: "#3C4438"
-                    }}
-                  >
-                    <Icon name="check" size={12} color="var(--color-primary)" />
-                    {chip}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </>
-        ) : (
-          <div
-            style={{
-              marginTop: 18,
-              border: "1px solid var(--color-primary)",
-              borderRadius: 12,
-              background: "var(--color-primary-tint-strong)",
-              padding: 16,
-              boxShadow: "0 0 0 3px rgba(51,130,13,.08)",
-              display: "flex",
-              gap: 13
-            }}
-          >
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                minWidth: 38,
-                borderRadius: 10,
-                background: "var(--color-primary)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-            >
-              <Icon name="frame" size={18} color="#fff" />
-            </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  fontSize: "10.5px",
-                  fontWeight: 900,
-                  textTransform: "uppercase",
-                  letterSpacing: ".08em",
-                  color: "var(--color-primary-ink)"
-                }}
-              >
-                Tela selecionada
-                <Icon name="check" size={12} color="var(--color-primary)" />
-              </div>
-              <div style={{ fontSize: "14.5px", fontWeight: 800, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {selection.nodeName}
-              </div>
-              {(selection.nodeType || metaDims) && (
-                <div style={{ marginTop: 4, fontFamily: "var(--font-mono)", fontSize: "11.5px", fontWeight: 700, color: "#4E6A3C" }}>
-                  {selection.nodeType}
-                  {selection.nodeType && metaDims ? " · " : ""}
-                  {metaDims ? `${selection.width}×${selection.height}` : ""}
+                <div style={{ width: 48, height: 48, borderRadius: 13, background: "#fff", border: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon name="frame" size={22} color="#8A9382" />
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        <div
-          style={{
-            marginTop: 14,
-            padding: "12px 14px",
-            borderRadius: 10,
-            background: "var(--color-surface-muted)",
-            border: "1px solid var(--color-border)",
-            display: "flex",
-            gap: 10,
-            alignItems: "flex-start"
-          }}
-        >
-          <Icon name="info" size={15} color="var(--color-text-muted)" />
-          <span style={{ fontSize: "12.5px", lineHeight: 1.45, color: "#3C4438" }}>
-            Vamos encontrar os componentes da tela e preparar os eventos. Você revisa tudo antes de gerar os cards.
-          </span>
+                <div style={{ marginTop: 14, fontSize: 14.5, fontWeight: 800 }}>Nenhuma tela selecionada</div>
+                <div style={{ marginTop: 4, fontSize: 12.5, lineHeight: 1.45, color: "var(--color-text-muted)", maxWidth: 260 }}>
+                  Clique em um frame no canvas do Figma — o plugin acompanha sua seleção em tempo real.
+                </div>
+              </div>
+              <div style={{ marginTop: 18 }}>
+                <span className="tag-label-card">Aceita</span>
+                <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {CHIPS.map((chip) => (
+                    <span
+                      key={chip}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 5,
+                        padding: "6px 11px",
+                        borderRadius: 999,
+                        background: "var(--color-surface-muted)",
+                        border: "1px solid var(--color-border)",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "#3C4438"
+                      }}
+                    >
+                      <Icon name="check" size={12} color="#33820D" />
+                      {chip}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div
+                style={{
+                  marginTop: 20,
+                  border: "1px solid #33820D",
+                  borderRadius: 12,
+                  background: "#F4F9F0",
+                  padding: 16,
+                  boxShadow: "0 0 0 3px rgba(51,130,13,.08)",
+                  display: "flex",
+                  gap: 13,
+                  alignItems: "center"
+                }}
+              >
+                <div style={{ width: 38, height: 38, flex: "0 0 38px", borderRadius: 10, background: "#33820D", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon name="frame" size={18} color="#fff" />
+                </div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5 }} className="tag-label-card">
+                    <span style={{ color: "var(--color-primary-ink)" }}>Tela selecionada</span>
+                    <Icon name="check" size={12} color="#33820D" />
+                  </div>
+                  <div className="tag-ellipsis" style={{ fontSize: 14.5, fontWeight: 800, marginTop: 2 }} title={selection.nodeName ?? ""}>
+                    {selection.nodeName}
+                  </div>
+                  <div className="tag-mono tag-ellipsis" style={{ marginTop: 3, fontSize: 11.5, fontWeight: 700, color: "#4E6A3C" }}>
+                    {metaOf(selection)}
+                  </div>
+                </div>
+              </div>
+              <div className="tag-note" style={{ marginTop: 14 }}>
+                <Icon name="info" size={15} color="#5C6459" />
+                <span>Vamos encontrar os componentes da tela e preparar os eventos. Você revisa tudo antes de gerar os cards.</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      <div
-        style={{
-          borderTop: "1px solid var(--color-border)",
-          background: "var(--color-surface)",
-          padding: "14px 24px 18px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 9
-        }}
-      >
-        {tagged ? (
-          <>
-            <Button fullWidth onClick={onMap}>
-              Refazer o parecer
-            </Button>
-            <Button variant="secondary" fullWidth onClick={onDeleteOutput}>
-              Excluir marcadores
-            </Button>
-          </>
-        ) : (
-          <Button fullWidth disabled={!selection.valid} onClick={onMap} iconRight={<Icon name="arrow-right" size={16} color="#fff" />}>
-            Mapear tela
-          </Button>
-        )}
-        {selection.valid && !tagged && (
-          <div style={{ textAlign: "center", fontSize: "11.5px", fontWeight: 700, color: "#A3AC9B" }}>
-            ou pressione{" "}
-            <kbd
-              style={{
-                fontFamily: "var(--font-mono)",
-                background: "var(--color-surface-muted)",
-                border: "1px solid var(--color-border)",
-                borderRadius: 5,
-                padding: "2px 6px",
-                color: "#3C4438"
-              }}
-            >
-              ⏎ Enter
-            </kbd>
+      <div className="tag-footer">
+        <Button fullWidth disabled={!selection.valid} onClick={onMap} iconRight={<Icon name="arrow-right" size={16} color={selection.valid ? "#fff" : undefined} />}>
+          Mapear tela
+        </Button>
+        {selection.valid && (
+          <div className="tag-help">
+            ou pressione <kbd className="tag-kbd">⏎ Enter</kbd>
           </div>
         )}
       </div>
