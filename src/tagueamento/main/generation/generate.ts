@@ -19,15 +19,32 @@ import { GA_CARD_EVENT_PROPERTY, GA_CARD_SET_KEY, eventKeyFromVariantName } from
 import { fillCard } from "./fillCard";
 import { createComponentMarker, createScreenMarker, MARKER_FONT } from "./markers";
 import { CARD_NODE_KEY, CARD_NUMBER_KEY, deleteTagOutput, OUTPUT_GROUP_PREFIX, OUTPUT_SCREEN_KEY } from "./existingOutput";
+import { ensurePageOf, errorMessage, yieldToFigma } from "../util";
 
 const GAP_FROM_FRAME = 80;
 const GAP_BETWEEN_CARDS = 24;
 const GAP_BETWEEN_COLUMNS = 40;
 
-const yieldToFigma = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+/**
+ * Painel da acessibilidade ("Especificação de Acessibilidade"), que também
+ * fica 80 px à direita da tela. Cópia do nome — o tagueamento não importa
+ * nada da acessibilidade. Se ele estiver ao lado do frame, os cards do
+ * tagueamento começam depois dele, para não ficarem por cima.
+ */
+const ACCESSIBILITY_PANEL_NAME = "Especificação de Acessibilidade";
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+function startXFor(frame: SceneNode, frameBox: Rect): number {
+  let x = frameBox.x + frameBox.width + GAP_FROM_FRAME;
+  const parent = frame.parent;
+  const siblings = parent && "children" in parent ? [...parent.children, ...figma.currentPage.children] : [...figma.currentPage.children];
+  for (const node of siblings) {
+    if (node.type !== "FRAME" || node.name !== ACCESSIBILITY_PANEL_NAME || !node.absoluteBoundingBox) continue;
+    const box = node.absoluteBoundingBox;
+    const besideFrame = box.x >= frameBox.x + frameBox.width && box.x <= frameBox.x + frameBox.width + GAP_FROM_FRAME * 2;
+    const sameRow = box.y < frameBox.y + frameBox.height && box.y + box.height > frameBox.y;
+    if (besideFrame && sameRow) x = Math.max(x, box.x + box.width + GAP_FROM_FRAME);
+  }
+  return x;
 }
 
 async function loadVariants(): Promise<Map<string, ComponentNode>> {
@@ -63,11 +80,13 @@ async function generateScreen(
     result.avisos.push(`A tela "${screen.nomeTela}" não existe mais no arquivo.`);
     return result;
   }
+  // O PD pode ter trocado de página durante a revisão: gera na página da tela.
+  await ensurePageOf(frame);
   const frameBox = frame.absoluteBoundingBox;
   deleteTagOutput(frame);
 
   const created: SceneNode[] = [];
-  let x = frameBox.x + frameBox.width + GAP_FROM_FRAME;
+  let x = startXFor(frame, frameBox);
   let y = frameBox.y;
   let columnWidth = 0;
   const bottomLimit = frameBox.y + frameBox.height;

@@ -2402,19 +2402,33 @@
   function eventKeyFromVariantName(variantName) {
     return variantName.replace(/\[[^\]]*\]/g, "").replace(/\s+/g, "").toLowerCase();
   }
+  function stripPropertyId(name) {
+    const hashIndex = name.lastIndexOf("#");
+    return hashIndex > 0 ? name.slice(0, hashIndex) : name;
+  }
+
+  // src/tagueamento/main/util.ts
+  function errorMessage(error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  function yieldToFigma() {
+    return new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  function pageOf(node) {
+    let current = node;
+    while (current && current.type !== "PAGE") current = current.parent;
+    return current;
+  }
+  async function ensurePageOf(node) {
+    const page = pageOf(node);
+    if (page && page.id !== figma.currentPage.id) await figma.setCurrentPageAsync(page);
+  }
 
   // src/tagueamento/main/cardDiagnostic.ts
   var MAX_LAYERS = 600;
   var MAX_CHARACTERS = 120;
   var TEST_CARD_GAP = 40;
   var TEST_CARD_PLUGIN_DATA_KEY = "tagueamento.testCard";
-  function errorMessage(error) {
-    return error instanceof Error ? error.message : String(error);
-  }
-  function stripPropertyId(name) {
-    const hashIndex = name.lastIndexOf("#");
-    return hashIndex > 0 ? name.slice(0, hashIndex) : name;
-  }
   function describeComponent(node) {
     return { id: node.id, name: node.name, key: node.key, remote: node.remote };
   }
@@ -2627,10 +2641,6 @@
   }
 
   // src/tagueamento/main/cardStructure.ts
-  function stripPropertyId2(name) {
-    const hashIndex = name.lastIndexOf("#");
-    return hashIndex > 0 ? name.slice(0, hashIndex) : name;
-  }
   function firstTextInside(node) {
     if (node.type === "TEXT") return node;
     if ("children" in node) {
@@ -2657,7 +2667,7 @@
       visible: node.visible
     };
     if (refs && typeof refs.visible === "string") {
-      info.toggle = stripPropertyId2(refs.visible);
+      info.toggle = stripPropertyId(refs.visible);
     }
     return { info, row: node, labelNode, valueNode };
   }
@@ -2687,13 +2697,6 @@
 
   // src/tagueamento/main/variantCheck.ts
   var TEMP_OFFSET = -1e5;
-  function errorMessage2(error) {
-    return error instanceof Error ? error.message : String(error);
-  }
-  function stripPropertyId3(name) {
-    const hashIndex = name.lastIndexOf("#");
-    return hashIndex > 0 ? name.slice(0, hashIndex) : name;
-  }
   async function setFromSelection() {
     const selection = figma.currentPage.selection;
     if (selection.length !== 1 || selection[0].type !== "INSTANCE") return null;
@@ -2724,7 +2727,7 @@
       result.importOk = true;
       result.source = "import";
     } catch (error) {
-      result.importError = errorMessage2(error);
+      result.importError = errorMessage(error);
       componentSet = await setFromSelection();
       if (componentSet) {
         result.source = "selection";
@@ -2747,13 +2750,13 @@
     try {
       const definitions = componentSet.componentPropertyDefinitions;
       for (const [name, definition] of Object.entries(definitions)) {
-        if (definition.type === "BOOLEAN") result.toggles.push(stripPropertyId3(name));
+        if (definition.type === "BOOLEAN") result.toggles.push(stripPropertyId(name));
         if (definition.type === "VARIANT" && name === GA_CARD_EVENT_PROPERTY && definition.variantOptions) {
           result.variantOptions = [...definition.variantOptions];
         }
       }
     } catch (error) {
-      result.warnings.push(`N\xE3o foi poss\xEDvel ler as propriedades do conjunto: ${errorMessage2(error)}`);
+      result.warnings.push(`N\xE3o foi poss\xEDvel ler as propriedades do conjunto: ${errorMessage(error)}`);
     }
     result.showToggleFound = result.toggles.includes(GA_CARD_SHOW_TOGGLE);
     if (!result.showToggleFound) {
@@ -2807,7 +2810,7 @@
         check.foundCount = expected.length - check.missing.length;
         check.ok = check.missing.length === 0;
       } catch (error) {
-        check.error = `N\xE3o foi poss\xEDvel ler esta variante: ${errorMessage2(error)}`;
+        check.error = `N\xE3o foi poss\xEDvel ler esta variante: ${errorMessage(error)}`;
         check.missing = [...event.params];
       } finally {
         if (temp && !temp.removed) temp.remove();
@@ -2868,6 +2871,7 @@
     return null;
   }
   async function buildPrototypeGraph(frames) {
+    let scanned = 0;
     const graph = { outgoing: /* @__PURE__ */ new Map(), incoming: /* @__PURE__ */ new Map() };
     const frameIds = new Set(frames.map((frame) => frame.id));
     for (const frame of frames) {
@@ -2883,6 +2887,7 @@
           pushUnique(graph.incoming, destinationFrame, frame.id);
         }
       }
+      if (++scanned % 10 === 0) await yieldToFigma();
     }
     return graph;
   }
@@ -2891,13 +2896,9 @@
     const finais = [];
     const visitados = /* @__PURE__ */ new Set([frameId]);
     const pilha = [...(_a2 = graph.outgoing.get(frameId)) != null ? _a2 : []].reverse();
-    let temCiclo = false;
     while (pilha.length > 0) {
       const id = pilha.pop();
-      if (visitados.has(id)) {
-        temCiclo = true;
-        continue;
-      }
+      if (visitados.has(id)) continue;
       visitados.add(id);
       const saidas = (_b = graph.outgoing.get(id)) != null ? _b : [];
       if (saidas.length === 0) {
@@ -2906,7 +2907,7 @@
       }
       for (let i = saidas.length - 1; i >= 0; i--) pilha.push(saidas[i]);
     }
-    return { finais, temCiclo };
+    return { finais };
   }
 
   // src/tagueamento/shared/classification.ts
@@ -3196,6 +3197,34 @@
     return { notas, pendencias };
   }
 
+  // src/tagueamento/shared/review.ts
+  var SETUP_FIELDS = ["region", "subregion"];
+  function topRank(item) {
+    return item.origem === "tela" ? 0 : item.evento === "modal_view" ? 1 : 2;
+  }
+  var APP_ONLY = ["firebase_screen", "firebase_previous_screen", "target_screen"];
+  var WEB_ONLY = ["page_name", "previous_page", "target_page"];
+  function fieldsFor(evento, plataforma) {
+    const schema = GA_EVENTS.find((event) => event.key === evento);
+    if (!schema) return { required: [], optional: [] };
+    const hidden = plataforma === "APP" ? WEB_ONLY : APP_ONLY;
+    const fields = { required: [], optional: [] };
+    for (const param of schema.params) {
+      const optional = param.endsWith("*");
+      const name = param.replace(/\*/g, "");
+      const keep = evento === "select_content" && name === "previous_page" ? true : !hidden.includes(name);
+      if (!keep) continue;
+      (optional ? fields.optional : fields.required).push(name);
+    }
+    return fields;
+  }
+  var PREVIOUS_SCREEN_PLACEHOLDER = "<Tela_anterior_apresentada>";
+  function isEmptyValue(value) {
+    if (!value) return true;
+    const trimmed = value.trim();
+    return trimmed === "" || trimmed.startsWith("<") && trimmed.endsWith(">");
+  }
+
   // src/tagueamento/main/traversal/componentIdentity.ts
   async function resolveComponentNames(node) {
     const names = { instanceName: node.name, setName: null, mainName: null };
@@ -3340,7 +3369,6 @@
 
   // src/tagueamento/main/mapping/mapScreen.ts
   var WEB_WIDTH_THRESHOLD = 1e3;
-  var PLACEHOLDER_PREVIOUS = "<Tela_anterior_apresentada>";
   function keysFor(plataforma) {
     return plataforma === "APP" ? { screen: "firebase_screen", previous: "firebase_previous_screen", target: "target_screen" } : { screen: "page_name", previous: "previous_page", target: "target_page" };
   }
@@ -3363,9 +3391,6 @@
     if (label) return { base: firstTwoWords(label) };
     if (typeof acao === "string") return { base: acao };
     return { base: null, pendencia: "Componente sem texto: preencha a a\xE7\xE3o" };
-  }
-  function isTopItem(item) {
-    return item.origem === "tela" || item.evento === "modal_view";
   }
   function mapScreen(frame, discovered, setup, graph, nomeTelaById) {
     var _a2, _b, _c, _d;
@@ -3405,7 +3430,7 @@
     } else if (finais.length === 0 && destinos.length > 0) {
       avisos.push("As setas do prot\xF3tipo formam um loop e n\xE3o chegam a uma tela final. Preencha a tela alvo na revis\xE3o.");
     }
-    const previousValue = telaAnterior != null ? telaAnterior : PLACEHOLDER_PREVIOUS;
+    const previousValue = telaAnterior != null ? telaAnterior : PREVIOUS_SCREEN_PLACEHOLDER;
     const base = { region: setup.region, subregion: setup.subregion };
     const items = [];
     const temModal = discovered.some((item) => item.classe === "modal_view");
@@ -3502,7 +3527,7 @@
       }
       items.push(item);
     }
-    const ordenados = [...items.filter(isTopItem), ...items.filter((item) => !isTopItem(item))];
+    const ordenados = items.slice().sort((a, b) => topRank(a) - topRank(b) || a.numero - b.numero);
     ordenados.forEach((item, index) => item.numero = index + 1);
     return {
       frameId: frame.id,
@@ -3581,6 +3606,7 @@
   }
 
   // src/tagueamento/main/mapping/runMapping.ts
+  var ACCESSIBILITY_PANEL_NAME = "Especifica\xE7\xE3o de Acessibilidade";
   function isScreenNode(node) {
     return node.type === "FRAME" || node.type === "GROUP";
   }
@@ -3590,13 +3616,12 @@
       for (const child of children) {
         if (!child.visible) continue;
         if (child.type === "SECTION") collect(child.children);
-        else if (child.type === "FRAME") frames.push(child);
+        else if (child.type === "FRAME" && child.name !== ACCESSIBILITY_PANEL_NAME) frames.push(child);
       }
     }
     collect(figma.currentPage.children);
     return frames;
   }
-  var yieldToFigma = () => new Promise((resolve) => setTimeout(resolve, 0));
   function pageTagStatus() {
     const frames = topLevelFrames();
     const index = tagOutputIndex();
@@ -3673,8 +3698,10 @@
   var sequence = 0;
   function sendState() {
     const mine = ++sequence;
-    void currentState().then((state) => {
+    currentState().then((state) => {
       if (mine === sequence) postToTagUi({ type: "tag:selection-state", state });
+    }).catch(() => {
+      if (mine === sequence) postToTagUi({ type: "tag:selection-state", state: { valid: false, nodeId: null, nodeName: null, element: null } });
     });
   }
   function watchSelection(enabled) {
@@ -3688,37 +3715,7 @@
     if (enabled) sendState();
   }
 
-  // src/tagueamento/shared/review.ts
-  var SETUP_FIELDS = ["region", "subregion"];
-  var APP_ONLY = ["firebase_screen", "firebase_previous_screen", "target_screen"];
-  var WEB_ONLY = ["page_name", "previous_page", "target_page"];
-  function fieldsFor(evento, plataforma) {
-    const schema = GA_EVENTS.find((event) => event.key === evento);
-    if (!schema) return { required: [], optional: [] };
-    const hidden = plataforma === "APP" ? WEB_ONLY : APP_ONLY;
-    const fields = { required: [], optional: [] };
-    for (const param of schema.params) {
-      const optional = param.endsWith("*");
-      const name = param.replace(/\*/g, "");
-      const keep = evento === "select_content" && name === "previous_page" ? true : !hidden.includes(name);
-      if (!keep) continue;
-      (optional ? fields.optional : fields.required).push(name);
-    }
-    return fields;
-  }
-  function isEmptyValue(value) {
-    if (!value) return true;
-    const trimmed = value.trim();
-    return trimmed === "" || trimmed.startsWith("<") && trimmed.endsWith(">");
-  }
-
   // src/tagueamento/main/generation/fillCard.ts
-  var APP_ONLY2 = ["firebase_screen", "firebase_previous_screen", "target_screen"];
-  var WEB_ONLY2 = ["page_name", "previous_page", "target_page"];
-  function stripPropertyId4(name) {
-    const hashIndex = name.lastIndexOf("#");
-    return hashIndex > 0 ? name.slice(0, hashIndex) : name;
-  }
   function isFilled(value) {
     return !isEmptyValue(value) && (value != null ? value : "").trim().toUpperCase() !== "N/A";
   }
@@ -3749,7 +3746,7 @@
     }
     const fullNames = /* @__PURE__ */ new Map();
     for (const [name, property] of Object.entries(card.componentProperties)) {
-      if (property.type === "BOOLEAN") fullNames.set(stripPropertyId4(name), name);
+      if (property.type === "BOOLEAN") fullNames.set(stripPropertyId(name), name);
     }
     const toApply = {};
     for (const [toggle, on] of toggleOn) {
@@ -3760,12 +3757,16 @@
     if (Object.keys(toApply).length > 0) card.setProperties(toApply);
     const { required, optional } = fieldsFor(evento, plataforma);
     const allowed = /* @__PURE__ */ new Set([...required, ...optional, ...SETUP_FIELDS]);
-    const hiddenChannel = plataforma === "APP" ? WEB_ONLY2 : APP_ONLY2;
+    const hiddenChannel = plataforma === "APP" ? WEB_ONLY : APP_ONLY;
     const after = readCardStructure(card);
     for (const row of after.rows) {
       const param = normalizeParamLabel(row.info.label);
       if (hiddenChannel.includes(param) && !allowed.has(param)) {
-        row.row.visible = false;
+        try {
+          row.row.visible = false;
+        } catch (error) {
+          avisos.push(`N\xE3o foi poss\xEDvel ocultar a linha "${param}" do outro canal: ${errorMessage(error)}`);
+        }
         continue;
       }
       const value = values[param];
@@ -3773,14 +3774,14 @@
       try {
         await setText(row.valueNode, withBrackets(value));
       } catch (error) {
-        avisos.push(`N\xE3o foi poss\xEDvel escrever "${param}": ${error instanceof Error ? error.message : String(error)}`);
+        avisos.push(`N\xE3o foi poss\xEDvel escrever "${param}": ${errorMessage(error)}`);
       }
     }
     if (after.numberNode) {
       try {
         await setText(after.numberNode, String(numero));
       } catch (error) {
-        avisos.push(`N\xE3o foi poss\xEDvel escrever o n\xFAmero ${numero}: ${error instanceof Error ? error.message : String(error)}`);
+        avisos.push(`N\xE3o foi poss\xEDvel escrever o n\xFAmero ${numero}: ${errorMessage(error)}`);
       }
     } else {
       avisos.push("\xC1rea de n\xFAmero (Number) n\xE3o encontrada no card.");
@@ -3875,9 +3876,19 @@
   var GAP_FROM_FRAME = 80;
   var GAP_BETWEEN_CARDS = 24;
   var GAP_BETWEEN_COLUMNS = 40;
-  var yieldToFigma2 = () => new Promise((resolve) => setTimeout(resolve, 0));
-  function errorMessage3(error) {
-    return error instanceof Error ? error.message : String(error);
+  var ACCESSIBILITY_PANEL_NAME2 = "Especifica\xE7\xE3o de Acessibilidade";
+  function startXFor(frame, frameBox) {
+    let x = frameBox.x + frameBox.width + GAP_FROM_FRAME;
+    const parent = frame.parent;
+    const siblings = parent && "children" in parent ? [...parent.children, ...figma.currentPage.children] : [...figma.currentPage.children];
+    for (const node of siblings) {
+      if (node.type !== "FRAME" || node.name !== ACCESSIBILITY_PANEL_NAME2 || !node.absoluteBoundingBox) continue;
+      const box = node.absoluteBoundingBox;
+      const besideFrame = box.x >= frameBox.x + frameBox.width && box.x <= frameBox.x + frameBox.width + GAP_FROM_FRAME * 2;
+      const sameRow = box.y < frameBox.y + frameBox.height && box.y + box.height > frameBox.y;
+      if (besideFrame && sameRow) x = Math.max(x, box.x + box.width + GAP_FROM_FRAME);
+    }
+    return x;
   }
   async function loadVariants() {
     var _a2;
@@ -3906,10 +3917,11 @@
       result.avisos.push(`A tela "${screen.nomeTela}" n\xE3o existe mais no arquivo.`);
       return result;
     }
+    await ensurePageOf(frame);
     const frameBox = frame.absoluteBoundingBox;
     deleteTagOutput(frame);
     const created = [];
-    let x = frameBox.x + frameBox.width + GAP_FROM_FRAME;
+    let x = startXFor(frame, frameBox);
     let y = frameBox.y;
     let columnWidth = 0;
     const bottomLimit = frameBox.y + frameBox.height;
@@ -3923,7 +3935,7 @@
       try {
         card = variant.createInstance();
       } catch (error) {
-        result.avisos.push(`Card ${item.numero}: n\xE3o foi poss\xEDvel criar (${errorMessage3(error)}).`);
+        result.avisos.push(`Card ${item.numero}: n\xE3o foi poss\xEDvel criar (${errorMessage(error)}).`);
         continue;
       }
       card.name = `${item.numero}. ${item.evento} \u2014 ${item.componente}`;
@@ -3933,7 +3945,7 @@
       try {
         result.avisos.push(...(await fillCard(card, item.evento, item.values, item.numero, request.plataforma)).map((a) => `Card ${item.numero}: ${a}`));
       } catch (error) {
-        result.avisos.push(`Card ${item.numero}: erro ao preencher (${errorMessage3(error)}).`);
+        result.avisos.push(`Card ${item.numero}: erro ao preencher (${errorMessage(error)}).`);
       }
       if (y > frameBox.y && y + card.height > bottomLimit) {
         x += columnWidth + GAP_BETWEEN_COLUMNS;
@@ -3964,7 +3976,7 @@
           }
         }
       } catch (error) {
-        result.avisos.push(`Card ${item.numero}: marcador n\xE3o criado (${errorMessage3(error)}).`);
+        result.avisos.push(`Card ${item.numero}: marcador n\xE3o criado (${errorMessage(error)}).`);
       }
     }
     if (created.length > 0) {
@@ -3984,7 +3996,7 @@
     for (let index = 0; index < request.screens.length; index++) {
       result.screens.push(await generateScreen(request.screens[index], request, variants));
       onProgress(index + 1, request.screens.length);
-      await yieldToFigma2();
+      await yieldToFigma();
     }
     return result;
   }
@@ -4010,6 +4022,9 @@
   }
 
   // src/tagueamento/main/router.ts
+  function runSafely(task, failure) {
+    task.catch((error) => figma.notify(`${failure}: ${errorMessage(error)}`, { error: true }));
+  }
   function isTagueamentoMessage(message) {
     return typeof message === "object" && message !== null && isTagMessageType(message.type);
   }
@@ -4060,24 +4075,20 @@
       });
     }
   }
-  var mappingInProgress = false;
-  async function runMappingAndReport(setup, skipTagged) {
-    if (mappingInProgress) return;
-    mappingInProgress = true;
+  async function runMappingAndReport(requestId, setup, skipTagged) {
     try {
       const result = await runMapping(
         setup,
-        (done, total) => postToTagUi({ type: "tag:mapping-progress", done, total }),
+        (done, total) => postToTagUi({ type: "tag:mapping-progress", requestId, done, total }),
         skipTagged
       );
-      postToTagUi({ type: "tag:mapping-result", result });
+      postToTagUi({ type: "tag:mapping-result", requestId, result });
     } catch (error) {
       postToTagUi({
         type: "tag:mapping-error",
+        requestId,
         message: error instanceof Error ? error.message : "N\xE3o foi poss\xEDvel mapear a tela."
       });
-    } finally {
-      mappingInProgress = false;
     }
   }
   var generationInProgress = false;
@@ -4102,6 +4113,7 @@
       figma.notify("Tela n\xE3o encontrada");
       return;
     }
+    await ensurePageOf(frame);
     const cards = deleteTagOutput(frame);
     postToTagUi({ type: "tag:output-deleted", frameName: frame.name, cards });
   }
@@ -4111,12 +4123,20 @@
       const node = await figma.getNodeByIdAsync(id);
       if (node && "visible" in node) nodes.push(node);
     }
-    if (nodes.length > 0) figma.viewport.scrollAndZoomIntoView(nodes);
-    else figma.notify("Nada encontrado no canvas");
+    if (nodes.length === 0) {
+      figma.notify("Nada encontrado no canvas");
+      return;
+    }
+    await ensurePageOf(nodes[0]);
+    figma.viewport.scrollAndZoomIntoView(nodes.filter((node) => {
+      var _a2;
+      return ((_a2 = pageOf(node)) == null ? void 0 : _a2.id) === figma.currentPage.id;
+    }));
   }
   async function focusNode2(nodeId) {
     const node = await figma.getNodeByIdAsync(nodeId);
     if (node && "visible" in node) {
+      await ensurePageOf(node);
       figma.currentPage.selection = [node];
       figma.viewport.scrollAndZoomIntoView([node]);
     } else {
@@ -4142,10 +4162,10 @@
         void runCheckAllVariants();
         break;
       case "tag:get-last-setup":
-        void loadLastSetup().then((setup) => postToTagUi({ type: "tag:last-setup", setup }));
+        loadLastSetup().then((setup) => postToTagUi({ type: "tag:last-setup", setup })).catch(() => postToTagUi({ type: "tag:last-setup", setup: null }));
         break;
       case "tag:save-setup":
-        void saveLastSetup(message.setup);
+        runSafely(saveLastSetup(message.setup), "N\xE3o foi poss\xEDvel guardar a escolha");
         break;
       case "tag:open-external":
         figma.openExternal(message.url);
@@ -4154,25 +4174,30 @@
         watchSelection(message.enabled);
         break;
       case "tag:run-mapping":
-        void runMappingAndReport(message.setup, message.skipTagged === true);
+        void runMappingAndReport(message.requestId, message.setup, message.skipTagged === true);
         break;
       case "tag:focus-node":
-        void focusNode2(message.nodeId);
+        runSafely(focusNode2(message.nodeId), "N\xE3o foi poss\xEDvel mostrar a camada");
         break;
       case "tag:generate":
         void runGeneration(message.request);
         break;
       case "tag:delete-output":
-        void deleteOutput(message.frameId);
+        runSafely(deleteOutput(message.frameId), "N\xE3o foi poss\xEDvel excluir os marcadores");
         break;
       case "tag:page-tag-status":
-        postToTagUi({ type: "tag:page-tag-status-result", status: pageTagStatus() });
+        try {
+          postToTagUi({ type: "tag:page-tag-status-result", status: pageTagStatus() });
+        } catch (error) {
+          figma.notify(`N\xE3o foi poss\xEDvel ler a p\xE1gina: ${errorMessage(error)}`, { error: true });
+          postToTagUi({ type: "tag:page-tag-status-result", status: { total: 0, tagged: [] } });
+        }
         break;
       case "tag:focus-nodes":
-        void focusNodes(message.nodeIds);
+        runSafely(focusNodes(message.nodeIds), "N\xE3o foi poss\xEDvel mostrar no canvas");
         break;
       case "tag:element-info":
-        void elementInfo(message.nodeId).then((info) => postToTagUi({ type: "tag:element-info-result", info }));
+        elementInfo(message.nodeId).then((info) => postToTagUi({ type: "tag:element-info-result", info })).catch(() => postToTagUi({ type: "tag:element-info-result", info: null }));
         break;
       default:
         break;

@@ -20,11 +20,8 @@
  */
 
 import { CardRowInfo } from "../shared/types";
+import { stripPropertyId } from "../shared/gaCard";
 
-function stripPropertyId(name: string): string {
-  const hashIndex = name.lastIndexOf("#");
-  return hashIndex > 0 ? name.slice(0, hashIndex) : name;
-}
 
 function firstTextInside(node: SceneNode): TextNode | null {
   if (node.type === "TEXT") return node;

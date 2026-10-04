@@ -5,7 +5,7 @@
 
 import { GenerationRequest, MappingResult, Plataforma, SetupSelection } from "../../shared/types";
 import { describeReport, normalizeWithReport } from "../../shared/naming";
-import { changeEvent, defaultsFor, fieldsFor, pendenciasOf, ReviewItem, ScreenContext, SETUP_FIELDS } from "../../shared/review";
+import { changeEvent, defaultsFor, topRank, fieldsFor, pendenciasOf, ReviewItem, ScreenContext, SETUP_FIELDS } from "../../shared/review";
 
 export interface ReviewScreen {
   frameId: string;
@@ -26,14 +26,10 @@ export interface ReviewState {
 }
 
 /** Ordem da lista: card de tela e modal_view sempre primeiro (nº 1); o resto mantém a ordem. */
-function rankOf(item: ReviewItem): number {
-  return item.origem === "tela" ? 0 : item.evento === "modal_view" ? 1 : 2;
-}
-
 export function orderItems(items: ReviewItem[]): ReviewItem[] {
   return items
     .map((item, index) => ({ item, index }))
-    .sort((a, b) => rankOf(a.item) - rankOf(b.item) || a.index - b.index)
+    .sort((a, b) => topRank(a.item) - topRank(b.item) || a.index - b.index)
     .map((entry) => entry.item);
 }
 
@@ -150,6 +146,10 @@ export function reviewReducer(state: ReviewState | null, action: ReviewAction): 
         } else {
           const report = normalizeWithReport(action.raw, "param");
           values[action.field] = report.value;
+          // modal_view web: page_name do card = nome da modal (spec 5.2).
+          if (action.field === "modal_name" && item.evento === "modal_view" && state.plataforma === "WEB") {
+            values.page_name = report.value;
+          }
           const info = describeReport(report);
           if (info.notas.length > 0) notes[action.field] = info.notas;
           if (report.sinalizados.length > 0 || report.cortado) {

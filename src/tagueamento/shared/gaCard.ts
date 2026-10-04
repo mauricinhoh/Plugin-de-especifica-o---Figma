@@ -25,7 +25,6 @@ export const GA_CARD_SHOW_TOGGLE = "Mostrar atributos";
  * Toggle que liga/desliga as linhas message, UTM e hiring_Id. Regra do Mau
  * (03/10/2026): na geração, deve vir SEMPRE desligada (quase nunca é usada).
  */
-export const GA_CARD_TOGGLES_ALWAYS_OFF = ["message"];
 
 /** Propriedade de variante que escolhe o evento do card. */
 export const GA_CARD_EVENT_PROPERTY = "Evento";
@@ -175,4 +174,10 @@ export function eventKeyFromVariantName(variantName: string): string {
 /** Mostra uma chave em grupos de 4 caracteres, para facilitar conferir/digitar. */
 export function groupKey(key: string): string {
   return key.replace(/(.{4})/g, "$1 ").trim();
+}
+
+/** Tira o sufixo "#id" do nome de uma propriedade de componente ("subregion#1472:0" → "subregion"). */
+export function stripPropertyId(name: string): string {
+  const hashIndex = name.lastIndexOf("#");
+  return hashIndex > 0 ? name.slice(0, hashIndex) : name;
 }

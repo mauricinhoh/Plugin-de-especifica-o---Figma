@@ -23,6 +23,12 @@ import { generateCards } from "./generation/generate";
 import { deleteTagOutput } from "./generation/existingOutput";
 import { GenerationRequest, SetupSelection } from "../shared/types";
 import { elementInfo } from "./elementInfo";
+import { ensurePageOf, errorMessage, pageOf } from "./util";
+
+/** Ação disparada sem esperar (fire-and-forget): falha vira aviso no Figma, nunca rejeição solta. */
+function runSafely(task: Promise<unknown>, failure: string): void {
+  task.catch((error) => figma.notify(`${failure}: ${errorMessage(error)}`, { error: true }));
+}
 
 /** true quando a mensagem vinda da UI pertence ao tagueamento. */
 export function isTagueamentoMessage(message: unknown): message is TagUiToMainMessage {
@@ -83,25 +89,25 @@ async function runCheckAllVariants(): Promise<void> {
   }
 }
 
-let mappingInProgress = false;
-
-async function runMappingAndReport(setup: SetupSelection, skipTagged: boolean): Promise<void> {
-  if (mappingInProgress) return;
-  mappingInProgress = true;
+/**
+ * Cada pedido de mapeamento leva um número. A UI só aceita a resposta do
+ * pedido mais recente — se o PD voltou ao setup e mapeou de novo, o
+ * resultado do pedido antigo é ignorado lá.
+ */
+async function runMappingAndReport(requestId: number, setup: SetupSelection, skipTagged: boolean): Promise<void> {
   try {
     const result = await runMapping(
       setup,
-      (done, total) => postToTagUi({ type: "tag:mapping-progress", done, total }),
+      (done, total) => postToTagUi({ type: "tag:mapping-progress", requestId, done, total }),
       skipTagged
     );
-    postToTagUi({ type: "tag:mapping-result", result });
+    postToTagUi({ type: "tag:mapping-result", requestId, result });
   } catch (error) {
     postToTagUi({
       type: "tag:mapping-error",
+      requestId,
       message: error instanceof Error ? error.message : "Não foi possível mapear a tela."
     });
-  } finally {
-    mappingInProgress = false;
   }
 }
 
@@ -129,6 +135,7 @@ async function deleteOutput(frameId: string): Promise<void> {
     figma.notify("Tela não encontrada");
     return;
   }
+  await ensurePageOf(frame);
   const cards = deleteTagOutput(frame as SceneNode);
   postToTagUi({ type: "tag:output-deleted", frameName: frame.name, cards });
 }
@@ -139,13 +146,18 @@ async function focusNodes(nodeIds: string[]): Promise<void> {
     const node = await figma.getNodeByIdAsync(id);
     if (node && "visible" in node) nodes.push(node as SceneNode);
   }
-  if (nodes.length > 0) figma.viewport.scrollAndZoomIntoView(nodes);
-  else figma.notify("Nada encontrado no canvas");
+  if (nodes.length === 0) {
+    figma.notify("Nada encontrado no canvas");
+    return;
+  }
+  await ensurePageOf(nodes[0]);
+  figma.viewport.scrollAndZoomIntoView(nodes.filter((node) => pageOf(node)?.id === figma.currentPage.id));
 }
 
 async function focusNode(nodeId: string): Promise<void> {
   const node = await figma.getNodeByIdAsync(nodeId);
   if (node && "visible" in node) {
+    await ensurePageOf(node);
     figma.currentPage.selection = [node as SceneNode];
     figma.viewport.scrollAndZoomIntoView([node as SceneNode]);
   } else {
@@ -172,10 +184,12 @@ export function handleTagueamentoMessage(message: TagUiToMainMessage): void {
       void runCheckAllVariants();
       break;
     case "tag:get-last-setup":
-      void loadLastSetup().then((setup) => postToTagUi({ type: "tag:last-setup", setup }));
+      loadLastSetup()
+        .then((setup) => postToTagUi({ type: "tag:last-setup", setup }))
+        .catch(() => postToTagUi({ type: "tag:last-setup", setup: null }));
       break;
     case "tag:save-setup":
-      void saveLastSetup(message.setup);
+      runSafely(saveLastSetup(message.setup), "Não foi possível guardar a escolha");
       break;
     case "tag:open-external":
       figma.openExternal(message.url);
@@ -184,25 +198,33 @@ export function handleTagueamentoMessage(message: TagUiToMainMessage): void {
       watchSelection(message.enabled);
       break;
     case "tag:run-mapping":
-      void runMappingAndReport(message.setup, message.skipTagged === true);
+      void runMappingAndReport(message.requestId, message.setup, message.skipTagged === true);
       break;
     case "tag:focus-node":
-      void focusNode(message.nodeId);
+      runSafely(focusNode(message.nodeId), "Não foi possível mostrar a camada");
       break;
     case "tag:generate":
       void runGeneration(message.request);
       break;
     case "tag:delete-output":
-      void deleteOutput(message.frameId);
+      runSafely(deleteOutput(message.frameId), "Não foi possível excluir os marcadores");
       break;
     case "tag:page-tag-status":
-      postToTagUi({ type: "tag:page-tag-status-result", status: pageTagStatus() });
+      try {
+        postToTagUi({ type: "tag:page-tag-status-result", status: pageTagStatus() });
+      } catch (error) {
+        figma.notify(`Não foi possível ler a página: ${errorMessage(error)}`, { error: true });
+        postToTagUi({ type: "tag:page-tag-status-result", status: { total: 0, tagged: [] } });
+      }
       break;
     case "tag:focus-nodes":
-      void focusNodes(message.nodeIds);
+      runSafely(focusNodes(message.nodeIds), "Não foi possível mostrar no canvas");
       break;
     case "tag:element-info":
-      void elementInfo(message.nodeId).then((info) => postToTagUi({ type: "tag:element-info-result", info }));
+      // Responde sempre (null se o elemento sumiu ou deu erro), para a UI não ficar esperando.
+      elementInfo(message.nodeId)
+        .then((info) => postToTagUi({ type: "tag:element-info-result", info }))
+        .catch(() => postToTagUi({ type: "tag:element-info-result", info: null }));
       break;
     default:
       break;

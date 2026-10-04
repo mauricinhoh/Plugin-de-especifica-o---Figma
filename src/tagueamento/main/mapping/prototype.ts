@@ -11,6 +11,8 @@
  *  - Tela alvo do frame F = frames para onde saem setas de F.
  */
 
+import { yieldToFigma } from "../util";
+
 export interface PrototypeGraph {
   /** frameId → frames de destino (sem repetição, na ordem em que foram achados). */
   outgoing: Map<string, string[]>;
@@ -52,6 +54,7 @@ async function topLevelFrameId(nodeId: string, frameIds: Set<string>): Promise<s
 }
 
 export async function buildPrototypeGraph(frames: SceneNode[]): Promise<PrototypeGraph> {
+  let scanned = 0;
   const graph: PrototypeGraph = { outgoing: new Map(), incoming: new Map() };
   const frameIds = new Set(frames.map((frame) => frame.id));
 
@@ -68,6 +71,8 @@ export async function buildPrototypeGraph(frames: SceneNode[]): Promise<Prototyp
         pushUnique(graph.incoming, destinationFrame, frame.id);
       }
     }
+    // Páginas grandes: devolve o controle ao Figma de tempos em tempos (spec 10).
+    if (++scanned % 10 === 0) await yieldToFigma();
   }
   return graph;
 }
@@ -75,8 +80,6 @@ export async function buildPrototypeGraph(frames: SceneNode[]): Promise<Prototyp
 export interface FlowEnd {
   /** Telas finais (sem setas de saída) alcançáveis a partir do frame. */
   finais: string[];
-  /** true quando algum caminho volta para uma tela já visitada (loop). */
-  temCiclo: boolean;
 }
 
 /**
@@ -88,13 +91,9 @@ export function flowEnds(graph: PrototypeGraph, frameId: string): FlowEnd {
   const finais: string[] = [];
   const visitados = new Set<string>([frameId]);
   const pilha = [...(graph.outgoing.get(frameId) ?? [])].reverse();
-  let temCiclo = false;
   while (pilha.length > 0) {
     const id = pilha.pop() as string;
-    if (visitados.has(id)) {
-      temCiclo = true;
-      continue;
-    }
+    if (visitados.has(id)) continue;
     visitados.add(id);
     const saidas = graph.outgoing.get(id) ?? [];
     if (saidas.length === 0) {
@@ -103,5 +102,5 @@ export function flowEnds(graph: PrototypeGraph, frameId: string): FlowEnd {
     }
     for (let i = saidas.length - 1; i >= 0; i--) pilha.push(saidas[i]);
   }
-  return { finais, temCiclo };
+  return { finais };
 }

@@ -24,15 +24,14 @@
 import { MappedItem, MappedScreen, Plataforma, SetupSelection } from "../../shared/types";
 import { ActionSource, EVENT_BY_CLASS, findClassification } from "../../shared/classification";
 import { describeReport, normalizeWithReport } from "../../shared/naming";
-import { discoverItems, DiscoveredItem, firstVisibleText } from "../traversal/discovery";
+import { PREVIOUS_SCREEN_PLACEHOLDER, topRank } from "../../shared/review";
+import { DiscoveredItem, firstVisibleText } from "../traversal/discovery";
 import { sortByReadingOrder } from "../traversal/readingOrder";
 import { flowEnds, PrototypeGraph } from "./prototype";
 
 /** Largura acima da qual o frame é considerado web (spec 4.3). */
 export const WEB_WIDTH_THRESHOLD = 1000;
 
-/** Placeholders iguais aos do card (quando o plugin não tem o valor). */
-export const PLACEHOLDER_PREVIOUS = "<Tela_anterior_apresentada>";
 
 interface ScreenKeys {
   screen: string;
@@ -82,9 +81,6 @@ function contentBase(
   return { base: null, pendencia: "Componente sem texto: preencha a ação" };
 }
 
-function isTopItem(item: { origem: string; evento: string }): boolean {
-  return item.origem === "tela" || item.evento === "modal_view";
-}
 
 export function mapScreen(
   frame: SceneNode,
@@ -123,7 +119,7 @@ export function mapScreen(
   } else if (finais.length === 0 && destinos.length > 0) {
     avisos.push("As setas do protótipo formam um loop e não chegam a uma tela final. Preencha a tela alvo na revisão.");
   }
-  const previousValue = telaAnterior ?? PLACEHOLDER_PREVIOUS;
+  const previousValue = telaAnterior ?? PREVIOUS_SCREEN_PLACEHOLDER;
 
   const base = { region: setup.region, subregion: setup.subregion };
   const items: MappedItem[] = [];
@@ -233,7 +229,8 @@ export function mapScreen(
 
   // screen_view / page_view / modal_view sempre no topo (nº 1) — decisão do
   // Mau, 03/10/2026. Os demais seguem a ordem espacial.
-  const ordenados = [...items.filter(isTopItem), ...items.filter((item) => !isTopItem(item))];
+  // (sem flatMap: o main thread compila para ES2017)
+  const ordenados = items.slice().sort((a, b) => topRank(a) - topRank(b) || a.numero - b.numero);
   ordenados.forEach((item, index) => (item.numero = index + 1));
 
   return {
@@ -253,4 +250,3 @@ export function mapScreen(
   };
 }
 
-export { discoverItems };

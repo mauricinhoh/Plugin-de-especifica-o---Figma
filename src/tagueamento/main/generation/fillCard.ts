@@ -15,18 +15,12 @@
  * Subregion "N/A" conta como não preenchida (a toggle subregion fica desligada).
  */
 
-import { GA_CARD_SHOW_TOGGLE, normalizeParamLabel } from "../../shared/gaCard";
-import { fieldsFor, isEmptyValue, SETUP_FIELDS } from "../../shared/review";
+import { GA_CARD_SHOW_TOGGLE, normalizeParamLabel, stripPropertyId } from "../../shared/gaCard";
+import { APP_ONLY, fieldsFor, isEmptyValue, SETUP_FIELDS, WEB_ONLY } from "../../shared/review";
 import { Plataforma } from "../../shared/types";
 import { readCardStructure } from "../cardStructure";
+import { errorMessage } from "../util";
 
-const APP_ONLY = ["firebase_screen", "firebase_previous_screen", "target_screen"];
-const WEB_ONLY = ["page_name", "previous_page", "target_page"];
-
-function stripPropertyId(name: string): string {
-  const hashIndex = name.lastIndexOf("#");
-  return hashIndex > 0 ? name.slice(0, hashIndex) : name;
-}
 
 function isFilled(value: string | undefined): boolean {
   return !isEmptyValue(value) && (value ?? "").trim().toUpperCase() !== "N/A";
@@ -93,7 +87,11 @@ export async function fillCard(
   for (const row of after.rows) {
     const param = normalizeParamLabel(row.info.label);
     if (hiddenChannel.includes(param) && !allowed.has(param)) {
-      row.row.visible = false;
+      try {
+        row.row.visible = false;
+      } catch (error) {
+        avisos.push(`Não foi possível ocultar a linha "${param}" do outro canal: ${errorMessage(error)}`);
+      }
       continue;
     }
     const value = values[param];
@@ -101,7 +99,7 @@ export async function fillCard(
     try {
       await setText(row.valueNode, withBrackets(value));
     } catch (error) {
-      avisos.push(`Não foi possível escrever "${param}": ${error instanceof Error ? error.message : String(error)}`);
+      avisos.push(`Não foi possível escrever "${param}": ${errorMessage(error)}`);
     }
   }
 
@@ -110,7 +108,7 @@ export async function fillCard(
     try {
       await setText(after.numberNode, String(numero));
     } catch (error) {
-      avisos.push(`Não foi possível escrever o número ${numero}: ${error instanceof Error ? error.message : String(error)}`);
+      avisos.push(`Não foi possível escrever o número ${numero}: ${errorMessage(error)}`);
     }
   } else {
     avisos.push("Área de número (Number) não encontrada no card.");

@@ -17,14 +17,23 @@
  */
 
 import { GA_EVENTS, GaEventKey } from "./gaCard";
-import { NamingReport, normalizeWithReport } from "./naming";
 import { Plataforma } from "./types";
 
 /** Campos que vêm do setup (só leitura na revisão). */
 export const SETUP_FIELDS = ["region", "subregion"];
 
-const APP_ONLY = ["firebase_screen", "firebase_previous_screen", "target_screen"];
-const WEB_ONLY = ["page_name", "previous_page", "target_page"];
+/**
+ * Card de tela (screen_view/page_view) e modal_view sempre no topo da lista,
+ * como nº 1 (decisão do Mau, 03/10/2026). 0 = tela, 1 = modal, 2 = resto.
+ */
+export function topRank(item: { origem: string; evento: string }): number {
+  return item.origem === "tela" ? 0 : item.evento === "modal_view" ? 1 : 2;
+}
+
+/** Campos que só existem num canal (as linhas APP/WEB lado a lado nos cards). */
+export const APP_ONLY = ["firebase_screen", "firebase_previous_screen", "target_screen"];
+export const WEB_ONLY = ["page_name", "previous_page", "target_page"];
+export const TARGET_FIELDS = ["target_screen", "target_page"];
 
 export interface EventFields {
   /** Obrigatórios (sem "*"), na ordem do card. */
@@ -74,7 +83,7 @@ export function fieldsFor(evento: string, plataforma: Plataforma): EventFields {
  * protótipo, o campo fica com ele e não vira pendência.
  */
 export const PREVIOUS_SCREEN_PLACEHOLDER = "<Tela_anterior_apresentada>";
-const PREVIOUS_SCREEN_FIELDS = ["firebase_previous_screen", "previous_page"];
+export const PREVIOUS_SCREEN_FIELDS = ["firebase_previous_screen", "previous_page"];
 
 export function isEmptyValue(value: string | undefined): boolean {
   if (!value) return true;
@@ -130,11 +139,6 @@ export function pendenciasOf(item: ReviewItem, plataforma: Plataforma): Pendenci
     if (flag.cortado) list.push({ field, texto: `${field}: valor cortado em 100 caracteres`, acao: "manter" });
   }
   return list;
-}
-
-/** Normaliza um valor digitado pelo PD (ao sair do campo). */
-export function normalizeTyped(value: string): NamingReport {
-  return normalizeWithReport(value, "param");
 }
 
 export interface ScreenContext {

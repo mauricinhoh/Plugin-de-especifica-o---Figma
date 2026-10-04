@@ -26,6 +26,8 @@ import {
   TestCardResult
 } from "../shared/types";
 import { GA_CARD_SET_NAME } from "../shared/gaCard";
+import { stripPropertyId } from "../shared/gaCard";
+import { errorMessage } from "./util";
 
 /** Limite de camadas listadas — protege o plugin contra seleções enormes. */
 const MAX_LAYERS = 600;
@@ -35,14 +37,7 @@ const TEST_CARD_GAP = 40;
 /** Marca própria do tagueamento no card de teste (chave separada da acessibilidade). */
 const TEST_CARD_PLUGIN_DATA_KEY = "tagueamento.testCard";
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
-function stripPropertyId(name: string): string {
-  const hashIndex = name.lastIndexOf("#");
-  return hashIndex > 0 ? name.slice(0, hashIndex) : name;
-}
 
 function describeComponent(node: ComponentNode | ComponentSetNode): DiagnosedComponent {
   return { id: node.id, name: node.name, key: node.key, remote: node.remote };

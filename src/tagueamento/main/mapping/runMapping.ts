@@ -12,10 +12,16 @@
 
 import { MappingResult, SetupSelection } from "../../shared/types";
 import { buildPrototypeGraph } from "./prototype";
-import { discoverItems, mapScreen, screenNameOf } from "./mapScreen";
+import { mapScreen, screenNameOf } from "./mapScreen";
 import { findTagOutput, frameIdOfOutput, tagOutputIndex } from "../generation/existingOutput";
 
+import { yieldToFigma } from "../util";
+import { discoverItems } from "../traversal/discovery";
+
 type ScreenNode = FrameNode | GroupNode;
+
+/** Nome do painel gerado pela acessibilidade (cópia; sem importar da acessibilidade). */
+const ACCESSIBILITY_PANEL_NAME = "Especificação de Acessibilidade";
 
 export function isScreenNode(node: SceneNode): node is ScreenNode {
   return node.type === "FRAME" || node.type === "GROUP";
@@ -28,14 +34,14 @@ export function topLevelFrames(): ScreenNode[] {
     for (const child of children) {
       if (!child.visible) continue;
       if (child.type === "SECTION") collect(child.children);
-      else if (child.type === "FRAME") frames.push(child);
+      // O painel da acessibilidade é um frame de primeiro nível, mas não é tela.
+      else if (child.type === "FRAME" && child.name !== ACCESSIBILITY_PANEL_NAME) frames.push(child);
     }
   }
   collect(figma.currentPage.children);
   return frames;
 }
 
-const yieldToFigma = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 /** Situação da página: quantos frames e quais já têm tagueamento gerado. */
 export function pageTagStatus(): { total: number; tagged: string[] } {

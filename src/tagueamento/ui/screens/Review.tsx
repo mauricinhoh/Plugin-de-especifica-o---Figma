@@ -25,7 +25,7 @@ interface ReviewProps {
   state: ReviewState;
   screenIndex: number;
   selection: TagSelectionState;
-  elementInfo: ElementInfo | null;
+  elementReply: { info: ElementInfo | null } | null;
   dispatch: (action: ReviewAction) => void;
   onScreenIndex: (index: number) => void;
   onRequestElementInfo: (nodeId: string) => void;
@@ -44,7 +44,7 @@ export function Review({
   state,
   screenIndex,
   selection,
-  elementInfo,
+  elementReply,
   dispatch,
   onScreenIndex,
   onRequestElementInfo,
@@ -77,16 +77,18 @@ export function Review({
 
   // Resposta do main thread com os dados do elemento escolhido para o evento manual.
   useEffect(() => {
-    if (!waitingInfo || !elementInfo) return;
+    if (!waitingInfo || !elementReply) return;
     setWaitingInfo(false);
     onClearElementInfo();
+    const elementInfo = elementReply.info;
+    if (!elementInfo) return; // elemento sumiu: libera o botão para escolher outro
     if (elementInfo.frameId && elementInfo.frameId !== screen.frameId) {
       setOtherScreenInfo(elementInfo);
       return;
     }
     addManual(elementInfo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [elementInfo, waitingInfo]);
+  }, [elementReply, waitingInfo]);
 
   function addManual(info: ElementInfo) {
     dispatch({ type: "add-manual", screen: screenIndex, nodeId: info.nodeId, componente: info.componente, label: info.label, evento: manualEvento });

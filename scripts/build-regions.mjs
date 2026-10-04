@@ -242,7 +242,6 @@ for (const row of rows) {
 const output = {
   fonte: usingRealFile ? "planilha" : "template",
   arquivo: relative(DATA_DIR, sourceFile),
-  geradoEm: new Date().toISOString(),
   totalLinhas: rows.length,
   canais: [...canais.values()]
     .map((canal) => ({
@@ -266,6 +265,11 @@ console.log(
   `✔ Regions geradas a partir de ${relative(ROOT, sourceFile)}${usingRealFile ? "" : " (TEMPLATE de exemplo)"}: ` +
     `${rows.length} linhas, ${output.canais.length} canais, ${produtoCount} produtos.`
 );
+if (usingRealFile) {
+  console.log(
+    "\n  ⚠ A lista REAL de regions foi embutida em dist/ui.html. Não faça commit nem push de dist/ a partir desta máquina."
+  );
+}
 if (warnings.length > 0) {
   console.log(`\n  ${warnings.length} aviso(s) — o build seguiu, mas vale revisar a planilha:`);
   for (const warning of warnings) console.log(`  aviso ${warning}`);

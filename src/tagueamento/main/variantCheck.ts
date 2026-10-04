@@ -26,18 +26,13 @@ import {
   normalizeParamLabel
 } from "../shared/gaCard";
 import { readCardStructure } from "./cardStructure";
+import { stripPropertyId } from "../shared/gaCard";
+import { errorMessage } from "./util";
 
 /** Longe de tudo, para a instância temporária não aparecer na tela. */
 const TEMP_OFFSET = -100000;
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
-function stripPropertyId(name: string): string {
-  const hashIndex = name.lastIndexOf("#");
-  return hashIndex > 0 ? name.slice(0, hashIndex) : name;
-}
 
 async function setFromSelection(): Promise<ComponentSetNode | null> {
   const selection = figma.currentPage.selection;

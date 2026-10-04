@@ -44,9 +44,13 @@ async function currentState(): Promise<TagSelectionState> {
 let sequence = 0;
 function sendState(): void {
   const mine = ++sequence;
-  void currentState().then((state) => {
-    if (mine === sequence) postToTagUi({ type: "tag:selection-state", state });
-  });
+  currentState()
+    .then((state) => {
+      if (mine === sequence) postToTagUi({ type: "tag:selection-state", state });
+    })
+    .catch(() => {
+      if (mine === sequence) postToTagUi({ type: "tag:selection-state", state: { valid: false, nodeId: null, nodeName: null, element: null } });
+    });
 }
 
 export function watchSelection(enabled: boolean): void {

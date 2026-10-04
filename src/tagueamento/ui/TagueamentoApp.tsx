@@ -1,4 +1,4 @@
-import React, { useEffect, useReducer, useState } from "react";
+import React, { useEffect, useReducer, useState, useRef } from "react";
 import { onTagMessage, postToTagMain } from "./bridge";
 import {
   AllVariantsCheck,
@@ -54,7 +54,7 @@ type TagScreen =
   | "diagnostic";
 
 /** Se o main thread não responder com a última escolha, abre o setup vazio depois deste tempo. */
-const LAST_SETUP_TIMEOUT_MS = 800;
+const LAST_SETUP_TIMEOUT_MS = 2000;
 
 const NO_SELECTION: TagSelectionState = { valid: false, nodeId: null, nodeName: null };
 
@@ -82,7 +82,10 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
   // Revisão (Fase 6)
   const [review, dispatchReview] = useReducer(reviewReducer, null);
   const [reviewScreen, setReviewScreen] = useState(0);
-  const [elementInfo, setElementInfo] = useState<ElementInfo | null>(null);
+  // Resposta do "Adicionar evento manual": { info: null } quando o elemento sumiu.
+  const [elementReply, setElementReply] = useState<{ info: ElementInfo | null } | null>(null);
+  // Só a resposta do pedido de mapeamento mais recente vale.
+  const mappingRequest = useRef(0);
 
   // Geração (Fase 7)
   const [pageStatus, setPageStatus] = useState<PageTagStatus | null>(null);
@@ -114,15 +117,18 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
           setSelection(message.state);
           break;
         case "tag:mapping-progress":
+          if (message.requestId !== mappingRequest.current) break;
           setMappingProgress({ done: message.done, total: message.total });
           break;
         case "tag:mapping-result":
+          if (message.requestId !== mappingRequest.current) break;
           setMapping(message.result);
           break;
         case "tag:element-info-result":
-          setElementInfo(message.info);
+          setElementReply({ info: message.info });
           break;
         case "tag:mapping-error":
+          if (message.requestId !== mappingRequest.current) break;
           setMappingError(message.message);
           break;
         case "tag:diagnosis-result":
@@ -203,11 +209,12 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
     setMappingError(null);
     setMappingProgress(null);
     setScreen("mapping");
-    postToTagMain({ type: "tag:run-mapping", setup: selectionSetup, skipTagged });
+    mappingRequest.current += 1;
+    postToTagMain({ type: "tag:run-mapping", requestId: mappingRequest.current, setup: selectionSetup, skipTagged });
   }
 
   // Página inteira: antes de mapear, vê se alguma tela já tem tagueamento (pergunta uma vez).
-  function startPageMode(selectionSetup: SetupSelection) {
+  function startPageMode() {
     setPageStatus(null);
     setScreen("pageChoice");
     postToTagMain({ type: "tag:page-tag-status" });
@@ -251,7 +258,7 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
     setFormsStatus(status);
 
     if (selectionSetup.modo === "tela") setScreen("frame");
-    else startPageMode(selectionSetup);
+    else startPageMode();
   }
 
   if (screen === "diagnostic") {
@@ -308,7 +315,7 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
         progress={mappingProgress}
         error={mappingError}
         avisos={mapping && mapping.screens.length === 0 ? mapping.avisos : []}
-        onRetry={() => (setup.modo === "tela" ? setScreen("frame") : startPageMode(setup))}
+        onRetry={() => (setup.modo === "tela" ? setScreen("frame") : startPageMode())}
         onEditSetup={() => setScreen("setup")}
         onClose={closePlugin}
       />
@@ -323,15 +330,15 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
         state={review}
         screenIndex={reviewScreen}
         selection={selection}
-        elementInfo={elementInfo}
+        elementReply={elementReply}
         dispatch={dispatchReview}
         onScreenIndex={setReviewScreen}
         onRequestElementInfo={(nodeId) => postToTagMain({ type: "tag:element-info", nodeId })}
-        onClearElementInfo={() => setElementInfo(null)}
+        onClearElementInfo={() => setElementReply(null)}
         onFocusNode={(nodeId) => postToTagMain({ type: "tag:focus-node", nodeId })}
         onFinish={() => setScreen("summary")}
         onEditSetup={() => setScreen("setup")}
-        onRemap={() => (setup.modo === "tela" ? setScreen("frame") : startPageMode(setup))}
+        onRemap={() => (setup.modo === "tela" ? setScreen("frame") : startPageMode())}
         remapLabel={setup.modo === "tela" ? "Mapear outra tela" : "Mapear de novo"}
         onClose={closePlugin}
       />
@@ -392,7 +399,6 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
           if (setup?.modo === "tela") setScreen("frame");
           else setScreen("setup");
         }}
-        onExit={onExit}
         onClose={closePlugin}
       />
     );

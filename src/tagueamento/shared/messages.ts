@@ -51,7 +51,7 @@ export type TagUiToMainMessage =
   /** Fase 4: liga/desliga o acompanhamento da seleção (listener próprio do tagueamento). */
   | { type: "tag:watch-selection"; enabled: boolean }
   /** Fase 4: mapeia o frame selecionado ("tela") ou a página inteira ("pagina"), conforme setup.modo. */
-  | { type: "tag:run-mapping"; setup: SetupSelection; skipTagged?: boolean }
+  | { type: "tag:run-mapping"; requestId: number; setup: SetupSelection; skipTagged?: boolean }
   /** Fase 4: seleciona e enquadra um node no canvas. */
   | { type: "tag:focus-node"; nodeId: string }
   /** Fase 6: pede os dados do elemento escolhido para um evento manual. */
@@ -80,9 +80,9 @@ export type TagMainToUiMessage =
   | { type: "tag:all-variants-result"; result: AllVariantsCheck }
   | { type: "tag:last-setup"; setup: SetupSelection | null }
   | { type: "tag:selection-state"; state: TagSelectionState }
-  | { type: "tag:mapping-progress"; done: number; total: number }
-  | { type: "tag:mapping-result"; result: MappingResult }
-  | { type: "tag:mapping-error"; message: string }
+  | { type: "tag:mapping-progress"; requestId: number; done: number; total: number }
+  | { type: "tag:mapping-result"; requestId: number; result: MappingResult }
+  | { type: "tag:mapping-error"; requestId: number; message: string }
   | { type: "tag:element-info-result"; info: ElementInfo | null }
   | { type: "tag:generation-progress"; done: number; total: number }
   | { type: "tag:generation-result"; result: GenerationResult }

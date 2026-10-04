@@ -136,6 +136,9 @@ Para usar a planilha real:
    obrigatória vazia, Subregion vazia em vez de N/A, canal sem plataforma,
    produto com duas Regions…), o build **para** e mostra a linha do Excel.
    Fora do padrão de nomenclatura é só **aviso**: o valor é usado como está.
+4. Depois de buildar com a planilha real, a lista fica dentro de `dist/ui.html`.
+   **Não faça commit nem push de `dist/` a partir dessa máquina** — o build avisa
+   isso no terminal.
 
 O desenvolvimento acontece na branch git `tagueamento`; a `main` guarda a versão
 da acessibilidade em produção.

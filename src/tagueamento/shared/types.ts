@@ -145,7 +145,6 @@ export interface RegionsData {
   /** "planilha" = regions.xlsx real; "template" = regions.template.xlsx de exemplo. */
   fonte: "planilha" | "template";
   arquivo: string;
-  geradoEm: string;
   totalLinhas: number;
   canais: RegionsCanal[];
 }

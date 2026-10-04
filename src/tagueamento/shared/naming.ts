@@ -180,21 +180,6 @@ export function normalizeWithReport(text: string, kind: NamingKind): NamingRepor
   return { value, trocas: dictionary.trocas, sinalizados: dictionary.sinalizados, cortado: value.length < cased.length };
 }
 
-/** Region: tudo maiúsculo. "Área não logada" → "AREA_NAO_LOGADA". */
-export function normalizeRegion(text: string): string {
-  return normalizeWithReport(text, "region").value;
-}
-
-/** Demais parâmetros: primeira letra maiúscula, resto minúsculo. "Tentar novamente" → "Tentar_novamente". */
-export function normalizeParam(text: string): string {
-  return normalizeWithReport(text, "param").value;
-}
-
-/** Subregion: como os demais parâmetros, mas aceita "N/A" (em qualquer caixa). */
-export function normalizeSubregion(text: string): string {
-  return normalizeWithReport(text, "subregion").value;
-}
-
 /** Textos curtos para o PD: notas (trocas feitas) e pendências (sinalizados, corte). */
 export function describeReport(report: NamingReport): { notas: string[]; pendencias: string[] } {
   const notas = report.trocas.map((troca) => `Termo em inglês trocado: "${troca.de}" → ${troca.para.replace(/ /g, "_")}`);

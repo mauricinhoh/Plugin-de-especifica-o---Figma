@@ -80,7 +80,6 @@ interface DoneProps {
   error?: string | null;
   onShow: () => void;
   onNew: () => void;
-  onExit?: () => void;
   onClose: () => void;
 }
 

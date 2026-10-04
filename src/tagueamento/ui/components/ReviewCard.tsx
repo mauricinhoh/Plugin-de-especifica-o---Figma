@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { COMPONENT_EVENTS, fieldsFor, Pendencia, pendenciasOf, ReviewItem, SETUP_FIELDS } from "../../shared/review";
+import { COMPONENT_EVENTS, fieldsFor, Pendencia, pendenciasOf, ReviewItem, SETUP_FIELDS, TARGET_FIELDS, PREVIOUS_SCREEN_FIELDS } from "../../shared/review";
 import { Plataforma } from "../../shared/types";
 import { Icon } from "./Icon";
 import { ParamField } from "./ParamField";
@@ -29,8 +29,6 @@ interface ReviewCardProps {
   onFocus: () => void;
 }
 
-const TARGET_FIELDS = ["target_screen", "target_page"];
-const PREVIOUS_FIELDS = ["firebase_previous_screen", "previous_page"];
 
 export function ReviewCard({
   item,
@@ -65,7 +63,7 @@ export function ReviewCard({
         optional={isOptional}
         readOnlyNote={SETUP_FIELDS.includes(field) ? "vem do setup — altere lá" : undefined}
         options={field === "local_type" ? ["Screen", "Modal"] : undefined}
-        suggestions={TARGET_FIELDS.includes(field) ? destinos : PREVIOUS_FIELDS.includes(field) ? origens : undefined}
+        suggestions={TARGET_FIELDS.includes(field) ? destinos : PREVIOUS_SCREEN_FIELDS.includes(field) ? origens : undefined}
         pending={pendingFields.has(field)}
         notes={item.notes[field]}
         flagText={flagged.map((p) => p.texto)}
