@@ -171,11 +171,6 @@ export function eventKeyFromVariantName(variantName: string): string {
     .toLowerCase();
 }
 
-/** Mostra uma chave em grupos de 4 caracteres, para facilitar conferir/digitar. */
-export function groupKey(key: string): string {
-  return key.replace(/(.{4})/g, "$1 ").trim();
-}
-
 /** Tira o sufixo "#id" do nome de uma propriedade de componente ("subregion#1472:0" → "subregion"). */
 export function stripPropertyId(name: string): string {
   const hashIndex = name.lastIndexOf("#");

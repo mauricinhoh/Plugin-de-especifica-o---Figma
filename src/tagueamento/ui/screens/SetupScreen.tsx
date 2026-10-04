@@ -24,7 +24,6 @@ interface SetupScreenProps {
   onComplete: (setup: SetupSelection) => void;
   onExit: () => void;
   onClose: () => void;
-  onOpenDiagnostic: () => void;
 }
 
 const fieldLabel: React.CSSProperties = { fontSize: 12.5, fontWeight: 800, color: "var(--color-text-dark)" };
@@ -149,7 +148,7 @@ function restore(data: RegionsData, initial: SetupSelection | null) {
   return state;
 }
 
-export function SetupScreen({ data, initial, onComplete, onExit, onClose, onOpenDiagnostic }: SetupScreenProps) {
+export function SetupScreen({ data, initial, onComplete, onExit, onClose }: SetupScreenProps) {
   const restored = useMemo(() => restore(data, initial), [data, initial]);
   const [canalNome, setCanalNome] = useState(restored.canal);
   const [produtoValue, setProdutoValue] = useState(restored.produto);
@@ -228,26 +227,6 @@ export function SetupScreen({ data, initial, onComplete, onExit, onClose, onOpen
           Essas escolhas definem a region e a subregion de todos os cards.
         </p>
 
-        {data.fonte === "template" && (
-          <div
-            role="note"
-            style={{
-              marginTop: 12,
-              display: "flex",
-              gap: 8,
-              padding: "8px 10px",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--color-warning-bg)",
-              border: "1px solid var(--color-warning-border)",
-              color: "var(--color-warning)",
-              fontSize: 12,
-              fontWeight: 700
-            }}
-          >
-            <Icon name="alert-triangle" size={14} color="var(--color-warning)" />
-            <span>Lista de exemplo (template). Troque pelo Excel real antes de usar no dia a dia.</span>
-          </div>
-        )}
 
         <div style={{ marginTop: 18 }}>
           <label htmlFor="tag-canal" style={fieldLabel}>
@@ -374,15 +353,6 @@ export function SetupScreen({ data, initial, onComplete, onExit, onClose, onOpen
           </p>
         )}
 
-        <div style={{ textAlign: "center", marginTop: 22 }}>
-          <button
-            type="button"
-            onClick={onOpenDiagnostic}
-            style={{ border: "none", background: "transparent", fontSize: 11.5, fontWeight: 700, color: "var(--color-text-subtle)", textDecoration: "underline" }}
-          >
-            Ferramentas de desenvolvimento
-          </button>
-        </div>
       </div>
 
       <div style={{ padding: "12px 24px 18px", borderTop: "1px solid var(--color-border)", boxShadow: "var(--shadow-footer)" }}>

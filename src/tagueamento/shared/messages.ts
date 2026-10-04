@@ -12,16 +12,13 @@
  */
 
 import {
-  AllVariantsCheck,
-  CardDiagnosis,
   ElementInfo,
   GenerationRequest,
   GenerationResult,
   MappingResult,
   PageTagStatus,
   SetupSelection,
-  TagSelectionState,
-  TestCardResult
+  TagSelectionState
 } from "./types";
 
 export const TAG_MESSAGE_PREFIX = "tag:";
@@ -33,15 +30,6 @@ export type TagUiToMainMessage =
   | { type: "tag:ui-ready" }
   /** Fecha o plugin a partir do fluxo de tagueamento. */
   | { type: "tag:close-plugin" }
-  /** Fase 2: lê o card selecionado no canvas (chave, variantes, propriedades, camadas). */
-  | { type: "tag:diagnose-selection" }
-  /**
-   * Fase 2: cria um card de teste ao lado do card diagnosticado, aplicando
-   * os valores de variante escolhidos (ex.: { Evento: "[App] screen_view" }).
-   */
-  | { type: "tag:create-test-card"; sourceNodeId: string; variantValues: Record<string, string> }
-  /** Fase 2.1: importa o card pela chave e confere todas as variantes com a spec 7.2. */
-  | { type: "tag:check-all-variants" }
   /** Fase 3: pede a última escolha do setup (guardada em figma.clientStorage, chave própria). */
   | { type: "tag:get-last-setup" }
   /** Fase 3: guarda a escolha do setup para o próximo uso. */
@@ -74,10 +62,6 @@ export type TagMainToUiMessage =
    * (o mesmo valor que depois vai para o campo "Arquivo Figma" do Forms).
    */
   | { type: "tag:ready"; fileName: string }
-  | { type: "tag:diagnosis-result"; diagnosis: CardDiagnosis }
-  | { type: "tag:diagnosis-error"; message: string }
-  | { type: "tag:test-card-result"; result: TestCardResult }
-  | { type: "tag:all-variants-result"; result: AllVariantsCheck }
   | { type: "tag:last-setup"; setup: SetupSelection | null }
   | { type: "tag:selection-state"; state: TagSelectionState }
   | { type: "tag:mapping-progress"; requestId: number; done: number; total: number }

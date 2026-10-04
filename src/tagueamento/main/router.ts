@@ -13,9 +13,6 @@
 
 import { TagUiToMainMessage, isTagMessageType } from "../shared/messages";
 import { postToTagUi } from "./messaging";
-import { createTestCard, diagnoseSelection } from "./cardDiagnostic";
-import { checkAllVariants } from "./variantCheck";
-import { GA_CARD_SET_KEY } from "../shared/gaCard";
 import { loadLastSetup, saveLastSetup } from "./setupStorage";
 import { watchSelection } from "./selection";
 import { pageTagStatus, runMapping } from "./mapping/runMapping";
@@ -37,56 +34,6 @@ export function isTagueamentoMessage(message: unknown): message is TagUiToMainMe
     message !== null &&
     isTagMessageType((message as { type?: unknown }).type)
   );
-}
-
-async function runDiagnosis(): Promise<void> {
-  try {
-    const diagnosis = await diagnoseSelection();
-    postToTagUi({ type: "tag:diagnosis-result", diagnosis });
-  } catch (error) {
-    postToTagUi({
-      type: "tag:diagnosis-error",
-      message: error instanceof Error ? error.message : "Não foi possível ler o card selecionado."
-    });
-  }
-}
-
-async function runCreateTestCard(sourceNodeId: string, variantValues: Record<string, string>): Promise<void> {
-  try {
-    const result = await createTestCard(sourceNodeId, variantValues);
-    postToTagUi({ type: "tag:test-card-result", result });
-  } catch (error) {
-    postToTagUi({
-      type: "tag:test-card-result",
-      result: {
-        ok: false,
-        message: `Falha inesperada ao criar o card de teste: ${error instanceof Error ? error.message : String(error)}`
-      }
-    });
-  }
-}
-
-async function runCheckAllVariants(): Promise<void> {
-  try {
-    const result = await checkAllVariants();
-    postToTagUi({ type: "tag:all-variants-result", result });
-  } catch (error) {
-    postToTagUi({
-      type: "tag:all-variants-result",
-      result: {
-        keyUsed: GA_CARD_SET_KEY,
-        importOk: false,
-        source: "none",
-        setNameOk: false,
-        variantOptions: [],
-        unmatchedVariants: [],
-        toggles: [],
-        showToggleFound: false,
-        checks: [],
-        warnings: [`Falha inesperada na verificação: ${error instanceof Error ? error.message : String(error)}`]
-      }
-    });
-  }
 }
 
 /**
@@ -173,15 +120,6 @@ export function handleTagueamentoMessage(message: TagUiToMainMessage): void {
     case "tag:close-plugin":
       watchSelection(false);
       figma.closePlugin();
-      break;
-    case "tag:diagnose-selection":
-      void runDiagnosis();
-      break;
-    case "tag:create-test-card":
-      void runCreateTestCard(message.sourceNodeId, message.variantValues);
-      break;
-    case "tag:check-all-variants":
-      void runCheckAllVariants();
       break;
     case "tag:get-last-setup":
       loadLastSetup()

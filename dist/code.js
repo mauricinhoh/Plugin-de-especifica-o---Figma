@@ -2291,535 +2291,6 @@
     figma.ui.postMessage(message);
   }
 
-  // src/tagueamento/shared/gaCard.ts
-  var GA_CARD_SET_NAME = "[Helper] Google Analytics Spec";
-  var GA_CARD_SET_KEY = "051df160d03349be02f026974d98735ec96a5128";
-  var GA_CARD_SHOW_TOGGLE = "Mostrar atributos";
-  var GA_CARD_EVENT_PROPERTY = "Evento";
-  var GA_EVENTS = [
-    {
-      key: "screen_view",
-      params: [
-        "firebase_screen",
-        "region",
-        "subregion*",
-        "firebase_previous_screen",
-        "target_screen*",
-        "code*",
-        "status*",
-        "title*",
-        "message*",
-        "details*",
-        "utm_source*",
-        "utm_medium*",
-        "utm_campaing*",
-        "utm_content*",
-        "utm_term*",
-        "hiring_id*"
-      ]
-    },
-    {
-      // Lista completa confirmada pela foto do card web (03/10/2026): mesmos
-      // opcionais do screen_view, com os nomes web nas linhas de tela.
-      key: "page_view",
-      params: [
-        "page_name",
-        "region",
-        "subregion*",
-        "previous_page",
-        "target_page*",
-        "code*",
-        "status*",
-        "title*",
-        "message*",
-        "details*",
-        "utm_source*",
-        "utm_medium*",
-        "utm_campaing*",
-        "utm_content*",
-        "utm_term*",
-        "hiring_id*"
-      ]
-    },
-    {
-      key: "select_content",
-      params: ["content_type", "region", "subregion*", "action", "local_name", "local_type", "previous_page"]
-    },
-    { key: "modal_view", params: ["modal_name", "page_name", "firebase_screen", "region", "subregion*"] },
-    {
-      key: "feedback",
-      params: [
-        "region",
-        "subregion*",
-        "firebase_screen",
-        "page_name",
-        "feedback_name",
-        "firebase_previous_screen",
-        "previous_page"
-      ]
-    },
-    {
-      key: "search",
-      params: [
-        "search_term",
-        "result",
-        "firebase_screen",
-        "page_name",
-        "region",
-        "subregion*",
-        "firebase_previous_screen",
-        "previous_page"
-      ]
-    },
-    { key: "login", params: ["region", "authentication", "result", "method*", "details*"] },
-    {
-      key: "transaction",
-      params: [
-        "firebase_screen",
-        "page_name",
-        "authentication",
-        "region",
-        "subregion*",
-        "transaction_id*",
-        "transaction_type",
-        "transaction_code",
-        "transaction_name",
-        "transaction_items",
-        "value*",
-        "result",
-        "details*"
-      ]
-    },
-    {
-      key: "refresh",
-      params: ["firebase_screen", "page_name", "region", "firebase_previous_screen", "previous_page", "subregion*", "details*"]
-    },
-    { key: "conversion", params: ["firebase_screen", "page_name", "region", "result", "subregion*", "details*"] }
-  ];
-  function normalizeParamLabel(label) {
-    return label.replace(/\*/g, "").trim().toLowerCase();
-  }
-  function eventKeyFromVariantName(variantName) {
-    return variantName.replace(/\[[^\]]*\]/g, "").replace(/\s+/g, "").toLowerCase();
-  }
-  function stripPropertyId(name) {
-    const hashIndex = name.lastIndexOf("#");
-    return hashIndex > 0 ? name.slice(0, hashIndex) : name;
-  }
-
-  // src/tagueamento/main/util.ts
-  function errorMessage(error) {
-    return error instanceof Error ? error.message : String(error);
-  }
-  function yieldToFigma() {
-    return new Promise((resolve) => setTimeout(resolve, 0));
-  }
-  function pageOf(node) {
-    let current = node;
-    while (current && current.type !== "PAGE") current = current.parent;
-    return current;
-  }
-  async function ensurePageOf(node) {
-    const page = pageOf(node);
-    if (page && page.id !== figma.currentPage.id) await figma.setCurrentPageAsync(page);
-  }
-
-  // src/tagueamento/main/cardDiagnostic.ts
-  var MAX_LAYERS = 600;
-  var MAX_CHARACTERS = 120;
-  var TEST_CARD_GAP = 40;
-  var TEST_CARD_PLUGIN_DATA_KEY = "tagueamento.testCard";
-  function describeComponent(node) {
-    return { id: node.id, name: node.name, key: node.key, remote: node.remote };
-  }
-  function fontLabel(font) {
-    return `${font.family} ${font.style}`;
-  }
-  function collectLayers(root) {
-    const layers = [];
-    const fonts = /* @__PURE__ */ new Set();
-    let truncated = false;
-    function visit(node, depth) {
-      if (layers.length >= MAX_LAYERS) {
-        truncated = true;
-        return;
-      }
-      const layer = { depth, type: node.type, name: node.name, visible: node.visible };
-      if (node.type === "TEXT") {
-        const text = node.characters;
-        layer.characters = text.length > MAX_CHARACTERS ? `${text.slice(0, MAX_CHARACTERS)}\u2026` : text;
-        if (node.fontName !== figma.mixed) {
-          layer.font = fontLabel(node.fontName);
-          fonts.add(layer.font);
-        } else {
-          layer.font = "(v\xE1rias fontes)";
-          try {
-            for (const font of node.getRangeAllFontNames(0, text.length)) {
-              fonts.add(fontLabel(font));
-            }
-          } catch (e) {
-          }
-        }
-      }
-      const refs = "componentPropertyReferences" in node ? node.componentPropertyReferences : null;
-      if (refs) {
-        const entries = Object.entries(refs).filter(([, value]) => typeof value === "string");
-        if (entries.length > 0) {
-          const propertyRefs = {};
-          for (const [field, property] of entries) propertyRefs[field] = property;
-          layer.propertyRefs = propertyRefs;
-        }
-      }
-      layers.push(layer);
-      if ("children" in node) {
-        for (const child of node.children) {
-          visit(child, depth + 1);
-        }
-      }
-    }
-    visit(root, 0);
-    return { layers, truncated, fonts: [...fonts].sort() };
-  }
-  function readPropertyDefinitions(mainComponent, componentSet, warnings) {
-    try {
-      if (componentSet) return componentSet.componentPropertyDefinitions;
-      return mainComponent.componentPropertyDefinitions;
-    } catch (error) {
-      warnings.push(
-        `N\xE3o foi poss\xEDvel ler as defini\xE7\xF5es das propriedades (op\xE7\xF5es de variante e valores padr\xE3o): ${errorMessage(error)}`
-      );
-      return null;
-    }
-  }
-  async function diagnoseSelection() {
-    const selection = figma.currentPage.selection;
-    if (selection.length !== 1) {
-      throw new Error(
-        selection.length === 0 ? "Selecione no canvas uma inst\xE2ncia do card antes de ler." : "Selecione s\xF3 um card por vez."
-      );
-    }
-    const node = selection[0];
-    const warnings = [];
-    const diagnosis = {
-      nodeId: node.id,
-      nodeName: node.name,
-      nodeType: node.type,
-      width: Math.round(node.width),
-      height: Math.round(node.height),
-      mainComponent: null,
-      componentSet: null,
-      properties: [],
-      layers: [],
-      layersTruncated: false,
-      fonts: [],
-      warnings
-    };
-    if (node.type !== "INSTANCE") {
-      warnings.push(
-        `A camada selecionada \xE9 do tipo ${node.type}, n\xE3o uma inst\xE2ncia. Selecione a inst\xE2ncia do card (\xEDcone de losango no painel de camadas), n\xE3o uma camada de dentro dele.`
-      );
-    } else {
-      const mainComponent = await node.getMainComponentAsync();
-      if (!mainComponent) {
-        warnings.push("A inst\xE2ncia n\xE3o tem componente principal (ele pode ter sido apagado da biblioteca).");
-      } else {
-        diagnosis.mainComponent = describeComponent(mainComponent);
-        let componentSet = null;
-        try {
-          const parent = mainComponent.parent;
-          if (parent && parent.type === "COMPONENT_SET") {
-            componentSet = parent;
-            diagnosis.componentSet = describeComponent(parent);
-          }
-        } catch (error) {
-          warnings.push(`N\xE3o foi poss\xEDvel ler o conjunto de variantes: ${errorMessage(error)}`);
-        }
-        const setName = componentSet ? componentSet.name : mainComponent.name;
-        if (setName !== GA_CARD_SET_NAME) {
-          warnings.push(
-            `O componente se chama "${setName}", e o esperado era "${GA_CARD_SET_NAME}". Confira se \xE9 o card certo.`
-          );
-        }
-        const definitions = readPropertyDefinitions(mainComponent, componentSet, warnings);
-        for (const [name, property] of Object.entries(node.componentProperties)) {
-          const definition = definitions ? definitions[name] : void 0;
-          const diagnosed = {
-            name,
-            displayName: stripPropertyId(name),
-            type: property.type,
-            value: property.value
-          };
-          if (definition) {
-            diagnosed.defaultValue = definition.defaultValue;
-            if (definition.type === "VARIANT" && definition.variantOptions) {
-              diagnosed.options = [...definition.variantOptions];
-            }
-          }
-          diagnosis.properties.push(diagnosed);
-        }
-      }
-    }
-    const { layers, truncated, fonts } = collectLayers(node);
-    diagnosis.layers = layers;
-    diagnosis.layersTruncated = truncated;
-    diagnosis.fonts = fonts;
-    if (truncated) {
-      warnings.push(`A lista de camadas foi cortada em ${MAX_LAYERS} itens.`);
-    }
-    return diagnosis;
-  }
-  async function createTestCard(sourceNodeId, variantValues) {
-    const source = await figma.getNodeByIdAsync(sourceNodeId);
-    if (!source || source.type !== "INSTANCE") {
-      return { ok: false, message: "O card lido n\xE3o existe mais no arquivo. Selecione-o e clique em Ler card de novo." };
-    }
-    const mainComponent = await source.getMainComponentAsync();
-    if (!mainComponent) {
-      return { ok: false, message: "O card lido n\xE3o tem componente principal." };
-    }
-    let instance;
-    let method;
-    let importError;
-    try {
-      const imported = await figma.importComponentByKeyAsync(mainComponent.key);
-      instance = imported.createInstance();
-      method = "Importado pela chave (importComponentByKeyAsync)";
-    } catch (error) {
-      importError = errorMessage(error);
-      try {
-        instance = mainComponent.createInstance();
-        method = "Criado direto do componente principal (a importa\xE7\xE3o pela chave falhou)";
-      } catch (fallbackError) {
-        return {
-          ok: false,
-          message: `N\xE3o foi poss\xEDvel criar o card de teste: ${errorMessage(fallbackError)}`,
-          importError
-        };
-      }
-    }
-    const box = source.absoluteBoundingBox;
-    if (box) {
-      instance.x = box.x + box.width + TEST_CARD_GAP;
-      instance.y = box.y;
-    }
-    instance.setPluginData(TEST_CARD_PLUGIN_DATA_KEY, "1");
-    const current = instance.componentProperties;
-    const toApply = {};
-    for (const [name, value] of Object.entries(variantValues)) {
-      const property = current[name];
-      if (property && property.type === "VARIANT" && property.value !== value) {
-        toApply[name] = value;
-      }
-    }
-    try {
-      if (Object.keys(toApply).length > 0) {
-        instance.setProperties(toApply);
-      }
-    } catch (error) {
-      figma.currentPage.selection = [instance];
-      figma.viewport.scrollAndZoomIntoView([source, instance]);
-      return {
-        ok: false,
-        message: `O card de teste foi criado, mas n\xE3o deu para aplicar as variantes: ${errorMessage(error)}`,
-        method,
-        importError
-      };
-    }
-    figma.currentPage.selection = [instance];
-    figma.viewport.scrollAndZoomIntoView([source, instance]);
-    const applied = {};
-    for (const [name, property] of Object.entries(instance.componentProperties)) {
-      if (property.type === "VARIANT") applied[name] = String(property.value);
-    }
-    return {
-      ok: true,
-      message: "Card de teste criado ao lado do card lido.",
-      method,
-      importError,
-      appliedProperties: applied
-    };
-  }
-
-  // src/tagueamento/main/cardStructure.ts
-  function firstTextInside(node) {
-    if (node.type === "TEXT") return node;
-    if ("children" in node) {
-      for (const child of node.children) {
-        const found = firstTextInside(child);
-        if (found) return found;
-      }
-    }
-    return null;
-  }
-  function asRow(node) {
-    if (node.type !== "FRAME" && node.type !== "GROUP") return null;
-    let labelNode = null;
-    let valueNode = null;
-    for (const child of node.children) {
-      if (!labelNode && child.type === "TEXT") labelNode = child;
-      if (!valueNode && child.type === "INSTANCE") valueNode = firstTextInside(child);
-    }
-    if (!labelNode || !valueNode) return null;
-    const refs = node.type === "FRAME" ? node.componentPropertyReferences : null;
-    const info = {
-      label: labelNode.characters.trim(),
-      value: valueNode.characters,
-      visible: node.visible
-    };
-    if (refs && typeof refs.visible === "string") {
-      info.toggle = stripPropertyId(refs.visible);
-    }
-    return { info, row: node, labelNode, valueNode };
-  }
-  function readCardStructure(card) {
-    const structure = { rows: [], typeNode: null, numberNode: null };
-    function visit(node) {
-      if (node !== card) {
-        const row = asRow(node);
-        if (row) {
-          structure.rows.push(row);
-          return;
-        }
-        if (!structure.typeNode && node.type === "FRAME" && node.name === "Type") {
-          structure.typeNode = firstTextInside(node);
-        }
-        if (!structure.numberNode && node.type === "FRAME" && node.name === "Number") {
-          structure.numberNode = firstTextInside(node);
-        }
-      }
-      if ("children" in node) {
-        for (const child of node.children) visit(child);
-      }
-    }
-    visit(card);
-    return structure;
-  }
-
-  // src/tagueamento/main/variantCheck.ts
-  var TEMP_OFFSET = -1e5;
-  async function setFromSelection() {
-    const selection = figma.currentPage.selection;
-    if (selection.length !== 1 || selection[0].type !== "INSTANCE") return null;
-    const main = await selection[0].getMainComponentAsync();
-    const parent = main ? main.parent : null;
-    return parent && parent.type === "COMPONENT_SET" ? parent : null;
-  }
-  function variantNameOf(component) {
-    const props = component.variantProperties;
-    return props && typeof props[GA_CARD_EVENT_PROPERTY] === "string" ? props[GA_CARD_EVENT_PROPERTY] : null;
-  }
-  async function checkAllVariants() {
-    const result = {
-      keyUsed: GA_CARD_SET_KEY,
-      importOk: false,
-      source: "none",
-      setNameOk: false,
-      variantOptions: [],
-      unmatchedVariants: [],
-      toggles: [],
-      showToggleFound: false,
-      checks: [],
-      warnings: []
-    };
-    let componentSet = null;
-    try {
-      componentSet = await figma.importComponentSetByKeyAsync(GA_CARD_SET_KEY);
-      result.importOk = true;
-      result.source = "import";
-    } catch (error) {
-      result.importError = errorMessage(error);
-      componentSet = await setFromSelection();
-      if (componentSet) {
-        result.source = "selection";
-        result.warnings.push(
-          "A importa\xE7\xE3o pela chave falhou; as variantes foram lidas do card selecionado. A gera\xE7\xE3o precisa da importa\xE7\xE3o funcionando."
-        );
-      } else {
-        result.warnings.push(
-          "A importa\xE7\xE3o pela chave falhou e n\xE3o h\xE1 um card selecionado. Selecione uma inst\xE2ncia do card e verifique de novo para ver a chave real."
-        );
-        return result;
-      }
-    }
-    result.setName = componentSet.name;
-    result.setNameOk = componentSet.name === GA_CARD_SET_NAME;
-    result.actualSetKey = componentSet.key;
-    if (!result.setNameOk) {
-      result.warnings.push(`O conjunto se chama "${componentSet.name}"; o esperado era "${GA_CARD_SET_NAME}".`);
-    }
-    try {
-      const definitions = componentSet.componentPropertyDefinitions;
-      for (const [name, definition] of Object.entries(definitions)) {
-        if (definition.type === "BOOLEAN") result.toggles.push(stripPropertyId(name));
-        if (definition.type === "VARIANT" && name === GA_CARD_EVENT_PROPERTY && definition.variantOptions) {
-          result.variantOptions = [...definition.variantOptions];
-        }
-      }
-    } catch (error) {
-      result.warnings.push(`N\xE3o foi poss\xEDvel ler as propriedades do conjunto: ${errorMessage(error)}`);
-    }
-    result.showToggleFound = result.toggles.includes(GA_CARD_SHOW_TOGGLE);
-    if (!result.showToggleFound) {
-      result.warnings.push(`A toggle "${GA_CARD_SHOW_TOGGLE}" n\xE3o foi encontrada no conjunto.`);
-    }
-    const variantsByEvent = /* @__PURE__ */ new Map();
-    for (const child of componentSet.children) {
-      if (child.type !== "COMPONENT") continue;
-      const variantName = variantNameOf(child);
-      if (!variantName) continue;
-      const eventKey = eventKeyFromVariantName(variantName);
-      if (GA_EVENTS.some((event) => event.key === eventKey)) {
-        variantsByEvent.set(eventKey, child);
-      } else {
-        result.unmatchedVariants.push(variantName);
-      }
-    }
-    for (const event of GA_EVENTS) {
-      const expected = event.params.map(normalizeParamLabel);
-      const check = {
-        eventKey: event.key,
-        variantName: null,
-        ok: false,
-        expectedCount: expected.length,
-        foundCount: 0,
-        missing: [],
-        extra: [],
-        rows: [],
-        hasNumber: false
-      };
-      const variant = variantsByEvent.get(event.key);
-      if (!variant) {
-        check.missing = [...event.params];
-        check.error = "Nenhuma variante de Evento corresponde a este evento.";
-        result.checks.push(check);
-        continue;
-      }
-      check.variantName = variantNameOf(variant);
-      let temp = null;
-      try {
-        temp = variant.createInstance();
-        temp.x = TEMP_OFFSET;
-        temp.y = TEMP_OFFSET;
-        const structure = readCardStructure(temp);
-        check.rows = structure.rows.map((row) => row.info);
-        check.typeText = structure.typeNode ? structure.typeNode.characters : void 0;
-        check.hasNumber = structure.numberNode !== null;
-        const foundLabels = new Set(check.rows.map((row) => normalizeParamLabel(row.label)));
-        check.missing = event.params.filter((param) => !foundLabels.has(normalizeParamLabel(param)));
-        check.extra = check.rows.map((row) => row.label).filter((label) => !expected.includes(normalizeParamLabel(label)));
-        check.foundCount = expected.length - check.missing.length;
-        check.ok = check.missing.length === 0;
-      } catch (error) {
-        check.error = `N\xE3o foi poss\xEDvel ler esta variante: ${errorMessage(error)}`;
-        check.missing = [...event.params];
-      } finally {
-        if (temp && !temp.removed) temp.remove();
-      }
-      result.checks.push(check);
-    }
-    return result;
-  }
-
   // src/tagueamento/main/setupStorage.ts
   var LAST_SETUP_KEY = "tagueamento.lastSetup";
   async function loadLastSetup() {
@@ -2837,6 +2308,23 @@
     } catch (error) {
       console.error("Tagueamento: n\xE3o foi poss\xEDvel guardar a escolha do setup.", error);
     }
+  }
+
+  // src/tagueamento/main/util.ts
+  function errorMessage(error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  function yieldToFigma() {
+    return new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  function pageOf(node) {
+    let current = node;
+    while (current && current.type !== "PAGE") current = current.parent;
+    return current;
+  }
+  async function ensurePageOf(node) {
+    const page = pageOf(node);
+    if (page && page.id !== figma.currentPage.id) await figma.setCurrentPageAsync(page);
   }
 
   // src/tagueamento/main/mapping/prototype.ts
@@ -3195,6 +2683,121 @@
     const pendencias = report.sinalizados.map((term) => `Termo em ingl\xEAs sem tradu\xE7\xE3o: "${term}" \u2014 revise`);
     if (report.cortado) pendencias.push(`Valor cortado em ${MAX_VALUE_LENGTH} caracteres \u2014 revise`);
     return { notas, pendencias };
+  }
+
+  // src/tagueamento/shared/gaCard.ts
+  var GA_CARD_SET_KEY = "051df160d03349be02f026974d98735ec96a5128";
+  var GA_CARD_SHOW_TOGGLE = "Mostrar atributos";
+  var GA_CARD_EVENT_PROPERTY = "Evento";
+  var GA_EVENTS = [
+    {
+      key: "screen_view",
+      params: [
+        "firebase_screen",
+        "region",
+        "subregion*",
+        "firebase_previous_screen",
+        "target_screen*",
+        "code*",
+        "status*",
+        "title*",
+        "message*",
+        "details*",
+        "utm_source*",
+        "utm_medium*",
+        "utm_campaing*",
+        "utm_content*",
+        "utm_term*",
+        "hiring_id*"
+      ]
+    },
+    {
+      // Lista completa confirmada pela foto do card web (03/10/2026): mesmos
+      // opcionais do screen_view, com os nomes web nas linhas de tela.
+      key: "page_view",
+      params: [
+        "page_name",
+        "region",
+        "subregion*",
+        "previous_page",
+        "target_page*",
+        "code*",
+        "status*",
+        "title*",
+        "message*",
+        "details*",
+        "utm_source*",
+        "utm_medium*",
+        "utm_campaing*",
+        "utm_content*",
+        "utm_term*",
+        "hiring_id*"
+      ]
+    },
+    {
+      key: "select_content",
+      params: ["content_type", "region", "subregion*", "action", "local_name", "local_type", "previous_page"]
+    },
+    { key: "modal_view", params: ["modal_name", "page_name", "firebase_screen", "region", "subregion*"] },
+    {
+      key: "feedback",
+      params: [
+        "region",
+        "subregion*",
+        "firebase_screen",
+        "page_name",
+        "feedback_name",
+        "firebase_previous_screen",
+        "previous_page"
+      ]
+    },
+    {
+      key: "search",
+      params: [
+        "search_term",
+        "result",
+        "firebase_screen",
+        "page_name",
+        "region",
+        "subregion*",
+        "firebase_previous_screen",
+        "previous_page"
+      ]
+    },
+    { key: "login", params: ["region", "authentication", "result", "method*", "details*"] },
+    {
+      key: "transaction",
+      params: [
+        "firebase_screen",
+        "page_name",
+        "authentication",
+        "region",
+        "subregion*",
+        "transaction_id*",
+        "transaction_type",
+        "transaction_code",
+        "transaction_name",
+        "transaction_items",
+        "value*",
+        "result",
+        "details*"
+      ]
+    },
+    {
+      key: "refresh",
+      params: ["firebase_screen", "page_name", "region", "firebase_previous_screen", "previous_page", "subregion*", "details*"]
+    },
+    { key: "conversion", params: ["firebase_screen", "page_name", "region", "result", "subregion*", "details*"] }
+  ];
+  function normalizeParamLabel(label) {
+    return label.replace(/\*/g, "").trim().toLowerCase();
+  }
+  function eventKeyFromVariantName(variantName) {
+    return variantName.replace(/\[[^\]]*\]/g, "").replace(/\s+/g, "").toLowerCase();
+  }
+  function stripPropertyId(name) {
+    const hashIndex = name.lastIndexOf("#");
+    return hashIndex > 0 ? name.slice(0, hashIndex) : name;
   }
 
   // src/tagueamento/shared/review.ts
@@ -3715,6 +3318,61 @@
     if (enabled) sendState();
   }
 
+  // src/tagueamento/main/cardStructure.ts
+  function firstTextInside(node) {
+    if (node.type === "TEXT") return node;
+    if ("children" in node) {
+      for (const child of node.children) {
+        const found = firstTextInside(child);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+  function asRow(node) {
+    if (node.type !== "FRAME" && node.type !== "GROUP") return null;
+    let labelNode = null;
+    let valueNode = null;
+    for (const child of node.children) {
+      if (!labelNode && child.type === "TEXT") labelNode = child;
+      if (!valueNode && child.type === "INSTANCE") valueNode = firstTextInside(child);
+    }
+    if (!labelNode || !valueNode) return null;
+    const refs = node.type === "FRAME" ? node.componentPropertyReferences : null;
+    const info = {
+      label: labelNode.characters.trim(),
+      value: valueNode.characters,
+      visible: node.visible
+    };
+    if (refs && typeof refs.visible === "string") {
+      info.toggle = stripPropertyId(refs.visible);
+    }
+    return { info, row: node, labelNode, valueNode };
+  }
+  function readCardStructure(card) {
+    const structure = { rows: [], typeNode: null, numberNode: null };
+    function visit(node) {
+      if (node !== card) {
+        const row = asRow(node);
+        if (row) {
+          structure.rows.push(row);
+          return;
+        }
+        if (!structure.typeNode && node.type === "FRAME" && node.name === "Type") {
+          structure.typeNode = firstTextInside(node);
+        }
+        if (!structure.numberNode && node.type === "FRAME" && node.name === "Number") {
+          structure.numberNode = firstTextInside(node);
+        }
+      }
+      if ("children" in node) {
+        for (const child of node.children) visit(child);
+      }
+    }
+    visit(card);
+    return structure;
+  }
+
   // src/tagueamento/main/generation/fillCard.ts
   function isFilled(value) {
     return !isEmptyValue(value) && (value != null ? value : "").trim().toUpperCase() !== "N/A";
@@ -4028,53 +3686,6 @@
   function isTagueamentoMessage(message) {
     return typeof message === "object" && message !== null && isTagMessageType(message.type);
   }
-  async function runDiagnosis() {
-    try {
-      const diagnosis = await diagnoseSelection();
-      postToTagUi({ type: "tag:diagnosis-result", diagnosis });
-    } catch (error) {
-      postToTagUi({
-        type: "tag:diagnosis-error",
-        message: error instanceof Error ? error.message : "N\xE3o foi poss\xEDvel ler o card selecionado."
-      });
-    }
-  }
-  async function runCreateTestCard(sourceNodeId, variantValues) {
-    try {
-      const result = await createTestCard(sourceNodeId, variantValues);
-      postToTagUi({ type: "tag:test-card-result", result });
-    } catch (error) {
-      postToTagUi({
-        type: "tag:test-card-result",
-        result: {
-          ok: false,
-          message: `Falha inesperada ao criar o card de teste: ${error instanceof Error ? error.message : String(error)}`
-        }
-      });
-    }
-  }
-  async function runCheckAllVariants() {
-    try {
-      const result = await checkAllVariants();
-      postToTagUi({ type: "tag:all-variants-result", result });
-    } catch (error) {
-      postToTagUi({
-        type: "tag:all-variants-result",
-        result: {
-          keyUsed: GA_CARD_SET_KEY,
-          importOk: false,
-          source: "none",
-          setNameOk: false,
-          variantOptions: [],
-          unmatchedVariants: [],
-          toggles: [],
-          showToggleFound: false,
-          checks: [],
-          warnings: [`Falha inesperada na verifica\xE7\xE3o: ${error instanceof Error ? error.message : String(error)}`]
-        }
-      });
-    }
-  }
   async function runMappingAndReport(requestId, setup, skipTagged) {
     try {
       const result = await runMapping(
@@ -4151,15 +3762,6 @@
       case "tag:close-plugin":
         watchSelection(false);
         figma.closePlugin();
-        break;
-      case "tag:diagnose-selection":
-        void runDiagnosis();
-        break;
-      case "tag:create-test-card":
-        void runCreateTestCard(message.sourceNodeId, message.variantValues);
-        break;
-      case "tag:check-all-variants":
-        void runCheckAllVariants();
         break;
       case "tag:get-last-setup":
         loadLastSetup().then((setup) => postToTagUi({ type: "tag:last-setup", setup })).catch(() => postToTagUi({ type: "tag:last-setup", setup: null }));
