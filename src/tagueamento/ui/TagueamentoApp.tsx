@@ -81,6 +81,11 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
   const [elementReply, setElementReply] = useState<{ info: ElementInfo | null } | null>(null);
   // Só a resposta do pedido de mapeamento mais recente vale.
   const mappingRequest = useRef(0);
+  // Tela de sucesso: tela atual (para o listener de mensagens) e a seleção que já
+  // estava no canvas quando ela abriu ("unset" = ainda não recebeu o estado inicial).
+  const screenRef = useRef<TagScreen>("setup");
+  const doneBaseline = useRef<string | null | "unset">("unset");
+  const [doneSelection, setDoneSelection] = useState<TagSelectionState | null>(null);
 
   // Geração (Fase 7)
   const [pageStatus, setPageStatus] = useState<PageTagStatus | null>(null);
@@ -103,6 +108,19 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
           break;
         case "tag:selection-state":
           setSelection(message.state);
+          if (screenRef.current === "done") {
+            const state = message.state;
+            if (doneBaseline.current === "unset" || !state.valid) {
+              // Estado inicial ao abrir a tela de sucesso, ou nada selecionado.
+              doneBaseline.current = state.valid ? state.nodeId : null;
+            } else if (state.element && state.element.id !== state.nodeId) {
+              // Clicou no grupo/card/marcador gerado: é ver o resultado, não uma tela nova.
+              doneBaseline.current = state.nodeId;
+            } else if (state.nodeId !== doneBaseline.current) {
+              doneBaseline.current = state.nodeId;
+              setDoneSelection(state);
+            }
+          }
           break;
         case "tag:mapping-progress":
           if (message.requestId !== mappingRequest.current) break;
@@ -165,9 +183,34 @@ export function TagueamentoApp({ onExit }: TagueamentoAppProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapping]);
 
-  // O listener de seleção do tagueamento só fica ligado na seleção de tela e na revisão (evento manual).
   useEffect(() => {
-    if (screen !== "frame" && screen !== "review") return;
+    screenRef.current = screen;
+    if (screen === "done") doneBaseline.current = "unset";
+  }, [screen]);
+
+  // Tela de sucesso + nova tela selecionada no canvas (igual à acessibilidade):
+  //  - tela que já tem tagueamento → "O que deseja fazer com essa tela?";
+  //  - tela sem tagueamento → começa de novo pelo setup (com a última escolha).
+  useEffect(() => {
+    if (!doneSelection) return;
+    setDoneSelection(null);
+    if (screen !== "done") return;
+    setGeneration(null);
+    setDeleted(null);
+    setGenerationError(null);
+    if ((doneSelection.taggedCards ?? 0) > 0 && setup) {
+      setSetup({ ...setup, modo: "tela" });
+      setScreen("frame");
+    } else {
+      setScreen("setup");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doneSelection]);
+
+  // O listener de seleção do tagueamento fica ligado na seleção de tela, na revisão
+  // (evento manual) e na tela de sucesso (nova tela selecionada).
+  useEffect(() => {
+    if (screen !== "frame" && screen !== "review" && screen !== "done") return;
     postToTagMain({ type: "tag:watch-selection", enabled: true });
     return () => postToTagMain({ type: "tag:watch-selection", enabled: false });
   }, [screen]);
