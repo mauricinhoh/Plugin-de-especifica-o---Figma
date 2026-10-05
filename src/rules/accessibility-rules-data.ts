@@ -1061,7 +1061,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "extracaoTexto": "abas",
     "formatoAbas": {
       "selecionada": "[Label], Guia selecionado, Posição [Posição] de [Total]",
-      "naoSelecionada": "Não selecionado: [Label], Guia não selecionado, Posição [Posição] de [Total]",
+      "naoSelecionada": "Não selecionado: [Label], Guia, Posição [Posição] de [Total]",
       "separador": "\n"
     }
   },

@@ -1008,7 +1008,7 @@
       "extracaoTexto": "abas",
       "formatoAbas": {
         "selecionada": "[Label], Guia selecionado, Posi\xE7\xE3o [Posi\xE7\xE3o] de [Total]",
-        "naoSelecionada": "N\xE3o selecionado: [Label], Guia n\xE3o selecionado, Posi\xE7\xE3o [Posi\xE7\xE3o] de [Total]",
+        "naoSelecionada": "N\xE3o selecionado: [Label], Guia, Posi\xE7\xE3o [Posi\xE7\xE3o] de [Total]",
         "separador": "\n"
       }
     },
