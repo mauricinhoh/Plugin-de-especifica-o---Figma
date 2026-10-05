@@ -137,6 +137,66 @@ export interface AccessibilityRuleRecord {
    */
   verbalizacaoSemTitulo?: string;
   /**
+   * NÃO vem da planilha — campo de extensão. Trecho da verbalização que
+   * só aparece quando o plugin acha um texto SUBLINHADO (link) dentro
+   * do componente; sem sublinhado, esse trecho é tirado do texto. Ex.:
+   * Flag → ", Link". Confirmado com o usuário em 05/10/2026.
+   */
+  trechoSoComSublinhado?: string;
+  /**
+   * NÃO vem da planilha — campo de extensão. A ÚLTIMA camada de texto
+   * do componente (mesmo oculta) é reservada para `placeholder`: se
+   * estiver visível, o texto dela preenche o placeholder; se estiver
+   * oculta, `trechoSeOculta` é tirado da verbalização. Essa camada não
+   * entra no `textosPorCamada` dos outros placeholders. Ex.: Input Text
+   * Area → contador ("000/000") na camada "Support". Confirmado com o
+   * usuário em 05/10/2026.
+   */
+  ultimaCamadaDeTexto?: { placeholder: string; trechoSeOculta: string };
+  /**
+   * NÃO vem da planilha — campo de extensão. Títulos dentro deste
+   * contêiner recebem o nível pela ORDEM LÓGICA (1º título = nível 1,
+   * 2º = nível 2...), não pelo tamanho da fonte. Textos pequenos (que
+   * hoje viram nível 5/6 pelo tamanho) continuam como estão. Começou
+   * pelo Modal — confirmado com o usuário em 05/10/2026.
+   */
+  titulosEmOrdemLogica?: boolean;
+  /**
+   * NÃO vem da planilha — campo de extensão. Nome do placeholder que é
+   * preenchido com o PRIMEIRO texto visível do componente (ex.: Input
+   * Search → [Placeholder] = primeira label de dentro). Confirmado com
+   * o usuário em 05/10/2026.
+   */
+  primeiroTextoEm?: string;
+  /**
+   * NÃO vem da planilha — campo de extensão. Placeholders preenchidos
+   * pela POSIÇÃO do texto visível: o 1º nome recebe o 1º texto, o 2º
+   * nome o 2º texto, etc. Ex.: List Select → ["Descrição", "Label"].
+   * Confirmado com o usuário em 05/10/2026.
+   */
+  textosPorPosicao?: string[];
+  /**
+   * NÃO vem da planilha — campo de extensão. O estado vem de um
+   * COMPONENTE INTERNO (o primeiro reconhecido com esse nome de regra),
+   * não do próprio componente: as propriedades dele (variantes e
+   * toggles) entram na conferência de `derivedStates`. Ex.: List Select
+   * → estado do Checkbox de dentro (toggles Selected, Indeterminate,
+   * Disabled). Confirmado com o usuário em 05/10/2026.
+   */
+  estadoDoComponenteInterno?: string;
+  /**
+   * NÃO vem da planilha — campo de extensão. Contêiner com lista de
+   * itens no formato PADRÃO do Design System: quando TODOS os itens
+   * (instâncias visíveis mais próximas) têm nome de camada que bate com
+   * `nomeDoItem` (expressão regular, sem diferenciar maiúsculas) e são
+   * do MESMO componente, cada item vira um card com
+   * `verbalizacaoDoItem`. Se o PD alterou a lista (outro componente no
+   * meio, item trocado), vale o comportamento de `somenteFilhos`: cada
+   * componente de dentro recebe a própria verbalização. Ex.: Popover
+   * Menu (itens "Item1".."Item4"). Confirmado com o usuário em 05/10/2026.
+   */
+  itensPadrao?: { nomeDoItem: string; verbalizacaoDoItem: string };
+  /**
    * NÃO vem da planilha — campo de extensão. Na extração
    * "titulo-descricao", lê só os textos do PRÓPRIO componente, sem
    * entrar em componentes internos (ex.: o "x" do Button Icon do Alert
@@ -241,6 +301,15 @@ export interface AccessibilityRuleRecord {
    * `verbalizacaoEsperada` — é esse trecho que vira o link.
    */
   links?: Array<{ text: string; url: string }>;
+  /**
+   * NÃO vem da planilha — campo de extensão. Verbalização inteira a
+   * usar quando um estado de `derivedStates` bate (chave = `thenState`).
+   * Vale a PRIMEIRA chave, na ordem escrita aqui, que bater; se
+   * nenhuma bater, usa `verbalizacaoEsperada`. Ex.: Currency — oculto
+   * (Hiden = true) → só "Valor oculto"; Type = Negative → texto sem o
+   * "Menos". Confirmado com o usuário em 05/10/2026.
+   */
+  verbalizacaoPorEstadoDerivado?: Record<string, string>;
 }
 
 export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
@@ -277,7 +346,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Action",
     "componente": "Button Primary",
     "estados": "Habilitado, Hover, Focus, Loading, Disabled.",
-    "verbalizacaoEsperada": "Habilitado/Focus: “[Label], Botão”.\nLoading macOS: “Carregando”.\nLoading Windows: “[Carregando]”.\nDisabled macOS: “[Label], Escurecido, Botão”.\nDisabled Windows: “[Label] Indisponível, Botão”.",
+    "verbalizacaoEsperada": "Habilitado/Focus: “[Label], Botão”.\nLoading macOS: “Carregando”.\nLoading Windows: “Carregando”.\nDisabled macOS: “[Label], Escurecido, Botão”.\nDisabled Windows: “[Label] Indisponível, Botão”.",
     "tipo": "Botão",
     "foco": "Sim"
   },
@@ -285,7 +354,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Action",
     "componente": "Button Secondary",
     "estados": "Habilitado, Hover, Focus, Loading, Disabled.",
-    "verbalizacaoEsperada": "Habilitado/Focus: “[Label], Botão”.\nLoading macOS: “Carregando”.\nLoading Windows: “[Carregando]”.\nDisabled macOS: “[Label], Escurecido, Botão”.\nDisabled Windows: “[Label] Indisponível, Botão”.",
+    "verbalizacaoEsperada": "Habilitado/Focus: “[Label], Botão”.\nLoading macOS: “Carregando”.\nLoading Windows: “Carregando”.\nDisabled macOS: “[Label], Escurecido, Botão”.\nDisabled Windows: “[Label] Indisponível, Botão”.",
     "tipo": "Botão",
     "foco": "Sim"
   },
@@ -325,9 +394,17 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Content",
     "componente": "Currency",
     "estados": "Padrão, Mascarado; variação positiva ou negativa apenas visual.",
-    "verbalizacaoEsperada": "Hiden true: \"Valor oculto\" Hiden false positive: \"[Label]\" Hiden true negative: \"Menos [Label]\"",
+    "verbalizacaoEsperada": "Hiden true: \"Valor oculto\" Hiden false positive: \"[Label]\" Hiden true negative: \"-[Label]\"",
     "tipo": "Não interativo",
-    "foco": "Não"
+    "foco": "Não",
+    "derivedStates": [
+      { "whenFlagsEqual": { "Hiden": "True" }, "thenState": "Currency oculto" },
+      { "whenFlagsEqual": { "Type": "Negative" }, "thenState": "Currency negativo" }
+    ],
+    "verbalizacaoPorEstadoDerivado": {
+      "Currency oculto": "Hiden true: \"Valor oculto\"",
+      "Currency negativo": "Hiden true: \"Valor oculto\" Hiden false positive: \"[Label sem sinal]\" Hiden true negative: \"[Label]\""
+    }
   },
   {
     "categoria": "Content",
@@ -482,7 +559,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "ultimosDentro": [
       "Button Icon"
     ],
-    "somenteFilhos": true
+    "somenteFilhos": true,
+    "titulosEmOrdemLogica": true
   },
   {
     "categoria": "Containers",
@@ -543,7 +621,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
     "extracaoTexto": "titulo-descricao",
-    "verbalizacaoSemTitulo": "[Descrição], Link"
+    "verbalizacaoSemTitulo": "[Descrição], Link",
+    "trechoSoComSublinhado": ", Link"
   },
   {
     "categoria": "Feedback",
@@ -553,7 +632,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
     "extracaoTexto": "titulo-descricao",
-    "verbalizacaoSemTitulo": "[Descrição], Link"
+    "verbalizacaoSemTitulo": "[Descrição], Link",
+    "trechoSoComSublinhado": ", Link"
   },
   {
     "categoria": "Feedback",
@@ -632,17 +712,37 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Input Code",
     "estados": "enabled, focus, hover, filled.",
-    "verbalizacaoEsperada": "Quando vazio: Label acessível \"Informe o código, [posição], Campo de edição\". Quando preenchido: Label acessível \"Informe o código, Marcador, [posição], Campo de edição\".\n",
+    "verbalizacaoEsperada": "Quando vazio: Label acessível \"Informe o código, [posição], Campo de edição, [Help Text]\". Quando preenchido: Label acessível \"Informe o código, Marcador, [posição], Campo de edição, [Help Text]\".\n",
     "tipo": "Entrada",
-    "foco": "Sim"
+    "foco": "Sim",
+    "textosPorCamada": {
+      "help text": [
+        "help",
+        "texto de apoio",
+        "texto de ajuda",
+        "texto de suporte",
+        "suporte",
+        "support"
+      ]
+    }
   },
   {
     "categoria": "Inputs",
     "componente": "Input Code Number",
     "estados": "habilitado, focus, hover e preenchido;",
-    "verbalizacaoEsperada": "Ao focar em cada um dos botões leitor anuncia: “6 ou 1, Botão”.\nFeedback dinâmico:\nQuando uma tecla é acionada, o campo de senha atualiza  “x dígitos inseridos”\nBotão Limpar:\nDeve anunciar “Caracteres apagados” após ação.",
+    "verbalizacaoEsperada": "Ao focar em cada um dos botões leitor anuncia: “6 ou 1, Botão, [Help Text]”.\nFeedback dinâmico:\nQuando uma tecla é acionada, o campo de senha atualiza  “x dígitos inseridos”\nBotão Limpar:\nDeve anunciar “Caracteres apagados” após ação.",
     "tipo": "Entrada",
-    "foco": "Sim"
+    "foco": "Sim",
+    "textosPorCamada": {
+      "help text": [
+        "help",
+        "texto de apoio",
+        "texto de ajuda",
+        "texto de suporte",
+        "suporte",
+        "support"
+      ]
+    }
   },
   {
     "categoria": "Inputs",
@@ -773,16 +873,36 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
         "suporte",
         "support"
       ]
+    },
+    "ultimaCamadaDeTexto": {
+      "placeholder": "contador",
+      "trechoSeOculta": "[contador], "
     }
   },
   {
     "categoria": "Inputs",
     "componente": "List Select",
     "estados": "Herda do seletor interno: Hover, Focus, Checked, Unchecked, Disabled etc.",
-    "verbalizacaoEsperada": "Ordem lógica dos componentes com suas devidas semânticas",
+    "verbalizacaoEsperada": "Marcado: “[Descrição], [Label], Caixa de seleção, Marcado”\nNão marcado: “[Descrição], [Label], Caixa de seleção, Não marcado”\nParcialmente marcado: “[Descrição], [Label], Caixa de seleção parcialmente marcada”\nDesabilitado: “[Descrição], [Label], Caixa de seleção desabilitada”",
     "tipo": "Entrada",
     "foco": "Sim",
-    "somenteFilhos": true
+    "textosPorPosicao": [
+      "Descrição",
+      "Label"
+    ],
+    "estadoDoComponenteInterno": "Checkbox",
+    "derivedStates": [
+      { "whenFlagsEqual": { "Selected": "True" }, "thenState": "List Select marcado" },
+      { "whenFlagsEqual": { "Selected": "False", "Indeterminate": "False", "Disabled": "False" }, "thenState": "List Select não marcado" },
+      { "whenFlagsEqual": { "Indeterminate": "True" }, "thenState": "List Select parcialmente marcado" },
+      { "whenFlagsEqual": { "Disabled": "True" }, "thenState": "List Select desabilitado" }
+    ],
+    "verbalizacaoPorEstadoDerivado": {
+      "List Select marcado": "[Descrição], [Label], Caixa de seleção, Marcado",
+      "List Select não marcado": "[Descrição], [Label], Caixa de seleção, Não marcado",
+      "List Select parcialmente marcado": "[Descrição], [Label], Caixa de seleção parcialmente marcada",
+      "List Select desabilitado": "[Descrição], [Label], Caixa de seleção desabilitada"
+    }
   },
   {
     "categoria": "Inputs",
@@ -800,7 +920,11 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "verbalizacaoEsperada": "Ordem lógica dos componentes.",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "somenteFilhos": true
+    "somenteFilhos": true,
+    "itensPadrao": {
+      "nomeDoItem": "^item\\s*\\d+$",
+      "verbalizacaoDoItem": "Não deve ser verbalizado, [Label]"
+    }
   },
   {
     "categoria": "Inputs",
@@ -821,20 +945,14 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
   {
     "categoria": "Inputs",
     "componente": "Search",
+    "aliasesDeNome": [
+      "Input Search"
+    ],
     "estados": "Habilitado/Focus, Hover, Filled;",
-    "verbalizacaoEsperada": "[Placeholder], Campo de Busca, Botão",
+    "verbalizacaoEsperada": "[Placeholder], Campo de busca, Buscar, Botão",
     "tipo": "Entrada",
     "foco": "Sim",
-    "textosPorCamada": {
-      "placeholder": [
-        "placeholder",
-        "value",
-        "valor",
-        "conteudo",
-        "texto",
-        "text"
-      ]
-    }
+    "primeiroTextoEm": "placeholder"
   },
   {
     "categoria": "Inputs",
@@ -899,8 +1017,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "foco": "Apenas elementos interativos",
     "extracaoTexto": "lista",
     "formatoLista": {
-      "item": "[Label] Link",
-      "ultimo": "[Label] Página atual",
+      "item": "[Label] link",
+      "ultimo": "[Label] link, Página atual",
       "separador": ", "
     }
   },
@@ -908,7 +1026,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Navigation",
     "componente": "Carousel Nav",
     "estados": "Herda de Page Indicator e Button Icon.",
-    "verbalizacaoEsperada": "O leitor de tela anuncia os botões como controles de navegação.\n\nExemplo: “Carrossel. 3 itens. Item 1 de 3. Próximo, Botão.”",
+    "verbalizacaoEsperada": "O leitor de tela anuncia os botões como controles de navegação.\n\n“Carrossel. 3 itens. Item 1 de 3. Próximo, Botão”",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos"
   },
@@ -959,7 +1077,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "extracaoTexto": "abas",
     "formatoAbas": {
       "selecionada": "[Label], Guia selecionado, Posição [Posição] de [Total]",
-      "naoSelecionada": "Não selecionado: [Label], Guia não selecionado, Posição [Posição] de [Total]",
+      "naoSelecionada": "Não selecionado: [Label], Guia, Posição [Posição] de [Total]",
       "separador": "\n"
     }
   },

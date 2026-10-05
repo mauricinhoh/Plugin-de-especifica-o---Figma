@@ -4,7 +4,7 @@ import { ScreenAnalysisResult, ScreenContext, SpecificationItem } from "../../sh
 import { accessibilityRules, findRuleByKey } from "../../rules/accessibility-rules";
 import { computeVerbalization, buildStateCandidates, findMatchingRule, UNSPECIFIED_TYPE_KEY } from "../../rules/engine";
 import { generateSpecificationId } from "../idGenerator";
-import { discoverTopLevelComponents } from "./discovery";
+import { collectItems, discoverTopLevelComponents } from "./discovery";
 import { resolveComponentName } from "./componentIdentity";
 import { sortByReadingOrder } from "./readingOrder";
 import { identifyCoreType } from "./coreIdentification";
@@ -16,17 +16,19 @@ import {
   extractFirstThreeTexts,
   extractFirstTwoTexts,
   extractTextsByLayerName,
+  findLastTextLayer,
   extractOwnTextSlots,
   findInnerInstanceText,
   extractTextList,
   extractTabs,
   extractTitleAndDescription,
   findFirstTextNode,
+  hasUnderlinedText,
   findOwnTexts,
   listTextLayers
 } from "./textExtraction";
-import { extractVariantProperties } from "./stateExtraction";
-import { detectHeadingLevelFromFontSize } from "./headingDetection";
+import { extractBooleanProperties, extractVariantProperties } from "./stateExtraction";
+import { detectHeadingLevelFromFontSize, MAX_HEADING_LEVEL, SMALL_TEXT_HEADING_LEVELS } from "./headingDetection";
 import { findCoreIncompatibilities } from "./validation";
 
 /**
@@ -67,6 +69,11 @@ async function classifyComponent(
   }
   const componentName = await resolveComponentName(node);
   const rule = findMatchingRule(accessibilityRules, { nodeName: node.name, componentName });
+  // Lista no formato padrão (ex.: Popover Menu com Item1..Item4): um
+  // card por item. Alterada pelo PD: cada componente de dentro.
+  if (rule?.standardItemNamePattern && (await hasStandardItems(node, rule.standardItemNamePattern))) {
+    return { recognized: true, alwaysDescend: false, childrenOnly: false, cardPerItem: true, ignoreLooseText: false };
+  }
   return {
     recognized: rule !== undefined,
     alwaysDescend: rule?.alwaysDescend ?? false,
@@ -125,6 +132,40 @@ function logStateDebugInfo(
  * próximo para o mais distante (ex.: [Drawer]). Usado para variantes
  * "dentro de contêiner" e para a ordem "por último dentro de".
  */
+/**
+ * true quando a lista do contêiner está no formato padrão: há itens, e
+ * TODOS têm nome que bate com `pattern` e são do mesmo componente.
+ */
+export async function hasStandardItems(node: InstanceNode | ComponentNode, pattern: string): Promise<boolean> {
+  const items = collectItems(node);
+  if (items.length === 0) return false;
+  const nameRegex = new RegExp(pattern, "i");
+  if (!items.every((item) => nameRegex.test(item.name.trim()))) return false;
+  const componentNames = new Set<string | null>();
+  for (const item of items) componentNames.add(await resolveComponentName(item));
+  return componentNames.size === 1 && !componentNames.has(null);
+}
+
+/** Mesma normalização dos nomes de placeholder (sem acento, minúsculo). */
+function normalizePlaceholderKey(name: string): string {
+  return name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+}
+
+/** Primeira instância, dentro do node, reconhecida pela regra de nome `ruleLabel` (ex.: "Checkbox"). */
+async function findInnerComponentByRule(node: SceneNode, ruleLabel: string): Promise<InstanceNode | null> {
+  if (!("children" in node)) return null;
+  for (const child of node.children) {
+    if (child.type === "INSTANCE") {
+      const name = await resolveComponentName(child);
+      const childRule = findMatchingRule(accessibilityRules, { nodeName: child.name, componentName: name });
+      if (childRule?.label === ruleLabel) return child;
+    }
+    const found = await findInnerComponentByRule(child, ruleLabel);
+    if (found) return found;
+  }
+  return null;
+}
+
 async function findAncestorRules(
   node: SceneNode
 ): Promise<Array<{ node: InstanceNode | ComponentNode; ruleKey: string }>> {
@@ -165,6 +206,10 @@ async function buildSpecificationItem(
   if (inheritRuleFrom) {
     const parentComponentName = await resolveComponentName(inheritRuleFrom);
     rule = findMatchingRule(accessibilityRules, { nodeName: inheritRuleFrom.name, componentName: parentComponentName }) ?? rule;
+    // Item de lista padrão (ex.: Popover Menu): regra própria do item.
+    if (rule?.standardItemNamePattern) {
+      rule = findRuleByKey(`${rule.key}--item`) ?? rule;
+    }
   }
 
   // Variante "dentro de contêiner" (ex.: Button Icon dentro do Drawer
@@ -280,13 +325,43 @@ async function buildSpecificationItem(
     }
   }
 
+  // Textos por posição → placeholders (ex.: List Select: 1º = Descrição, 2º = Label).
+  if (!isTextNode && rule?.textsByPosition) {
+    const texts = listTextLayers(node);
+    rule.textsByPosition.forEach((placeholder, index) => {
+      const value = texts[index]?.texto;
+      if (value !== undefined) {
+        extractedData[`camada:${normalizePlaceholderKey(placeholder)}`] = value;
+      }
+    });
+  }
+
+  // Primeiro texto visível → placeholder da regra (ex.: Input Search).
+  if (!isTextNode && rule?.firstTextPlaceholder) {
+    const firstText = extractFirstText(node);
+    if (firstText !== undefined) {
+      extractedData[`camada:${rule.firstTextPlaceholder}`] = firstText;
+    }
+  }
+
+  // Última camada de texto reservada (ex.: contador do Input Text Area).
+  const lastTextLayer = !isTextNode && rule?.lastTextLayer ? findLastTextLayer(node) : null;
   if (!isTextNode && rule?.textsByLayerName) {
-    const byLayer = extractTextsByLayerName(node, rule.textsByLayerName);
+    const byLayer = extractTextsByLayerName(node, rule.textsByLayerName, lastTextLayer?.node.id);
     for (const [placeholder, value] of Object.entries(byLayer)) {
       extractedData[`camada:${placeholder}`] = value;
     }
     if (DEBUG_TEXT_LAYERS) {
       console.log("[text-layers-debug]", { nodeName: node.name, ruleKey: rule.key, camadasDeTexto: listTextLayers(node), preenchidos: byLayer });
+    }
+  }
+
+  if (rule?.lastTextLayer && lastTextLayer) {
+    if (lastTextLayer.visible && lastTextLayer.node.characters.trim().length > 0) {
+      extractedData[`camada:${rule.lastTextLayer.placeholder}`] = lastTextLayer.node.characters;
+    } else {
+      delete extractedData[`camada:${rule.lastTextLayer.placeholder}`];
+      extractedData.ultimaCamadaOculta = "sim";
     }
   }
 
@@ -301,8 +376,24 @@ async function buildSpecificationItem(
     }
   }
 
-  const variantProperties = extractVariantProperties(node);
-  const variantValues = buildStateCandidates(variantProperties, rule?.derivedStates);
+  if (rule?.onlyWithUnderline) {
+    extractedData.sublinhado = hasUnderlinedText(node) ? "sim" : "nao";
+  }
+
+  let variantProperties = extractVariantProperties(node);
+  let booleanProperties = extractBooleanProperties(node);
+  // Estado vindo de um componente interno (ex.: Checkbox dentro do List
+  // Select): as propriedades dele se somam às do próprio componente.
+  if (!isTextNode && rule?.stateFromInnerComponent) {
+    const inner = await findInnerComponentByRule(node, rule.stateFromInnerComponent);
+    if (inner) {
+      const innerVariants = extractVariantProperties(inner);
+      const innerBooleans = extractBooleanProperties(inner);
+      if (innerVariants) variantProperties = { ...(variantProperties ?? {}), ...innerVariants };
+      if (innerBooleans) booleanProperties = { ...(booleanProperties ?? {}), ...innerBooleans };
+    }
+  }
+  const variantValues = buildStateCandidates(variantProperties, rule?.derivedStates, booleanProperties);
   logStateDebugInfo(node, rule, variantProperties, variantValues);
   const verbalization = computeVerbalization(rule, extractedData, variantValues);
 
@@ -314,6 +405,7 @@ async function buildSpecificationItem(
     markupType: rule?.markupType ?? UNSPECIFIED_TYPE_KEY,
     ruleKey: rule?.key ?? null,
     variantProperties,
+    booleanProperties,
     coreType,
     extractedData,
     verbalization,
@@ -434,6 +526,8 @@ export async function analyzeScreen(
     order += 1;
   }
 
+  await renumberHeadingsInLogicalOrder(topLevelNodes, items);
+
   const resolution = forcedContext
     ? { context: forcedContext, requiresContextChoice: false }
     : resolveScreenContext(coreWebCount, coreAppCount);
@@ -455,6 +549,41 @@ export async function analyzeScreen(
     incompatibilities,
     detachWarnings
   };
+}
+
+/**
+ * Títulos dentro de um contêiner com `headingsInLogicalOrder` (ex.:
+ * Modal): o 1º título (na ordem de leitura) vira nível 1, o 2º nível 2,
+ * e assim por diante, até o nível 6. Textos pequenos (nível 5/6 pelo
+ * tamanho da fonte) ficam como estão e não entram na contagem. Cada
+ * contêiner tem a própria contagem. Títulos fora desses contêineres
+ * continuam com o nível pelo tamanho da fonte.
+ */
+export async function renumberHeadingsInLogicalOrder(nodes: SceneNode[], items: SpecificationItem[]): Promise<void> {
+  const headingRule = findRuleByKey("heading");
+  if (!headingRule) return;
+  const counters = new Map<string, number>();
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+    const node = nodes[index];
+    if (item.ruleKey !== "heading" || !node) continue;
+    const currentLevel = item.extractedData.nivel;
+    if (currentLevel === undefined || SMALL_TEXT_HEADING_LEVELS.has(currentLevel)) continue;
+    const container = (await findAncestorRules(node)).find(
+      (ancestor) => findRuleByKey(ancestor.ruleKey)?.headingsInLogicalOrder
+    );
+    if (!container) continue;
+    const next = Math.min((counters.get(container.node.id) ?? 0) + 1, MAX_HEADING_LEVEL);
+    counters.set(container.node.id, next);
+    item.extractedData = { ...item.extractedData, nivel: String(next) };
+    if (!item.verbalizationEdited) {
+      item.verbalization = computeVerbalization(
+        headingRule,
+        item.extractedData,
+        buildStateCandidates(item.variantProperties, headingRule.derivedStates, item.booleanProperties)
+      );
+    }
+  }
 }
 
 /** Constrói um item a partir de um node selecionado manualmente (seção 23-24). */

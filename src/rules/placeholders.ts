@@ -54,6 +54,10 @@ const PLACEHOLDER_RESOLVERS: Record<string, PlaceholderResolver> = {
   // (aba "{Atualizado} Fonte da verdade", 21/09/2026) — mesmo dado
   // (texto visível do componente), nome diferente.
   label: (data) => data.text,
+  // Mesmo texto do [Label], sem o sinal de menos do começo (ex.:
+  // Currency negativo: "-R$ 500,00" → "R$ 500,00"). Confirmado com o
+  // usuário em 05/10/2026.
+  "label sem sinal": (data) => data.text?.replace(/^\s*[-\u2212\u2013]\s*/, ""),
   "rotulo acessivel": (data) => data.text,
   "label acessivel": (data) => data.text,
   "label do botao": (data) => data.text,

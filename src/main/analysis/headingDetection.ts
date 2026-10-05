@@ -45,3 +45,14 @@ export function detectHeadingLevelFromFontSize(node: TextNode): string | null {
   const size = node.fontSize as number;
   return FONT_SIZE_TO_HEADING_LEVEL[size] ?? null;
 }
+
+/**
+ * Níveis que o tamanho da fonte dá para TEXTOS PEQUENOS (16 e 14 px).
+ * Dentro de contêineres com títulos em ordem lógica (ex.: Modal), esses
+ * continuam com o nível pelo tamanho; só os títulos de verdade são
+ * renumerados. Confirmado com o usuário em 05/10/2026.
+ */
+export const SMALL_TEXT_HEADING_LEVELS = new Set(["5", "6"]);
+
+/** Maior nível de título que existe (h6). */
+export const MAX_HEADING_LEVEL = 6;

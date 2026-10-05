@@ -163,6 +163,35 @@ export interface ComponentTypeRule<TExtracted extends object = ExtractedTextData
    */
   derivedStates?: Array<{ whenFlagsEqual: Record<string, string>; thenState: string }>;
   /**
+   * Verbalização inteira por estado derivado (chave = `thenState` de
+   * `derivedStates`). A primeira chave que aparecer entre os
+   * candidatos vence; tem prioridade sobre os outros modelos (ver
+   * dados: verbalizacaoPorEstadoDerivado).
+   */
+  templatesByDerivedState?: Record<string, string>;
+  /**
+   * Trecho do texto que só fica quando há texto sublinhado no
+   * componente (ver dados: trechoSoComSublinhado). Depende de
+   * `extractedData.sublinhado` ("sim"/"nao"), preenchido pelo analyzer.
+   */
+  onlyWithUnderline?: string;
+  /**
+   * Última camada de texto reservada para um placeholder (ver dados:
+   * ultimaCamadaDeTexto). Quando o analyzer marca
+   * `extractedData.ultimaCamadaOculta = "sim"`, `trechoSeOculta` sai do texto.
+   */
+  lastTextLayer?: { placeholder: string; trechoSeOculta: string };
+  /** Títulos dentro deste contêiner usam nível pela ordem lógica (ver dados: titulosEmOrdemLogica). */
+  headingsInLogicalOrder?: boolean;
+  /** Placeholder preenchido com o primeiro texto visível do componente (ver dados: primeiroTextoEm). */
+  firstTextPlaceholder?: string;
+  /** Placeholders preenchidos pela posição do texto visível (ver dados: textosPorPosicao). */
+  textsByPosition?: string[];
+  /** Nome da regra do componente interno de onde vem o estado (ver dados: estadoDoComponenteInterno). */
+  stateFromInnerComponent?: string;
+  /** Padrão do nome dos itens de uma lista padrão (ver dados: itensPadrao). */
+  standardItemNamePattern?: string;
+  /**
    * Links reais que devem virar HYPERLINK de verdade no .docx
    * exportado (não só texto azul — um link clicável de verdade).
    * `text` precisa aparecer exatamente dentro do template/verbalização
@@ -252,11 +281,12 @@ function firstWordTokens(label: string): string[] {
  */
 export function buildStateCandidates(
   variantProperties: Record<string, string> | null,
-  derivedStates?: Array<{ whenFlagsEqual: Record<string, string>; thenState: string }>
+  derivedStates?: Array<{ whenFlagsEqual: Record<string, string>; thenState: string }>,
+  booleanProperties?: Record<string, string> | null
 ): string[] {
-  if (!variantProperties) return [];
+  if (!variantProperties && !booleanProperties) return [];
   const candidates: string[] = [];
-  for (const [propertyName, value] of Object.entries(variantProperties)) {
+  for (const [propertyName, value] of Object.entries(variantProperties ?? {})) {
     const normalizedValue = value.trim().toLowerCase();
     if (normalizedValue === "true") {
       candidates.push(propertyName);
@@ -271,7 +301,9 @@ export function buildStateCandidates(
   if (derivedStates) {
     for (const rule of derivedStates) {
       const allMatch = Object.entries(rule.whenFlagsEqual).every(([flag, expected]) => {
-        const actual = variantProperties[flag];
+        // Toggles (booleanProperties) só entram aqui, na conferência
+        // dos derivedStates — nunca como candidato direto.
+        const actual = variantProperties?.[flag] ?? booleanProperties?.[flag];
         return actual !== undefined && actual.trim().toLowerCase() === expected.trim().toLowerCase();
       });
       if (allMatch) {
@@ -365,14 +397,29 @@ export function computeVerbalization(
   if (!rule || !rule.hasVerbalization) {
     return "";
   }
-  const template =
-    rule.templateWithoutTitle && extractedData.text === undefined && extractedData.text2 !== undefined
+  const derivedTemplate = rule.templatesByDerivedState
+    ? Object.entries(rule.templatesByDerivedState).find(([state]) => variantValues.includes(state))?.[1]
+    : undefined;
+  let template =
+    derivedTemplate ??
+    (rule.templateWithoutTitle && extractedData.text === undefined && extractedData.text2 !== undefined
       ? rule.templateWithoutTitle
       : rule.templateWithoutDescription && extractedData.text !== undefined && extractedData.text2 === undefined
         ? rule.templateWithoutDescription
-        : selectVerbalizationTemplate(rule, variantValues) ?? rule.template;
+        : selectVerbalizationTemplate(rule, variantValues) ?? rule.template);
   if (!template) {
     return "";
+  }
+  // Sem texto sublinhado no componente: tira o trecho do link (ex.:
+  // Flag → ", Link"). Só quando o analyzer confirmou que não há
+  // sublinhado ("nao"); sem a informação, mantém o texto como está.
+  if (rule.onlyWithUnderline && extractedData.sublinhado === "nao") {
+    template = template.split(rule.onlyWithUnderline).join("");
+  }
+  // Última camada de texto oculta (ex.: contador do Input Text Area
+  // desligado): tira o trecho do placeholder dela.
+  if (rule.lastTextLayer && extractedData.ultimaCamadaOculta === "sim") {
+    template = template.split(rule.lastTextLayer.trechoSeOculta).join("");
   }
   // Abas (ex.: Tab): uma linha por aba, com posição e total; a aba
   // selecionada usa o modelo "selecionada", as demais "não selecionada".

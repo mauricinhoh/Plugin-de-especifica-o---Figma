@@ -37,6 +37,34 @@
  * manualmente), então não podem morar neste arquivo (que só existe no
  * main thread).
  */
+/**
+ * Propriedades BOOLEANAS (toggles liga/desliga) da instância, ex.:
+ * `{ Hiden: "true" }` — o sufixo de id que o Figma põe no nome
+ * ("Hiden#12:0") é removido. Usadas SÓ para conferir `derivedStates`
+ * (ver engine.ts → buildStateCandidates); não viram candidatos de
+ * estado por conta própria, para não mudar a escolha de estado dos
+ * outros componentes. Necessário para o Currency, cujo "Hiden" é uma
+ * toggle (confirmado com o usuário em 05/10/2026).
+ */
+export function extractBooleanProperties(node: SceneNode): Record<string, string> | null {
+  if (node.type !== "INSTANCE") {
+    return null;
+  }
+  const componentProperties = node.componentProperties;
+  if (!componentProperties) {
+    return null;
+  }
+
+  const booleanValues: Record<string, string> = {};
+  for (const [propertyName, property] of Object.entries(componentProperties)) {
+    if (property.type === "BOOLEAN" && typeof property.value === "boolean") {
+      booleanValues[propertyName.split("#")[0].trim()] = property.value ? "true" : "false";
+    }
+  }
+
+  return Object.keys(booleanValues).length > 0 ? booleanValues : null;
+}
+
 export function extractVariantProperties(node: SceneNode): Record<string, string> | null {
   if (node.type !== "INSTANCE") {
     return null;

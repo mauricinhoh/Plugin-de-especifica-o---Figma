@@ -49,6 +49,13 @@ export interface SpecificationItem {
    * instância de componente com variantes.
    */
   variantProperties: Record<string, string> | null;
+  /**
+   * Propriedades booleanas (toggles) da instância, sem o sufixo de id
+   * (ex.: `{ Hiden: "true" }`). Usadas só para os `derivedStates` da
+   * regra (ex.: Currency oculto). Opcional para não quebrar itens
+   * antigos.
+   */
+  booleanProperties?: Record<string, string> | null;
   /** Origem Core do componente, quando aplicável. */
   coreType: CoreType;
   /** Dados brutos extraídos do Figma pela regra (ex.: { text: "Pagar" }). */

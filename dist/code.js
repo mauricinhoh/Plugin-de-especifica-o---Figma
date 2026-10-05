@@ -35,6 +35,13 @@
     // (aba "{Atualizado} Fonte da verdade", 21/09/2026) — mesmo dado
     // (texto visível do componente), nome diferente.
     label: (data) => data.text,
+    // Mesmo texto do [Label], sem o sinal de menos do começo (ex.:
+    // Currency negativo: "-R$ 500,00" → "R$ 500,00"). Confirmado com o
+    // usuário em 05/10/2026.
+    "label sem sinal": (data) => {
+      var _a2;
+      return (_a2 = data.text) == null ? void 0 : _a2.replace(/^\s*[-\u2212\u2013]\s*/, "");
+    },
     "rotulo acessivel": (data) => data.text,
     "label acessivel": (data) => data.text,
     "label do botao": (data) => data.text,
@@ -114,10 +121,10 @@
   function firstWordTokens(label) {
     return label.split("/").map((part) => part.trim().split(/\s+/)[0]).filter((word) => Boolean(word)).map(normalizeWord);
   }
-  function buildStateCandidates(variantProperties, derivedStates) {
-    if (!variantProperties) return [];
+  function buildStateCandidates(variantProperties, derivedStates, booleanProperties) {
+    if (!variantProperties && !booleanProperties) return [];
     const candidates = [];
-    for (const [propertyName, value] of Object.entries(variantProperties)) {
+    for (const [propertyName, value] of Object.entries(variantProperties != null ? variantProperties : {})) {
       const normalizedValue = value.trim().toLowerCase();
       if (normalizedValue === "true") {
         candidates.push(propertyName);
@@ -128,7 +135,8 @@
     if (derivedStates) {
       for (const rule of derivedStates) {
         const allMatch = Object.entries(rule.whenFlagsEqual).every(([flag, expected]) => {
-          const actual = variantProperties[flag];
+          var _a2;
+          const actual = (_a2 = variantProperties == null ? void 0 : variantProperties[flag]) != null ? _a2 : booleanProperties == null ? void 0 : booleanProperties[flag];
           return actual !== void 0 && actual.trim().toLowerCase() === expected.trim().toLowerCase();
         });
         if (allMatch) {
@@ -168,13 +176,20 @@
     return void 0;
   }
   function computeVerbalization(rule, extractedData, variantValues = []) {
-    var _a2, _b, _c;
+    var _a2, _b, _c, _d;
     if (!rule || !rule.hasVerbalization) {
       return "";
     }
-    const template = rule.templateWithoutTitle && extractedData.text === void 0 && extractedData.text2 !== void 0 ? rule.templateWithoutTitle : rule.templateWithoutDescription && extractedData.text !== void 0 && extractedData.text2 === void 0 ? rule.templateWithoutDescription : (_a2 = selectVerbalizationTemplate(rule, variantValues)) != null ? _a2 : rule.template;
+    const derivedTemplate = rule.templatesByDerivedState ? (_a2 = Object.entries(rule.templatesByDerivedState).find(([state]) => variantValues.includes(state))) == null ? void 0 : _a2[1] : void 0;
+    let template = derivedTemplate != null ? derivedTemplate : rule.templateWithoutTitle && extractedData.text === void 0 && extractedData.text2 !== void 0 ? rule.templateWithoutTitle : rule.templateWithoutDescription && extractedData.text !== void 0 && extractedData.text2 === void 0 ? rule.templateWithoutDescription : (_b = selectVerbalizationTemplate(rule, variantValues)) != null ? _b : rule.template;
     if (!template) {
       return "";
+    }
+    if (rule.onlyWithUnderline && extractedData.sublinhado === "nao") {
+      template = template.split(rule.onlyWithUnderline).join("");
+    }
+    if (rule.lastTextLayer && extractedData.ultimaCamadaOculta === "sim") {
+      template = template.split(rule.lastTextLayer.trechoSeOculta).join("");
     }
     if (rule.tabFormat && extractedData.abas) {
       let tabs = [];
@@ -190,7 +205,7 @@
           posicao: String(index + 1),
           total: String(tabs.length)
         })
-      ).join((_b = format.separador) != null ? _b : "\n");
+      ).join((_c = format.separador) != null ? _c : "\n");
       return resolvePlaceholders(template, __spreadProps(__spreadValues({}, extractedData), { abas: formatted }));
     }
     if (rule.listFormat && extractedData.lista) {
@@ -203,7 +218,7 @@
       const format = rule.listFormat;
       const formatted = items.map(
         (text, index) => resolvePlaceholders(index === items.length - 1 ? format.ultimo : format.item, { text })
-      ).join((_c = format.separador) != null ? _c : ", ");
+      ).join((_d = format.separador) != null ? _d : ", ");
       return resolvePlaceholders(template, __spreadProps(__spreadValues({}, extractedData), { niveis: formatted }));
     }
     return resolvePlaceholders(template, extractedData);
@@ -266,7 +281,7 @@
       "categoria": "Action",
       "componente": "Button Primary",
       "estados": "Habilitado, Hover, Focus, Loading, Disabled.",
-      "verbalizacaoEsperada": "Habilitado/Focus: \u201C[Label], Bot\xE3o\u201D.\nLoading macOS: \u201CCarregando\u201D.\nLoading Windows: \u201C[Carregando]\u201D.\nDisabled macOS: \u201C[Label], Escurecido, Bot\xE3o\u201D.\nDisabled Windows: \u201C[Label] Indispon\xEDvel, Bot\xE3o\u201D.",
+      "verbalizacaoEsperada": "Habilitado/Focus: \u201C[Label], Bot\xE3o\u201D.\nLoading macOS: \u201CCarregando\u201D.\nLoading Windows: \u201CCarregando\u201D.\nDisabled macOS: \u201C[Label], Escurecido, Bot\xE3o\u201D.\nDisabled Windows: \u201C[Label] Indispon\xEDvel, Bot\xE3o\u201D.",
       "tipo": "Bot\xE3o",
       "foco": "Sim"
     },
@@ -274,7 +289,7 @@
       "categoria": "Action",
       "componente": "Button Secondary",
       "estados": "Habilitado, Hover, Focus, Loading, Disabled.",
-      "verbalizacaoEsperada": "Habilitado/Focus: \u201C[Label], Bot\xE3o\u201D.\nLoading macOS: \u201CCarregando\u201D.\nLoading Windows: \u201C[Carregando]\u201D.\nDisabled macOS: \u201C[Label], Escurecido, Bot\xE3o\u201D.\nDisabled Windows: \u201C[Label] Indispon\xEDvel, Bot\xE3o\u201D.",
+      "verbalizacaoEsperada": "Habilitado/Focus: \u201C[Label], Bot\xE3o\u201D.\nLoading macOS: \u201CCarregando\u201D.\nLoading Windows: \u201CCarregando\u201D.\nDisabled macOS: \u201C[Label], Escurecido, Bot\xE3o\u201D.\nDisabled Windows: \u201C[Label] Indispon\xEDvel, Bot\xE3o\u201D.",
       "tipo": "Bot\xE3o",
       "foco": "Sim"
     },
@@ -314,9 +329,17 @@
       "categoria": "Content",
       "componente": "Currency",
       "estados": "Padr\xE3o, Mascarado; varia\xE7\xE3o positiva ou negativa apenas visual.",
-      "verbalizacaoEsperada": 'Hiden true: "Valor oculto" Hiden false positive: "[Label]" Hiden true negative: "Menos [Label]"',
+      "verbalizacaoEsperada": 'Hiden true: "Valor oculto" Hiden false positive: "[Label]" Hiden true negative: "-[Label]"',
       "tipo": "N\xE3o interativo",
-      "foco": "N\xE3o"
+      "foco": "N\xE3o",
+      "derivedStates": [
+        { "whenFlagsEqual": { "Hiden": "True" }, "thenState": "Currency oculto" },
+        { "whenFlagsEqual": { "Type": "Negative" }, "thenState": "Currency negativo" }
+      ],
+      "verbalizacaoPorEstadoDerivado": {
+        "Currency oculto": 'Hiden true: "Valor oculto"',
+        "Currency negativo": 'Hiden true: "Valor oculto" Hiden false positive: "[Label sem sinal]" Hiden true negative: "[Label]"'
+      }
     },
     {
       "categoria": "Content",
@@ -471,7 +494,8 @@
       "ultimosDentro": [
         "Button Icon"
       ],
-      "somenteFilhos": true
+      "somenteFilhos": true,
+      "titulosEmOrdemLogica": true
     },
     {
       "categoria": "Containers",
@@ -532,7 +556,8 @@
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
       "extracaoTexto": "titulo-descricao",
-      "verbalizacaoSemTitulo": "[Descri\xE7\xE3o], Link"
+      "verbalizacaoSemTitulo": "[Descri\xE7\xE3o], Link",
+      "trechoSoComSublinhado": ", Link"
     },
     {
       "categoria": "Feedback",
@@ -542,7 +567,8 @@
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
       "extracaoTexto": "titulo-descricao",
-      "verbalizacaoSemTitulo": "[Descri\xE7\xE3o], Link"
+      "verbalizacaoSemTitulo": "[Descri\xE7\xE3o], Link",
+      "trechoSoComSublinhado": ", Link"
     },
     {
       "categoria": "Feedback",
@@ -621,17 +647,37 @@
       "categoria": "Inputs",
       "componente": "Input Code",
       "estados": "enabled, focus, hover, filled.",
-      "verbalizacaoEsperada": 'Quando vazio: Label acess\xEDvel "Informe o c\xF3digo, [posi\xE7\xE3o], Campo de edi\xE7\xE3o". Quando preenchido: Label acess\xEDvel "Informe o c\xF3digo, Marcador, [posi\xE7\xE3o], Campo de edi\xE7\xE3o".\n',
+      "verbalizacaoEsperada": 'Quando vazio: Label acess\xEDvel "Informe o c\xF3digo, [posi\xE7\xE3o], Campo de edi\xE7\xE3o, [Help Text]". Quando preenchido: Label acess\xEDvel "Informe o c\xF3digo, Marcador, [posi\xE7\xE3o], Campo de edi\xE7\xE3o, [Help Text]".\n',
       "tipo": "Entrada",
-      "foco": "Sim"
+      "foco": "Sim",
+      "textosPorCamada": {
+        "help text": [
+          "help",
+          "texto de apoio",
+          "texto de ajuda",
+          "texto de suporte",
+          "suporte",
+          "support"
+        ]
+      }
     },
     {
       "categoria": "Inputs",
       "componente": "Input Code Number",
       "estados": "habilitado, focus, hover e preenchido;",
-      "verbalizacaoEsperada": "Ao focar em cada um dos bot\xF5es leitor anuncia: \u201C6 ou 1, Bot\xE3o\u201D.\nFeedback din\xE2mico:\nQuando uma tecla \xE9 acionada, o campo de senha atualiza\u2028 \u201Cx d\xEDgitos inseridos\u201D\nBot\xE3o Limpar:\nDeve anunciar \u201CCaracteres apagados\u201D ap\xF3s a\xE7\xE3o.",
+      "verbalizacaoEsperada": "Ao focar em cada um dos bot\xF5es leitor anuncia: \u201C6 ou 1, Bot\xE3o, [Help Text]\u201D.\nFeedback din\xE2mico:\nQuando uma tecla \xE9 acionada, o campo de senha atualiza\u2028 \u201Cx d\xEDgitos inseridos\u201D\nBot\xE3o Limpar:\nDeve anunciar \u201CCaracteres apagados\u201D ap\xF3s a\xE7\xE3o.",
       "tipo": "Entrada",
-      "foco": "Sim"
+      "foco": "Sim",
+      "textosPorCamada": {
+        "help text": [
+          "help",
+          "texto de apoio",
+          "texto de ajuda",
+          "texto de suporte",
+          "suporte",
+          "support"
+        ]
+      }
     },
     {
       "categoria": "Inputs",
@@ -762,16 +808,36 @@
           "suporte",
           "support"
         ]
+      },
+      "ultimaCamadaDeTexto": {
+        "placeholder": "contador",
+        "trechoSeOculta": "[contador], "
       }
     },
     {
       "categoria": "Inputs",
       "componente": "List Select",
       "estados": "Herda do seletor interno: Hover, Focus, Checked, Unchecked, Disabled etc.",
-      "verbalizacaoEsperada": "Ordem l\xF3gica dos componentes com suas devidas sem\xE2nticas",
+      "verbalizacaoEsperada": "Marcado: \u201C[Descri\xE7\xE3o], [Label], Caixa de sele\xE7\xE3o, Marcado\u201D\nN\xE3o marcado: \u201C[Descri\xE7\xE3o], [Label], Caixa de sele\xE7\xE3o, N\xE3o marcado\u201D\nParcialmente marcado: \u201C[Descri\xE7\xE3o], [Label], Caixa de sele\xE7\xE3o parcialmente marcada\u201D\nDesabilitado: \u201C[Descri\xE7\xE3o], [Label], Caixa de sele\xE7\xE3o desabilitada\u201D",
       "tipo": "Entrada",
       "foco": "Sim",
-      "somenteFilhos": true
+      "textosPorPosicao": [
+        "Descri\xE7\xE3o",
+        "Label"
+      ],
+      "estadoDoComponenteInterno": "Checkbox",
+      "derivedStates": [
+        { "whenFlagsEqual": { "Selected": "True" }, "thenState": "List Select marcado" },
+        { "whenFlagsEqual": { "Selected": "False", "Indeterminate": "False", "Disabled": "False" }, "thenState": "List Select n\xE3o marcado" },
+        { "whenFlagsEqual": { "Indeterminate": "True" }, "thenState": "List Select parcialmente marcado" },
+        { "whenFlagsEqual": { "Disabled": "True" }, "thenState": "List Select desabilitado" }
+      ],
+      "verbalizacaoPorEstadoDerivado": {
+        "List Select marcado": "[Descri\xE7\xE3o], [Label], Caixa de sele\xE7\xE3o, Marcado",
+        "List Select n\xE3o marcado": "[Descri\xE7\xE3o], [Label], Caixa de sele\xE7\xE3o, N\xE3o marcado",
+        "List Select parcialmente marcado": "[Descri\xE7\xE3o], [Label], Caixa de sele\xE7\xE3o parcialmente marcada",
+        "List Select desabilitado": "[Descri\xE7\xE3o], [Label], Caixa de sele\xE7\xE3o desabilitada"
+      }
     },
     {
       "categoria": "Inputs",
@@ -789,7 +855,11 @@
       "verbalizacaoEsperada": "Ordem l\xF3gica dos componentes.",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "somenteFilhos": true
+      "somenteFilhos": true,
+      "itensPadrao": {
+        "nomeDoItem": "^item\\s*\\d+$",
+        "verbalizacaoDoItem": "N\xE3o deve ser verbalizado, [Label]"
+      }
     },
     {
       "categoria": "Inputs",
@@ -810,20 +880,14 @@
     {
       "categoria": "Inputs",
       "componente": "Search",
+      "aliasesDeNome": [
+        "Input Search"
+      ],
       "estados": "Habilitado/Focus, Hover, Filled;",
-      "verbalizacaoEsperada": "[Placeholder], Campo de Busca, Bot\xE3o",
+      "verbalizacaoEsperada": "[Placeholder], Campo de busca, Buscar, Bot\xE3o",
       "tipo": "Entrada",
       "foco": "Sim",
-      "textosPorCamada": {
-        "placeholder": [
-          "placeholder",
-          "value",
-          "valor",
-          "conteudo",
-          "texto",
-          "text"
-        ]
-      }
+      "primeiroTextoEm": "placeholder"
     },
     {
       "categoria": "Inputs",
@@ -888,8 +952,8 @@
       "foco": "Apenas elementos interativos",
       "extracaoTexto": "lista",
       "formatoLista": {
-        "item": "[Label] Link",
-        "ultimo": "[Label] P\xE1gina atual",
+        "item": "[Label] link",
+        "ultimo": "[Label] link, P\xE1gina atual",
         "separador": ", "
       }
     },
@@ -897,7 +961,7 @@
       "categoria": "Navigation",
       "componente": "Carousel Nav",
       "estados": "Herda de Page Indicator e Button Icon.",
-      "verbalizacaoEsperada": "O leitor de tela anuncia os bot\xF5es como controles de navega\xE7\xE3o.\n\nExemplo: \u201CCarrossel. 3 itens. Item 1 de 3. Pr\xF3ximo, Bot\xE3o.\u201D",
+      "verbalizacaoEsperada": "O leitor de tela anuncia os bot\xF5es como controles de navega\xE7\xE3o.\n\n\u201CCarrossel. 3 itens. Item 1 de 3. Pr\xF3ximo, Bot\xE3o\u201D",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos"
     },
@@ -948,7 +1012,7 @@
       "extracaoTexto": "abas",
       "formatoAbas": {
         "selecionada": "[Label], Guia selecionado, Posi\xE7\xE3o [Posi\xE7\xE3o] de [Total]",
-        "naoSelecionada": "N\xE3o selecionado: [Label], Guia n\xE3o selecionado, Posi\xE7\xE3o [Posi\xE7\xE3o] de [Total]",
+        "naoSelecionada": "N\xE3o selecionado: [Label], Guia, Posi\xE7\xE3o [Posi\xE7\xE3o] de [Total]",
         "separador": "\n"
       }
     },
@@ -1064,7 +1128,7 @@
     return map;
   }
   function buildRule(record) {
-    var _a2, _b, _c, _d, _e, _f, _g;
+    var _a2, _b, _c, _d, _e, _f, _g, _h, _i;
     const states = parseVerbalizationStates(record.verbalizacaoEsperada);
     const statesMap = states.length > 0 ? states.reduce((acc, s) => {
       acc[s.label] = s.text;
@@ -1100,6 +1164,14 @@
       lastInside: record.ultimosDentro,
       stateFlagAliases: record.stateFlagAliases,
       derivedStates: record.derivedStates,
+      templatesByDerivedState: record.verbalizacaoPorEstadoDerivado,
+      onlyWithUnderline: record.trechoSoComSublinhado,
+      lastTextLayer: record.ultimaCamadaDeTexto,
+      headingsInLogicalOrder: (_h = record.titulosEmOrdemLogica) != null ? _h : false,
+      firstTextPlaceholder: record.primeiroTextoEm,
+      textsByPosition: record.textosPorPosicao,
+      stateFromInnerComponent: record.estadoDoComponenteInterno,
+      standardItemNamePattern: (_i = record.itensPadrao) == null ? void 0 : _i.nomeDoItem,
       links: record.links
     };
   }
@@ -1114,10 +1186,17 @@
       }));
     }
   }
+  var standardItemRules = accessibilityRuleRecords.filter((record) => record.itensPadrao).map((record) => __spreadProps(__spreadValues({}, buildRule(__spreadProps(__spreadValues({}, record), {
+    itensPadrao: void 0,
+    somenteFilhos: false,
+    verbalizacaoEsperada: record.itensPadrao.verbalizacaoDoItem
+  }))), {
+    key: `${slugify(record.componente)}--item`
+  }));
   function findRuleByKey(key) {
-    var _a2;
+    var _a2, _b;
     if (!key) return void 0;
-    return (_a2 = accessibilityRules.find((r) => r.key === key)) != null ? _a2 : containerVariantRules.find((r) => r.key === key);
+    return (_b = (_a2 = accessibilityRules.find((r) => r.key === key)) != null ? _a2 : containerVariantRules.find((r) => r.key === key)) != null ? _b : standardItemRules.find((r) => r.key === key);
   }
 
   // src/main/figma-api.ts
@@ -1401,9 +1480,10 @@
   function normalizeLayerName(value) {
     return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
   }
-  function extractTextsByLayerName(node, spec) {
+  function extractTextsByLayerName(node, spec, excludeNodeId) {
     const result = {};
     for (const textNode of findAllTexts(node)) {
+      if (textNode.id === excludeNodeId) continue;
       const layerName = normalizeLayerName(textNode.name);
       for (const [placeholder, patterns] of Object.entries(spec)) {
         if (result[placeholder] !== void 0) continue;
@@ -1534,6 +1614,32 @@
     const textNode = findFirstText(node);
     return textNode ? textNode.characters : void 0;
   }
+  function findLastTextLayer(node) {
+    let last = null;
+    const walk = (current, parentVisible) => {
+      const visible = parentVisible && !("visible" in current && current.visible === false);
+      if (current.type === "TEXT") {
+        last = { node: current, visible };
+        return;
+      }
+      if ("children" in current) {
+        for (const child of current.children) walk(child, visible);
+      }
+    };
+    if ("children" in node) {
+      for (const child of node.children) walk(child, true);
+    }
+    return last;
+  }
+  function hasUnderlinedText(node) {
+    return findAllTexts(node).some((text) => {
+      if (text.textDecoration === "UNDERLINE") return true;
+      if (text.textDecoration === figma.mixed) {
+        return text.getStyledTextSegments(["textDecoration"]).some((segment) => segment.textDecoration === "UNDERLINE");
+      }
+      return false;
+    });
+  }
   function findAllTexts(node) {
     if ("visible" in node && node.visible === false) {
       return [];
@@ -1573,6 +1679,22 @@
   }
 
   // src/main/analysis/stateExtraction.ts
+  function extractBooleanProperties(node) {
+    if (node.type !== "INSTANCE") {
+      return null;
+    }
+    const componentProperties = node.componentProperties;
+    if (!componentProperties) {
+      return null;
+    }
+    const booleanValues = {};
+    for (const [propertyName, property] of Object.entries(componentProperties)) {
+      if (property.type === "BOOLEAN" && typeof property.value === "boolean") {
+        booleanValues[propertyName.split("#")[0].trim()] = property.value ? "true" : "false";
+      }
+    }
+    return Object.keys(booleanValues).length > 0 ? booleanValues : null;
+  }
   function extractVariantProperties(node) {
     if (node.type !== "INSTANCE") {
       return null;
@@ -1607,6 +1729,8 @@
     const size = node.fontSize;
     return (_a2 = FONT_SIZE_TO_HEADING_LEVEL[size]) != null ? _a2 : null;
   }
+  var SMALL_TEXT_HEADING_LEVELS = /* @__PURE__ */ new Set(["5", "6"]);
+  var MAX_HEADING_LEVEL = 6;
 
   // src/main/analysis/validation.ts
   function findCoreIncompatibilities(items, context) {
@@ -1635,6 +1759,9 @@
     }
     const componentName = await resolveComponentName(node);
     const rule = findMatchingRule(accessibilityRules, { nodeName: node.name, componentName });
+    if ((rule == null ? void 0 : rule.standardItemNamePattern) && await hasStandardItems(node, rule.standardItemNamePattern)) {
+      return { recognized: true, alwaysDescend: false, childrenOnly: false, cardPerItem: true, ignoreLooseText: false };
+    }
     return {
       recognized: rule !== void 0,
       alwaysDescend: (_a2 = rule == null ? void 0 : rule.alwaysDescend) != null ? _a2 : false,
@@ -1655,6 +1782,31 @@
       valoresComparados: variantValues
     });
   }
+  async function hasStandardItems(node, pattern) {
+    const items = collectItems(node);
+    if (items.length === 0) return false;
+    const nameRegex = new RegExp(pattern, "i");
+    if (!items.every((item) => nameRegex.test(item.name.trim()))) return false;
+    const componentNames = /* @__PURE__ */ new Set();
+    for (const item of items) componentNames.add(await resolveComponentName(item));
+    return componentNames.size === 1 && !componentNames.has(null);
+  }
+  function normalizePlaceholderKey(name) {
+    return name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+  }
+  async function findInnerComponentByRule(node, ruleLabel) {
+    if (!("children" in node)) return null;
+    for (const child of node.children) {
+      if (child.type === "INSTANCE") {
+        const name = await resolveComponentName(child);
+        const childRule = findMatchingRule(accessibilityRules, { nodeName: child.name, componentName: name });
+        if ((childRule == null ? void 0 : childRule.label) === ruleLabel) return child;
+      }
+      const found = await findInnerComponentByRule(child, ruleLabel);
+      if (found) return found;
+    }
+    return null;
+  }
   async function findAncestorRules(node) {
     const result = [];
     let current = node.parent;
@@ -1669,7 +1821,7 @@
     return result;
   }
   async function buildSpecificationItem(node, order, manuallyAdded, inheritRuleFrom) {
-    var _a2, _b, _c, _d, _e;
+    var _a2, _b, _c, _d, _e, _f;
     const isComponentLike = node.type === "INSTANCE" || node.type === "COMPONENT";
     const isTextNode = node.type === "TEXT";
     const coreType = isComponentLike ? (await identifyCoreType(node)).coreType : "DESCONHECIDO";
@@ -1678,12 +1830,15 @@
     if (inheritRuleFrom) {
       const parentComponentName = await resolveComponentName(inheritRuleFrom);
       rule = (_a2 = findMatchingRule(accessibilityRules, { nodeName: inheritRuleFrom.name, componentName: parentComponentName })) != null ? _a2 : rule;
+      if (rule == null ? void 0 : rule.standardItemNamePattern) {
+        rule = (_b = findRuleByKey(`${rule.key}--item`)) != null ? _b : rule;
+      }
     }
     if (rule == null ? void 0 : rule.variantsInsideContainer) {
       for (const ancestor of await findAncestorRules(node)) {
         const variantKey = rule.variantsInsideContainer[ancestor.ruleKey];
         if (variantKey) {
-          rule = (_b = findRuleByKey(variantKey)) != null ? _b : rule;
+          rule = (_c = findRuleByKey(variantKey)) != null ? _c : rule;
           break;
         }
       }
@@ -1774,13 +1929,38 @@
         extractedData[`camada:${rule.innerButtonTextPlaceholder}`] = buttonText;
       }
     }
+    if (!isTextNode && (rule == null ? void 0 : rule.textsByPosition)) {
+      const texts = listTextLayers(node);
+      rule.textsByPosition.forEach((placeholder, index) => {
+        var _a3;
+        const value = (_a3 = texts[index]) == null ? void 0 : _a3.texto;
+        if (value !== void 0) {
+          extractedData[`camada:${normalizePlaceholderKey(placeholder)}`] = value;
+        }
+      });
+    }
+    if (!isTextNode && (rule == null ? void 0 : rule.firstTextPlaceholder)) {
+      const firstText = extractFirstText(node);
+      if (firstText !== void 0) {
+        extractedData[`camada:${rule.firstTextPlaceholder}`] = firstText;
+      }
+    }
+    const lastTextLayer = !isTextNode && (rule == null ? void 0 : rule.lastTextLayer) ? findLastTextLayer(node) : null;
     if (!isTextNode && (rule == null ? void 0 : rule.textsByLayerName)) {
-      const byLayer = extractTextsByLayerName(node, rule.textsByLayerName);
+      const byLayer = extractTextsByLayerName(node, rule.textsByLayerName, lastTextLayer == null ? void 0 : lastTextLayer.node.id);
       for (const [placeholder, value] of Object.entries(byLayer)) {
         extractedData[`camada:${placeholder}`] = value;
       }
       if (DEBUG_TEXT_LAYERS) {
         console.log("[text-layers-debug]", { nodeName: node.name, ruleKey: rule.key, camadasDeTexto: listTextLayers(node), preenchidos: byLayer });
+      }
+    }
+    if ((rule == null ? void 0 : rule.lastTextLayer) && lastTextLayer) {
+      if (lastTextLayer.visible && lastTextLayer.node.characters.trim().length > 0) {
+        extractedData[`camada:${rule.lastTextLayer.placeholder}`] = lastTextLayer.node.characters;
+      } else {
+        delete extractedData[`camada:${rule.lastTextLayer.placeholder}`];
+        extractedData.ultimaCamadaOculta = "sim";
       }
     }
     if (!isTextNode && (rule == null ? void 0 : rule.key) === "heading" && extractedData.nivel === void 0) {
@@ -1790,8 +1970,21 @@
         extractedData.nivel = level;
       }
     }
-    const variantProperties = extractVariantProperties(node);
-    const variantValues = buildStateCandidates(variantProperties, rule == null ? void 0 : rule.derivedStates);
+    if (rule == null ? void 0 : rule.onlyWithUnderline) {
+      extractedData.sublinhado = hasUnderlinedText(node) ? "sim" : "nao";
+    }
+    let variantProperties = extractVariantProperties(node);
+    let booleanProperties = extractBooleanProperties(node);
+    if (!isTextNode && (rule == null ? void 0 : rule.stateFromInnerComponent)) {
+      const inner = await findInnerComponentByRule(node, rule.stateFromInnerComponent);
+      if (inner) {
+        const innerVariants = extractVariantProperties(inner);
+        const innerBooleans = extractBooleanProperties(inner);
+        if (innerVariants) variantProperties = __spreadValues(__spreadValues({}, variantProperties != null ? variantProperties : {}), innerVariants);
+        if (innerBooleans) booleanProperties = __spreadValues(__spreadValues({}, booleanProperties != null ? booleanProperties : {}), innerBooleans);
+      }
+    }
+    const variantValues = buildStateCandidates(variantProperties, rule == null ? void 0 : rule.derivedStates, booleanProperties);
     logStateDebugInfo(node, rule, variantProperties, variantValues);
     const verbalization = computeVerbalization(rule, extractedData, variantValues);
     return {
@@ -1799,16 +1992,17 @@
       nodeId: node.id,
       nodeName: node.name,
       nodeType: node.type,
-      markupType: (_c = rule == null ? void 0 : rule.markupType) != null ? _c : UNSPECIFIED_TYPE_KEY,
-      ruleKey: (_d = rule == null ? void 0 : rule.key) != null ? _d : null,
+      markupType: (_d = rule == null ? void 0 : rule.markupType) != null ? _d : UNSPECIFIED_TYPE_KEY,
+      ruleKey: (_e = rule == null ? void 0 : rule.key) != null ? _e : null,
       variantProperties,
+      booleanProperties,
       coreType,
       extractedData,
       verbalization,
       order,
       manuallyAdded,
       verbalizationEdited: false,
-      focusEligible: (_e = rule == null ? void 0 : rule.focusEligible) != null ? _e : false
+      focusEligible: (_f = rule == null ? void 0 : rule.focusEligible) != null ? _f : false
     };
   }
   function placeContainersBeforeContents(ordered) {
@@ -1884,6 +2078,7 @@
       items.push(item);
       order += 1;
     }
+    await renumberHeadingsInLogicalOrder(topLevelNodes, items);
     const resolution = forcedContext ? { context: forcedContext, requiresContextChoice: false } : resolveScreenContext(coreWebCount, coreAppCount);
     const incompatibilities = resolution.context ? findCoreIncompatibilities(items, resolution.context) : [];
     const detachWarnings = detectPossibleDetachedComponents(topLevelNodes);
@@ -1898,6 +2093,36 @@
       incompatibilities,
       detachWarnings
     };
+  }
+  async function renumberHeadingsInLogicalOrder(nodes, items) {
+    var _a2;
+    const headingRule = findRuleByKey("heading");
+    if (!headingRule) return;
+    const counters = /* @__PURE__ */ new Map();
+    for (let index = 0; index < items.length; index += 1) {
+      const item = items[index];
+      const node = nodes[index];
+      if (item.ruleKey !== "heading" || !node) continue;
+      const currentLevel = item.extractedData.nivel;
+      if (currentLevel === void 0 || SMALL_TEXT_HEADING_LEVELS.has(currentLevel)) continue;
+      const container = (await findAncestorRules(node)).find(
+        (ancestor) => {
+          var _a3;
+          return (_a3 = findRuleByKey(ancestor.ruleKey)) == null ? void 0 : _a3.headingsInLogicalOrder;
+        }
+      );
+      if (!container) continue;
+      const next = Math.min(((_a2 = counters.get(container.node.id)) != null ? _a2 : 0) + 1, MAX_HEADING_LEVEL);
+      counters.set(container.node.id, next);
+      item.extractedData = __spreadProps(__spreadValues({}, item.extractedData), { nivel: String(next) });
+      if (!item.verbalizationEdited) {
+        item.verbalization = computeVerbalization(
+          headingRule,
+          item.extractedData,
+          buildStateCandidates(item.variantProperties, headingRule.derivedStates, item.booleanProperties)
+        );
+      }
+    }
   }
   async function buildManualItem(node, order) {
     return buildSpecificationItem(node, order, true);

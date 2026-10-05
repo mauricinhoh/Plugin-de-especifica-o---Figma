@@ -62,7 +62,7 @@ export function App() {
   screenRef.current = screen;
   // Guarda o id do painel recém-gerado (fora de state, por causa do
   // mesmo problema de closure) — usado para NÃO disparar o "nova
-  // especificação automática" quando o próprio "Ver no canvas" da
+  // especificação automática" quando o próprio "Mostrar no canvas" da
   // tela de sucesso seleciona o painel (que também é um Frame).
   const lastOutputNodeIdRef = useRef<string | null>(null);
 
@@ -106,7 +106,7 @@ export function App() {
         // clicar em "Nova especificação" — a pessoa já está, na
         // prática, começando um parecer novo. Exceto quando o node
         // selecionado É o painel recém-gerado (ex.: a pessoa clicou
-        // em "Ver no canvas") — isso não é uma nova tela, é o
+        // em "Mostrar no canvas") — isso não é uma nova tela, é o
         // resultado da que acabou de gerar.
         const selectedMarkedScreen = message.valid && (message.existingMarkerCount ?? 0) > 0;
         if (screenRef.current === "done" && message.valid && message.nodeId !== lastOutputNodeIdRef.current) {
@@ -152,7 +152,7 @@ export function App() {
         break;
       case "markup-deleted":
         // Reaproveita a tela de sucesso no modo "Marcadores excluídos".
-        // outputNodeId = a própria tela: "Ver no canvas" enquadra a tela
+        // outputNodeId = a própria tela: "Mostrar no canvas" enquadra a tela
         // sem selecioná-la, então qualquer seleção válida no canvas
         // (inclusive a própria tela) reinicia o fluxo.
         setGenerationSummary({

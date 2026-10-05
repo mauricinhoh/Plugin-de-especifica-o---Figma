@@ -236,6 +236,14 @@ function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<Extracted
     lastInside: record.ultimosDentro,
     stateFlagAliases: record.stateFlagAliases,
     derivedStates: record.derivedStates,
+    templatesByDerivedState: record.verbalizacaoPorEstadoDerivado,
+    onlyWithUnderline: record.trechoSoComSublinhado,
+    lastTextLayer: record.ultimaCamadaDeTexto,
+    headingsInLogicalOrder: record.titulosEmOrdemLogica ?? false,
+    firstTextPlaceholder: record.primeiroTextoEm,
+    textsByPosition: record.textosPorPosicao,
+    stateFromInnerComponent: record.estadoDoComponenteInterno,
+    standardItemNamePattern: record.itensPadrao?.nomeDoItem,
     links: record.links
   };
 }
@@ -260,10 +268,31 @@ for (const record of accessibilityRuleRecords) {
   }
 }
 
+/**
+ * Regra de cada ITEM de um contêiner com `itensPadrao` (ex.: item do
+ * Popover Menu padrão). Mesma regra do contêiner, com a verbalização do
+ * item. Fica fora de `accessibilityRules` (não é achada pelo nome).
+ */
+export const standardItemRules: ComponentTypeRule<ExtractedTextData>[] = accessibilityRuleRecords
+  .filter((record) => record.itensPadrao)
+  .map((record) => ({
+    ...buildRule({
+      ...record,
+      itensPadrao: undefined,
+      somenteFilhos: false,
+      verbalizacaoEsperada: record.itensPadrao!.verbalizacaoDoItem
+    }),
+    key: `${slugify(record.componente)}--item`
+  }));
+
 /** Busca uma regra pela chave, incluindo as variantes "dentro de contêiner". */
 export function findRuleByKey(key: string | null | undefined): ComponentTypeRule<ExtractedTextData> | undefined {
   if (!key) return undefined;
-  return accessibilityRules.find((r) => r.key === key) ?? containerVariantRules.find((r) => r.key === key);
+  return (
+    accessibilityRules.find((r) => r.key === key) ??
+    containerVariantRules.find((r) => r.key === key) ??
+    standardItemRules.find((r) => r.key === key)
+  );
 }
 
 /**
