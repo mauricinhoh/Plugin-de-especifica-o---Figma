@@ -181,6 +181,8 @@ export interface ComponentTypeRule<TExtracted extends object = ExtractedTextData
    * `extractedData.ultimaCamadaOculta = "sim"`, `trechoSeOculta` sai do texto.
    */
   lastTextLayer?: { placeholder: string; trechoSeOculta: string };
+  /** Títulos dentro deste contêiner usam nível pela ordem lógica (ver dados: titulosEmOrdemLogica). */
+  headingsInLogicalOrder?: boolean;
   /**
    * Links reais que devem virar HYPERLINK de verdade no .docx
    * exportado (não só texto azul — um link clicável de verdade).

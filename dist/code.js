@@ -494,7 +494,8 @@
       "ultimosDentro": [
         "Button Icon"
       ],
-      "somenteFilhos": true
+      "somenteFilhos": true,
+      "titulosEmOrdemLogica": true
     },
     {
       "categoria": "Containers",
@@ -1093,7 +1094,7 @@
     return map;
   }
   function buildRule(record) {
-    var _a2, _b, _c, _d, _e, _f, _g;
+    var _a2, _b, _c, _d, _e, _f, _g, _h;
     const states = parseVerbalizationStates(record.verbalizacaoEsperada);
     const statesMap = states.length > 0 ? states.reduce((acc, s) => {
       acc[s.label] = s.text;
@@ -1132,6 +1133,7 @@
       templatesByDerivedState: record.verbalizacaoPorEstadoDerivado,
       onlyWithUnderline: record.trechoSoComSublinhado,
       lastTextLayer: record.ultimaCamadaDeTexto,
+      headingsInLogicalOrder: (_h = record.titulosEmOrdemLogica) != null ? _h : false,
       links: record.links
     };
   }
@@ -1682,6 +1684,8 @@
     const size = node.fontSize;
     return (_a2 = FONT_SIZE_TO_HEADING_LEVEL[size]) != null ? _a2 : null;
   }
+  var SMALL_TEXT_HEADING_LEVELS = /* @__PURE__ */ new Set(["5", "6"]);
+  var MAX_HEADING_LEVEL = 6;
 
   // src/main/analysis/validation.ts
   function findCoreIncompatibilities(items, context) {
@@ -1973,6 +1977,7 @@
       items.push(item);
       order += 1;
     }
+    await renumberHeadingsInLogicalOrder(topLevelNodes, items);
     const resolution = forcedContext ? { context: forcedContext, requiresContextChoice: false } : resolveScreenContext(coreWebCount, coreAppCount);
     const incompatibilities = resolution.context ? findCoreIncompatibilities(items, resolution.context) : [];
     const detachWarnings = detectPossibleDetachedComponents(topLevelNodes);
@@ -1987,6 +1992,36 @@
       incompatibilities,
       detachWarnings
     };
+  }
+  async function renumberHeadingsInLogicalOrder(nodes, items) {
+    var _a2;
+    const headingRule = findRuleByKey("heading");
+    if (!headingRule) return;
+    const counters = /* @__PURE__ */ new Map();
+    for (let index = 0; index < items.length; index += 1) {
+      const item = items[index];
+      const node = nodes[index];
+      if (item.ruleKey !== "heading" || !node) continue;
+      const currentLevel = item.extractedData.nivel;
+      if (currentLevel === void 0 || SMALL_TEXT_HEADING_LEVELS.has(currentLevel)) continue;
+      const container = (await findAncestorRules(node)).find(
+        (ancestor) => {
+          var _a3;
+          return (_a3 = findRuleByKey(ancestor.ruleKey)) == null ? void 0 : _a3.headingsInLogicalOrder;
+        }
+      );
+      if (!container) continue;
+      const next = Math.min(((_a2 = counters.get(container.node.id)) != null ? _a2 : 0) + 1, MAX_HEADING_LEVEL);
+      counters.set(container.node.id, next);
+      item.extractedData = __spreadProps(__spreadValues({}, item.extractedData), { nivel: String(next) });
+      if (!item.verbalizationEdited) {
+        item.verbalization = computeVerbalization(
+          headingRule,
+          item.extractedData,
+          buildStateCandidates(item.variantProperties, headingRule.derivedStates, item.booleanProperties)
+        );
+      }
+    }
   }
   async function buildManualItem(node, order) {
     return buildSpecificationItem(node, order, true);

@@ -239,6 +239,7 @@ function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<Extracted
     templatesByDerivedState: record.verbalizacaoPorEstadoDerivado,
     onlyWithUnderline: record.trechoSoComSublinhado,
     lastTextLayer: record.ultimaCamadaDeTexto,
+    headingsInLogicalOrder: record.titulosEmOrdemLogica ?? false,
     links: record.links
   };
 }

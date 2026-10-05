@@ -154,6 +154,14 @@ export interface AccessibilityRuleRecord {
    */
   ultimaCamadaDeTexto?: { placeholder: string; trechoSeOculta: string };
   /**
+   * NÃO vem da planilha — campo de extensão. Títulos dentro deste
+   * contêiner recebem o nível pela ORDEM LÓGICA (1º título = nível 1,
+   * 2º = nível 2...), não pelo tamanho da fonte. Textos pequenos (que
+   * hoje viram nível 5/6 pelo tamanho) continuam como estão. Começou
+   * pelo Modal — confirmado com o usuário em 05/10/2026.
+   */
+  titulosEmOrdemLogica?: boolean;
+  /**
    * NÃO vem da planilha — campo de extensão. Na extração
    * "titulo-descricao", lê só os textos do PRÓPRIO componente, sem
    * entrar em componentes internos (ex.: o "x" do Button Icon do Alert
@@ -516,7 +524,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "ultimosDentro": [
       "Button Icon"
     ],
-    "somenteFilhos": true
+    "somenteFilhos": true,
+    "titulosEmOrdemLogica": true
   },
   {
     "categoria": "Containers",

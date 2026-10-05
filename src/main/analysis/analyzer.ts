@@ -28,7 +28,7 @@ import {
   listTextLayers
 } from "./textExtraction";
 import { extractBooleanProperties, extractVariantProperties } from "./stateExtraction";
-import { detectHeadingLevelFromFontSize } from "./headingDetection";
+import { detectHeadingLevelFromFontSize, MAX_HEADING_LEVEL, SMALL_TEXT_HEADING_LEVELS } from "./headingDetection";
 import { findCoreIncompatibilities } from "./validation";
 
 /**
@@ -453,6 +453,8 @@ export async function analyzeScreen(
     order += 1;
   }
 
+  await renumberHeadingsInLogicalOrder(topLevelNodes, items);
+
   const resolution = forcedContext
     ? { context: forcedContext, requiresContextChoice: false }
     : resolveScreenContext(coreWebCount, coreAppCount);
@@ -474,6 +476,41 @@ export async function analyzeScreen(
     incompatibilities,
     detachWarnings
   };
+}
+
+/**
+ * Títulos dentro de um contêiner com `headingsInLogicalOrder` (ex.:
+ * Modal): o 1º título (na ordem de leitura) vira nível 1, o 2º nível 2,
+ * e assim por diante, até o nível 6. Textos pequenos (nível 5/6 pelo
+ * tamanho da fonte) ficam como estão e não entram na contagem. Cada
+ * contêiner tem a própria contagem. Títulos fora desses contêineres
+ * continuam com o nível pelo tamanho da fonte.
+ */
+export async function renumberHeadingsInLogicalOrder(nodes: SceneNode[], items: SpecificationItem[]): Promise<void> {
+  const headingRule = findRuleByKey("heading");
+  if (!headingRule) return;
+  const counters = new Map<string, number>();
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+    const node = nodes[index];
+    if (item.ruleKey !== "heading" || !node) continue;
+    const currentLevel = item.extractedData.nivel;
+    if (currentLevel === undefined || SMALL_TEXT_HEADING_LEVELS.has(currentLevel)) continue;
+    const container = (await findAncestorRules(node)).find(
+      (ancestor) => findRuleByKey(ancestor.ruleKey)?.headingsInLogicalOrder
+    );
+    if (!container) continue;
+    const next = Math.min((counters.get(container.node.id) ?? 0) + 1, MAX_HEADING_LEVEL);
+    counters.set(container.node.id, next);
+    item.extractedData = { ...item.extractedData, nivel: String(next) };
+    if (!item.verbalizationEdited) {
+      item.verbalization = computeVerbalization(
+        headingRule,
+        item.extractedData,
+        buildStateCandidates(item.variantProperties, headingRule.derivedStates, item.booleanProperties)
+      );
+    }
+  }
 }
 
 /** Constrói um item a partir de um node selecionado manualmente (seção 23-24). */
