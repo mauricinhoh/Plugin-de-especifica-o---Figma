@@ -25,7 +25,7 @@ import {
   findOwnTexts,
   listTextLayers
 } from "./textExtraction";
-import { extractVariantProperties } from "./stateExtraction";
+import { extractBooleanProperties, extractVariantProperties } from "./stateExtraction";
 import { detectHeadingLevelFromFontSize } from "./headingDetection";
 import { findCoreIncompatibilities } from "./validation";
 
@@ -302,7 +302,8 @@ async function buildSpecificationItem(
   }
 
   const variantProperties = extractVariantProperties(node);
-  const variantValues = buildStateCandidates(variantProperties, rule?.derivedStates);
+  const booleanProperties = extractBooleanProperties(node);
+  const variantValues = buildStateCandidates(variantProperties, rule?.derivedStates, booleanProperties);
   logStateDebugInfo(node, rule, variantProperties, variantValues);
   const verbalization = computeVerbalization(rule, extractedData, variantValues);
 
@@ -314,6 +315,7 @@ async function buildSpecificationItem(
     markupType: rule?.markupType ?? UNSPECIFIED_TYPE_KEY,
     ruleKey: rule?.key ?? null,
     variantProperties,
+    booleanProperties,
     coreType,
     extractedData,
     verbalization,

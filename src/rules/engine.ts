@@ -259,11 +259,12 @@ function firstWordTokens(label: string): string[] {
  */
 export function buildStateCandidates(
   variantProperties: Record<string, string> | null,
-  derivedStates?: Array<{ whenFlagsEqual: Record<string, string>; thenState: string }>
+  derivedStates?: Array<{ whenFlagsEqual: Record<string, string>; thenState: string }>,
+  booleanProperties?: Record<string, string> | null
 ): string[] {
-  if (!variantProperties) return [];
+  if (!variantProperties && !booleanProperties) return [];
   const candidates: string[] = [];
-  for (const [propertyName, value] of Object.entries(variantProperties)) {
+  for (const [propertyName, value] of Object.entries(variantProperties ?? {})) {
     const normalizedValue = value.trim().toLowerCase();
     if (normalizedValue === "true") {
       candidates.push(propertyName);
@@ -278,7 +279,9 @@ export function buildStateCandidates(
   if (derivedStates) {
     for (const rule of derivedStates) {
       const allMatch = Object.entries(rule.whenFlagsEqual).every(([flag, expected]) => {
-        const actual = variantProperties[flag];
+        // Toggles (booleanProperties) só entram aqui, na conferência
+        // dos derivedStates — nunca como candidato direto.
+        const actual = variantProperties?.[flag] ?? booleanProperties?.[flag];
         return actual !== undefined && actual.trim().toLowerCase() === expected.trim().toLowerCase();
       });
       if (allMatch) {

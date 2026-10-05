@@ -53,7 +53,7 @@ function reducer(state: SpecificationItem[], action: Action): SpecificationItem[
             ? computeVerbalization(
                 originalRule,
                 item.extractedData,
-                buildStateCandidates(item.variantProperties, originalRule?.derivedStates)
+                buildStateCandidates(item.variantProperties, originalRule?.derivedStates, item.booleanProperties)
               )
             : "",
           verbalizationEdited: false

@@ -121,10 +121,10 @@
   function firstWordTokens(label) {
     return label.split("/").map((part) => part.trim().split(/\s+/)[0]).filter((word) => Boolean(word)).map(normalizeWord);
   }
-  function buildStateCandidates(variantProperties, derivedStates) {
-    if (!variantProperties) return [];
+  function buildStateCandidates(variantProperties, derivedStates, booleanProperties) {
+    if (!variantProperties && !booleanProperties) return [];
     const candidates = [];
-    for (const [propertyName, value] of Object.entries(variantProperties)) {
+    for (const [propertyName, value] of Object.entries(variantProperties != null ? variantProperties : {})) {
       const normalizedValue = value.trim().toLowerCase();
       if (normalizedValue === "true") {
         candidates.push(propertyName);
@@ -135,7 +135,8 @@
     if (derivedStates) {
       for (const rule of derivedStates) {
         const allMatch = Object.entries(rule.whenFlagsEqual).every(([flag, expected]) => {
-          const actual = variantProperties[flag];
+          var _a2;
+          const actual = (_a2 = variantProperties == null ? void 0 : variantProperties[flag]) != null ? _a2 : booleanProperties == null ? void 0 : booleanProperties[flag];
           return actual !== void 0 && actual.trim().toLowerCase() === expected.trim().toLowerCase();
         });
         if (allMatch) {
@@ -1590,6 +1591,22 @@
   }
 
   // src/main/analysis/stateExtraction.ts
+  function extractBooleanProperties(node) {
+    if (node.type !== "INSTANCE") {
+      return null;
+    }
+    const componentProperties = node.componentProperties;
+    if (!componentProperties) {
+      return null;
+    }
+    const booleanValues = {};
+    for (const [propertyName, property] of Object.entries(componentProperties)) {
+      if (property.type === "BOOLEAN" && typeof property.value === "boolean") {
+        booleanValues[propertyName.split("#")[0].trim()] = property.value ? "true" : "false";
+      }
+    }
+    return Object.keys(booleanValues).length > 0 ? booleanValues : null;
+  }
   function extractVariantProperties(node) {
     if (node.type !== "INSTANCE") {
       return null;
@@ -1808,7 +1825,8 @@
       }
     }
     const variantProperties = extractVariantProperties(node);
-    const variantValues = buildStateCandidates(variantProperties, rule == null ? void 0 : rule.derivedStates);
+    const booleanProperties = extractBooleanProperties(node);
+    const variantValues = buildStateCandidates(variantProperties, rule == null ? void 0 : rule.derivedStates, booleanProperties);
     logStateDebugInfo(node, rule, variantProperties, variantValues);
     const verbalization = computeVerbalization(rule, extractedData, variantValues);
     return {
@@ -1819,6 +1837,7 @@
       markupType: (_c = rule == null ? void 0 : rule.markupType) != null ? _c : UNSPECIFIED_TYPE_KEY,
       ruleKey: (_d = rule == null ? void 0 : rule.key) != null ? _d : null,
       variantProperties,
+      booleanProperties,
       coreType,
       extractedData,
       verbalization,
