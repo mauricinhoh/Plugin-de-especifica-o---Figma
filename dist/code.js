@@ -818,10 +818,26 @@
       "categoria": "Inputs",
       "componente": "List Select",
       "estados": "Herda do seletor interno: Hover, Focus, Checked, Unchecked, Disabled etc.",
-      "verbalizacaoEsperada": "Ordem l\xF3gica dos componentes com suas devidas sem\xE2nticas",
+      "verbalizacaoEsperada": "Marcado: \u201C[Descri\xE7\xE3o], [Label], Caixa de sele\xE7\xE3o, Marcado\u201D\nN\xE3o marcado: \u201C[Descri\xE7\xE3o], [Label], Caixa de sele\xE7\xE3o, N\xE3o marcado\u201D\nParcialmente marcado: \u201C[Descri\xE7\xE3o], [Label], Caixa de sele\xE7\xE3o parcialmente marcada\u201D\nDesabilitado: \u201C[Descri\xE7\xE3o], [Label], Caixa de sele\xE7\xE3o desabilitada\u201D",
       "tipo": "Entrada",
       "foco": "Sim",
-      "somenteFilhos": true
+      "textosPorPosicao": [
+        "Descri\xE7\xE3o",
+        "Label"
+      ],
+      "estadoDoComponenteInterno": "Checkbox",
+      "derivedStates": [
+        { "whenFlagsEqual": { "Selected": "True" }, "thenState": "List Select marcado" },
+        { "whenFlagsEqual": { "Selected": "False", "Indeterminate": "False", "Disabled": "False" }, "thenState": "List Select n\xE3o marcado" },
+        { "whenFlagsEqual": { "Indeterminate": "True" }, "thenState": "List Select parcialmente marcado" },
+        { "whenFlagsEqual": { "Disabled": "True" }, "thenState": "List Select desabilitado" }
+      ],
+      "verbalizacaoPorEstadoDerivado": {
+        "List Select marcado": "[Descri\xE7\xE3o], [Label], Caixa de sele\xE7\xE3o, Marcado",
+        "List Select n\xE3o marcado": "[Descri\xE7\xE3o], [Label], Caixa de sele\xE7\xE3o, N\xE3o marcado",
+        "List Select parcialmente marcado": "[Descri\xE7\xE3o], [Label], Caixa de sele\xE7\xE3o parcialmente marcada",
+        "List Select desabilitado": "[Descri\xE7\xE3o], [Label], Caixa de sele\xE7\xE3o desabilitada"
+      }
     },
     {
       "categoria": "Inputs",
@@ -1149,6 +1165,8 @@
       lastTextLayer: record.ultimaCamadaDeTexto,
       headingsInLogicalOrder: (_h = record.titulosEmOrdemLogica) != null ? _h : false,
       firstTextPlaceholder: record.primeiroTextoEm,
+      textsByPosition: record.textosPorPosicao,
+      stateFromInnerComponent: record.estadoDoComponenteInterno,
       links: record.links
     };
   }
@@ -1749,6 +1767,22 @@
       valoresComparados: variantValues
     });
   }
+  function normalizePlaceholderKey(name) {
+    return name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+  }
+  async function findInnerComponentByRule(node, ruleLabel) {
+    if (!("children" in node)) return null;
+    for (const child of node.children) {
+      if (child.type === "INSTANCE") {
+        const name = await resolveComponentName(child);
+        const childRule = findMatchingRule(accessibilityRules, { nodeName: child.name, componentName: name });
+        if ((childRule == null ? void 0 : childRule.label) === ruleLabel) return child;
+      }
+      const found = await findInnerComponentByRule(child, ruleLabel);
+      if (found) return found;
+    }
+    return null;
+  }
   async function findAncestorRules(node) {
     const result = [];
     let current = node.parent;
@@ -1868,6 +1902,16 @@
         extractedData[`camada:${rule.innerButtonTextPlaceholder}`] = buttonText;
       }
     }
+    if (!isTextNode && (rule == null ? void 0 : rule.textsByPosition)) {
+      const texts = listTextLayers(node);
+      rule.textsByPosition.forEach((placeholder, index) => {
+        var _a3;
+        const value = (_a3 = texts[index]) == null ? void 0 : _a3.texto;
+        if (value !== void 0) {
+          extractedData[`camada:${normalizePlaceholderKey(placeholder)}`] = value;
+        }
+      });
+    }
     if (!isTextNode && (rule == null ? void 0 : rule.firstTextPlaceholder)) {
       const firstText = extractFirstText(node);
       if (firstText !== void 0) {
@@ -1902,8 +1946,17 @@
     if (rule == null ? void 0 : rule.onlyWithUnderline) {
       extractedData.sublinhado = hasUnderlinedText(node) ? "sim" : "nao";
     }
-    const variantProperties = extractVariantProperties(node);
-    const booleanProperties = extractBooleanProperties(node);
+    let variantProperties = extractVariantProperties(node);
+    let booleanProperties = extractBooleanProperties(node);
+    if (!isTextNode && (rule == null ? void 0 : rule.stateFromInnerComponent)) {
+      const inner = await findInnerComponentByRule(node, rule.stateFromInnerComponent);
+      if (inner) {
+        const innerVariants = extractVariantProperties(inner);
+        const innerBooleans = extractBooleanProperties(inner);
+        if (innerVariants) variantProperties = __spreadValues(__spreadValues({}, variantProperties != null ? variantProperties : {}), innerVariants);
+        if (innerBooleans) booleanProperties = __spreadValues(__spreadValues({}, booleanProperties != null ? booleanProperties : {}), innerBooleans);
+      }
+    }
     const variantValues = buildStateCandidates(variantProperties, rule == null ? void 0 : rule.derivedStates, booleanProperties);
     logStateDebugInfo(node, rule, variantProperties, variantValues);
     const verbalization = computeVerbalization(rule, extractedData, variantValues);

@@ -169,6 +169,22 @@ export interface AccessibilityRuleRecord {
    */
   primeiroTextoEm?: string;
   /**
+   * NÃO vem da planilha — campo de extensão. Placeholders preenchidos
+   * pela POSIÇÃO do texto visível: o 1º nome recebe o 1º texto, o 2º
+   * nome o 2º texto, etc. Ex.: List Select → ["Descrição", "Label"].
+   * Confirmado com o usuário em 05/10/2026.
+   */
+  textosPorPosicao?: string[];
+  /**
+   * NÃO vem da planilha — campo de extensão. O estado vem de um
+   * COMPONENTE INTERNO (o primeiro reconhecido com esse nome de regra),
+   * não do próprio componente: as propriedades dele (variantes e
+   * toggles) entram na conferência de `derivedStates`. Ex.: List Select
+   * → estado do Checkbox de dentro (toggles Selected, Indeterminate,
+   * Disabled). Confirmado com o usuário em 05/10/2026.
+   */
+  estadoDoComponenteInterno?: string;
+  /**
    * NÃO vem da planilha — campo de extensão. Na extração
    * "titulo-descricao", lê só os textos do PRÓPRIO componente, sem
    * entrar em componentes internos (ex.: o "x" do Button Icon do Alert
@@ -855,10 +871,26 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "List Select",
     "estados": "Herda do seletor interno: Hover, Focus, Checked, Unchecked, Disabled etc.",
-    "verbalizacaoEsperada": "Ordem lógica dos componentes com suas devidas semânticas",
+    "verbalizacaoEsperada": "Marcado: “[Descrição], [Label], Caixa de seleção, Marcado”\nNão marcado: “[Descrição], [Label], Caixa de seleção, Não marcado”\nParcialmente marcado: “[Descrição], [Label], Caixa de seleção parcialmente marcada”\nDesabilitado: “[Descrição], [Label], Caixa de seleção desabilitada”",
     "tipo": "Entrada",
     "foco": "Sim",
-    "somenteFilhos": true
+    "textosPorPosicao": [
+      "Descrição",
+      "Label"
+    ],
+    "estadoDoComponenteInterno": "Checkbox",
+    "derivedStates": [
+      { "whenFlagsEqual": { "Selected": "True" }, "thenState": "List Select marcado" },
+      { "whenFlagsEqual": { "Selected": "False", "Indeterminate": "False", "Disabled": "False" }, "thenState": "List Select não marcado" },
+      { "whenFlagsEqual": { "Indeterminate": "True" }, "thenState": "List Select parcialmente marcado" },
+      { "whenFlagsEqual": { "Disabled": "True" }, "thenState": "List Select desabilitado" }
+    ],
+    "verbalizacaoPorEstadoDerivado": {
+      "List Select marcado": "[Descrição], [Label], Caixa de seleção, Marcado",
+      "List Select não marcado": "[Descrição], [Label], Caixa de seleção, Não marcado",
+      "List Select parcialmente marcado": "[Descrição], [Label], Caixa de seleção parcialmente marcada",
+      "List Select desabilitado": "[Descrição], [Label], Caixa de seleção desabilitada"
+    }
   },
   {
     "categoria": "Inputs",

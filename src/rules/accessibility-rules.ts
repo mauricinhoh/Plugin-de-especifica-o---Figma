@@ -241,6 +241,8 @@ function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<Extracted
     lastTextLayer: record.ultimaCamadaDeTexto,
     headingsInLogicalOrder: record.titulosEmOrdemLogica ?? false,
     firstTextPlaceholder: record.primeiroTextoEm,
+    textsByPosition: record.textosPorPosicao,
+    stateFromInnerComponent: record.estadoDoComponenteInterno,
     links: record.links
   };
 }

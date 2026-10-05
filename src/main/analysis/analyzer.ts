@@ -127,6 +127,26 @@ function logStateDebugInfo(
  * próximo para o mais distante (ex.: [Drawer]). Usado para variantes
  * "dentro de contêiner" e para a ordem "por último dentro de".
  */
+/** Mesma normalização dos nomes de placeholder (sem acento, minúsculo). */
+function normalizePlaceholderKey(name: string): string {
+  return name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+}
+
+/** Primeira instância, dentro do node, reconhecida pela regra de nome `ruleLabel` (ex.: "Checkbox"). */
+async function findInnerComponentByRule(node: SceneNode, ruleLabel: string): Promise<InstanceNode | null> {
+  if (!("children" in node)) return null;
+  for (const child of node.children) {
+    if (child.type === "INSTANCE") {
+      const name = await resolveComponentName(child);
+      const childRule = findMatchingRule(accessibilityRules, { nodeName: child.name, componentName: name });
+      if (childRule?.label === ruleLabel) return child;
+    }
+    const found = await findInnerComponentByRule(child, ruleLabel);
+    if (found) return found;
+  }
+  return null;
+}
+
 async function findAncestorRules(
   node: SceneNode
 ): Promise<Array<{ node: InstanceNode | ComponentNode; ruleKey: string }>> {
@@ -282,6 +302,17 @@ async function buildSpecificationItem(
     }
   }
 
+  // Textos por posição → placeholders (ex.: List Select: 1º = Descrição, 2º = Label).
+  if (!isTextNode && rule?.textsByPosition) {
+    const texts = listTextLayers(node);
+    rule.textsByPosition.forEach((placeholder, index) => {
+      const value = texts[index]?.texto;
+      if (value !== undefined) {
+        extractedData[`camada:${normalizePlaceholderKey(placeholder)}`] = value;
+      }
+    });
+  }
+
   // Primeiro texto visível → placeholder da regra (ex.: Input Search).
   if (!isTextNode && rule?.firstTextPlaceholder) {
     const firstText = extractFirstText(node);
@@ -326,8 +357,19 @@ async function buildSpecificationItem(
     extractedData.sublinhado = hasUnderlinedText(node) ? "sim" : "nao";
   }
 
-  const variantProperties = extractVariantProperties(node);
-  const booleanProperties = extractBooleanProperties(node);
+  let variantProperties = extractVariantProperties(node);
+  let booleanProperties = extractBooleanProperties(node);
+  // Estado vindo de um componente interno (ex.: Checkbox dentro do List
+  // Select): as propriedades dele se somam às do próprio componente.
+  if (!isTextNode && rule?.stateFromInnerComponent) {
+    const inner = await findInnerComponentByRule(node, rule.stateFromInnerComponent);
+    if (inner) {
+      const innerVariants = extractVariantProperties(inner);
+      const innerBooleans = extractBooleanProperties(inner);
+      if (innerVariants) variantProperties = { ...(variantProperties ?? {}), ...innerVariants };
+      if (innerBooleans) booleanProperties = { ...(booleanProperties ?? {}), ...innerBooleans };
+    }
+  }
   const variantValues = buildStateCandidates(variantProperties, rule?.derivedStates, booleanProperties);
   logStateDebugInfo(node, rule, variantProperties, variantValues);
   const verbalization = computeVerbalization(rule, extractedData, variantValues);
