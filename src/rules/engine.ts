@@ -183,6 +183,8 @@ export interface ComponentTypeRule<TExtracted extends object = ExtractedTextData
   lastTextLayer?: { placeholder: string; trechoSeOculta: string };
   /** Títulos dentro deste contêiner usam nível pela ordem lógica (ver dados: titulosEmOrdemLogica). */
   headingsInLogicalOrder?: boolean;
+  /** Placeholder preenchido com o primeiro texto visível do componente (ver dados: primeiroTextoEm). */
+  firstTextPlaceholder?: string;
   /**
    * Links reais que devem virar HYPERLINK de verdade no .docx
    * exportado (não só texto azul — um link clicável de verdade).

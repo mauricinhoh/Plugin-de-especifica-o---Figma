@@ -840,20 +840,14 @@
     {
       "categoria": "Inputs",
       "componente": "Search",
+      "aliasesDeNome": [
+        "Input Search"
+      ],
       "estados": "Habilitado/Focus, Hover, Filled;",
-      "verbalizacaoEsperada": "[Placeholder], Campo de Busca, Bot\xE3o",
+      "verbalizacaoEsperada": "[Placeholder], Campo de busca, Buscar, Bot\xE3o",
       "tipo": "Entrada",
       "foco": "Sim",
-      "textosPorCamada": {
-        "placeholder": [
-          "placeholder",
-          "value",
-          "valor",
-          "conteudo",
-          "texto",
-          "text"
-        ]
-      }
+      "primeiroTextoEm": "placeholder"
     },
     {
       "categoria": "Inputs",
@@ -1134,6 +1128,7 @@
       onlyWithUnderline: record.trechoSoComSublinhado,
       lastTextLayer: record.ultimaCamadaDeTexto,
       headingsInLogicalOrder: (_h = record.titulosEmOrdemLogica) != null ? _h : false,
+      firstTextPlaceholder: record.primeiroTextoEm,
       links: record.links
     };
   }
@@ -1851,6 +1846,12 @@
       const buttonText = findInnerInstanceText(node);
       if (buttonText !== void 0) {
         extractedData[`camada:${rule.innerButtonTextPlaceholder}`] = buttonText;
+      }
+    }
+    if (!isTextNode && (rule == null ? void 0 : rule.firstTextPlaceholder)) {
+      const firstText = extractFirstText(node);
+      if (firstText !== void 0) {
+        extractedData[`camada:${rule.firstTextPlaceholder}`] = firstText;
       }
     }
     const lastTextLayer = !isTextNode && (rule == null ? void 0 : rule.lastTextLayer) ? findLastTextLayer(node) : null;

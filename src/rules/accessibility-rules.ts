@@ -240,6 +240,7 @@ function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<Extracted
     onlyWithUnderline: record.trechoSoComSublinhado,
     lastTextLayer: record.ultimaCamadaDeTexto,
     headingsInLogicalOrder: record.titulosEmOrdemLogica ?? false,
+    firstTextPlaceholder: record.primeiroTextoEm,
     links: record.links
   };
 }

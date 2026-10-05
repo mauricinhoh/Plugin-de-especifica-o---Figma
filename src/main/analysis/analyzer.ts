@@ -282,6 +282,14 @@ async function buildSpecificationItem(
     }
   }
 
+  // Primeiro texto visível → placeholder da regra (ex.: Input Search).
+  if (!isTextNode && rule?.firstTextPlaceholder) {
+    const firstText = extractFirstText(node);
+    if (firstText !== undefined) {
+      extractedData[`camada:${rule.firstTextPlaceholder}`] = firstText;
+    }
+  }
+
   // Última camada de texto reservada (ex.: contador do Input Text Area).
   const lastTextLayer = !isTextNode && rule?.lastTextLayer ? findLastTextLayer(node) : null;
   if (!isTextNode && rule?.textsByLayerName) {

@@ -162,6 +162,13 @@ export interface AccessibilityRuleRecord {
    */
   titulosEmOrdemLogica?: boolean;
   /**
+   * NÃO vem da planilha — campo de extensão. Nome do placeholder que é
+   * preenchido com o PRIMEIRO texto visível do componente (ex.: Input
+   * Search → [Placeholder] = primeira label de dentro). Confirmado com
+   * o usuário em 05/10/2026.
+   */
+  primeiroTextoEm?: string;
+  /**
    * NÃO vem da planilha — campo de extensão. Na extração
    * "titulo-descricao", lê só os textos do PRÓPRIO componente, sem
    * entrar em componentes internos (ex.: o "x" do Button Icon do Alert
@@ -870,20 +877,14 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
   {
     "categoria": "Inputs",
     "componente": "Search",
+    "aliasesDeNome": [
+      "Input Search"
+    ],
     "estados": "Habilitado/Focus, Hover, Filled;",
-    "verbalizacaoEsperada": "[Placeholder], Campo de Busca, Botão",
+    "verbalizacaoEsperada": "[Placeholder], Campo de busca, Buscar, Botão",
     "tipo": "Entrada",
     "foco": "Sim",
-    "textosPorCamada": {
-      "placeholder": [
-        "placeholder",
-        "value",
-        "valor",
-        "conteudo",
-        "texto",
-        "text"
-      ]
-    }
+    "primeiroTextoEm": "placeholder"
   },
   {
     "categoria": "Inputs",
