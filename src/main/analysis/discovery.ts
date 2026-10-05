@@ -82,7 +82,7 @@ export type ComponentClassifier = (
  * por frames/grupos de layout intermediários. Não desce dentro de um
  * item já encontrado (o texto dele é extraído depois, pela regra).
  */
-function collectItems(node: SceneNode): (InstanceNode | ComponentNode)[] {
+export function collectItems(node: SceneNode): (InstanceNode | ComponentNode)[] {
   const items: (InstanceNode | ComponentNode)[] = [];
   if (!("children" in node)) return items;
   for (const child of node.children) {

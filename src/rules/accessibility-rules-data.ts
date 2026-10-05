@@ -185,6 +185,18 @@ export interface AccessibilityRuleRecord {
    */
   estadoDoComponenteInterno?: string;
   /**
+   * NÃO vem da planilha — campo de extensão. Contêiner com lista de
+   * itens no formato PADRÃO do Design System: quando TODOS os itens
+   * (instâncias visíveis mais próximas) têm nome de camada que bate com
+   * `nomeDoItem` (expressão regular, sem diferenciar maiúsculas) e são
+   * do MESMO componente, cada item vira um card com
+   * `verbalizacaoDoItem`. Se o PD alterou a lista (outro componente no
+   * meio, item trocado), vale o comportamento de `somenteFilhos`: cada
+   * componente de dentro recebe a própria verbalização. Ex.: Popover
+   * Menu (itens "Item1".."Item4"). Confirmado com o usuário em 05/10/2026.
+   */
+  itensPadrao?: { nomeDoItem: string; verbalizacaoDoItem: string };
+  /**
    * NÃO vem da planilha — campo de extensão. Na extração
    * "titulo-descricao", lê só os textos do PRÓPRIO componente, sem
    * entrar em componentes internos (ex.: o "x" do Button Icon do Alert
@@ -908,7 +920,11 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "verbalizacaoEsperada": "Ordem lógica dos componentes.",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "somenteFilhos": true
+    "somenteFilhos": true,
+    "itensPadrao": {
+      "nomeDoItem": "^item\\s*\\d+$",
+      "verbalizacaoDoItem": "Não deve ser verbalizado, [Label]"
+    }
   },
   {
     "categoria": "Inputs",

@@ -189,6 +189,8 @@ export interface ComponentTypeRule<TExtracted extends object = ExtractedTextData
   textsByPosition?: string[];
   /** Nome da regra do componente interno de onde vem o estado (ver dados: estadoDoComponenteInterno). */
   stateFromInnerComponent?: string;
+  /** Padrão do nome dos itens de uma lista padrão (ver dados: itensPadrao). */
+  standardItemNamePattern?: string;
   /**
    * Links reais que devem virar HYPERLINK de verdade no .docx
    * exportado (não só texto azul — um link clicável de verdade).

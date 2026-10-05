@@ -855,7 +855,11 @@
       "verbalizacaoEsperada": "Ordem l\xF3gica dos componentes.",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "somenteFilhos": true
+      "somenteFilhos": true,
+      "itensPadrao": {
+        "nomeDoItem": "^item\\s*\\d+$",
+        "verbalizacaoDoItem": "N\xE3o deve ser verbalizado, [Label]"
+      }
     },
     {
       "categoria": "Inputs",
@@ -1124,7 +1128,7 @@
     return map;
   }
   function buildRule(record) {
-    var _a2, _b, _c, _d, _e, _f, _g, _h;
+    var _a2, _b, _c, _d, _e, _f, _g, _h, _i;
     const states = parseVerbalizationStates(record.verbalizacaoEsperada);
     const statesMap = states.length > 0 ? states.reduce((acc, s) => {
       acc[s.label] = s.text;
@@ -1167,6 +1171,7 @@
       firstTextPlaceholder: record.primeiroTextoEm,
       textsByPosition: record.textosPorPosicao,
       stateFromInnerComponent: record.estadoDoComponenteInterno,
+      standardItemNamePattern: (_i = record.itensPadrao) == null ? void 0 : _i.nomeDoItem,
       links: record.links
     };
   }
@@ -1181,10 +1186,17 @@
       }));
     }
   }
+  var standardItemRules = accessibilityRuleRecords.filter((record) => record.itensPadrao).map((record) => __spreadProps(__spreadValues({}, buildRule(__spreadProps(__spreadValues({}, record), {
+    itensPadrao: void 0,
+    somenteFilhos: false,
+    verbalizacaoEsperada: record.itensPadrao.verbalizacaoDoItem
+  }))), {
+    key: `${slugify(record.componente)}--item`
+  }));
   function findRuleByKey(key) {
-    var _a2;
+    var _a2, _b;
     if (!key) return void 0;
-    return (_a2 = accessibilityRules.find((r) => r.key === key)) != null ? _a2 : containerVariantRules.find((r) => r.key === key);
+    return (_b = (_a2 = accessibilityRules.find((r) => r.key === key)) != null ? _a2 : containerVariantRules.find((r) => r.key === key)) != null ? _b : standardItemRules.find((r) => r.key === key);
   }
 
   // src/main/figma-api.ts
@@ -1747,6 +1759,9 @@
     }
     const componentName = await resolveComponentName(node);
     const rule = findMatchingRule(accessibilityRules, { nodeName: node.name, componentName });
+    if ((rule == null ? void 0 : rule.standardItemNamePattern) && await hasStandardItems(node, rule.standardItemNamePattern)) {
+      return { recognized: true, alwaysDescend: false, childrenOnly: false, cardPerItem: true, ignoreLooseText: false };
+    }
     return {
       recognized: rule !== void 0,
       alwaysDescend: (_a2 = rule == null ? void 0 : rule.alwaysDescend) != null ? _a2 : false,
@@ -1766,6 +1781,15 @@
       variantPropertiesDoFigma: variantProperties,
       valoresComparados: variantValues
     });
+  }
+  async function hasStandardItems(node, pattern) {
+    const items = collectItems(node);
+    if (items.length === 0) return false;
+    const nameRegex = new RegExp(pattern, "i");
+    if (!items.every((item) => nameRegex.test(item.name.trim()))) return false;
+    const componentNames = /* @__PURE__ */ new Set();
+    for (const item of items) componentNames.add(await resolveComponentName(item));
+    return componentNames.size === 1 && !componentNames.has(null);
   }
   function normalizePlaceholderKey(name) {
     return name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
@@ -1797,7 +1821,7 @@
     return result;
   }
   async function buildSpecificationItem(node, order, manuallyAdded, inheritRuleFrom) {
-    var _a2, _b, _c, _d, _e;
+    var _a2, _b, _c, _d, _e, _f;
     const isComponentLike = node.type === "INSTANCE" || node.type === "COMPONENT";
     const isTextNode = node.type === "TEXT";
     const coreType = isComponentLike ? (await identifyCoreType(node)).coreType : "DESCONHECIDO";
@@ -1806,12 +1830,15 @@
     if (inheritRuleFrom) {
       const parentComponentName = await resolveComponentName(inheritRuleFrom);
       rule = (_a2 = findMatchingRule(accessibilityRules, { nodeName: inheritRuleFrom.name, componentName: parentComponentName })) != null ? _a2 : rule;
+      if (rule == null ? void 0 : rule.standardItemNamePattern) {
+        rule = (_b = findRuleByKey(`${rule.key}--item`)) != null ? _b : rule;
+      }
     }
     if (rule == null ? void 0 : rule.variantsInsideContainer) {
       for (const ancestor of await findAncestorRules(node)) {
         const variantKey = rule.variantsInsideContainer[ancestor.ruleKey];
         if (variantKey) {
-          rule = (_b = findRuleByKey(variantKey)) != null ? _b : rule;
+          rule = (_c = findRuleByKey(variantKey)) != null ? _c : rule;
           break;
         }
       }
@@ -1965,8 +1992,8 @@
       nodeId: node.id,
       nodeName: node.name,
       nodeType: node.type,
-      markupType: (_c = rule == null ? void 0 : rule.markupType) != null ? _c : UNSPECIFIED_TYPE_KEY,
-      ruleKey: (_d = rule == null ? void 0 : rule.key) != null ? _d : null,
+      markupType: (_d = rule == null ? void 0 : rule.markupType) != null ? _d : UNSPECIFIED_TYPE_KEY,
+      ruleKey: (_e = rule == null ? void 0 : rule.key) != null ? _e : null,
       variantProperties,
       booleanProperties,
       coreType,
@@ -1975,7 +2002,7 @@
       order,
       manuallyAdded,
       verbalizationEdited: false,
-      focusEligible: (_e = rule == null ? void 0 : rule.focusEligible) != null ? _e : false
+      focusEligible: (_f = rule == null ? void 0 : rule.focusEligible) != null ? _f : false
     };
   }
   function placeContainersBeforeContents(ordered) {

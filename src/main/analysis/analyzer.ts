@@ -4,7 +4,7 @@ import { ScreenAnalysisResult, ScreenContext, SpecificationItem } from "../../sh
 import { accessibilityRules, findRuleByKey } from "../../rules/accessibility-rules";
 import { computeVerbalization, buildStateCandidates, findMatchingRule, UNSPECIFIED_TYPE_KEY } from "../../rules/engine";
 import { generateSpecificationId } from "../idGenerator";
-import { discoverTopLevelComponents } from "./discovery";
+import { collectItems, discoverTopLevelComponents } from "./discovery";
 import { resolveComponentName } from "./componentIdentity";
 import { sortByReadingOrder } from "./readingOrder";
 import { identifyCoreType } from "./coreIdentification";
@@ -69,6 +69,11 @@ async function classifyComponent(
   }
   const componentName = await resolveComponentName(node);
   const rule = findMatchingRule(accessibilityRules, { nodeName: node.name, componentName });
+  // Lista no formato padrão (ex.: Popover Menu com Item1..Item4): um
+  // card por item. Alterada pelo PD: cada componente de dentro.
+  if (rule?.standardItemNamePattern && (await hasStandardItems(node, rule.standardItemNamePattern))) {
+    return { recognized: true, alwaysDescend: false, childrenOnly: false, cardPerItem: true, ignoreLooseText: false };
+  }
   return {
     recognized: rule !== undefined,
     alwaysDescend: rule?.alwaysDescend ?? false,
@@ -127,6 +132,20 @@ function logStateDebugInfo(
  * próximo para o mais distante (ex.: [Drawer]). Usado para variantes
  * "dentro de contêiner" e para a ordem "por último dentro de".
  */
+/**
+ * true quando a lista do contêiner está no formato padrão: há itens, e
+ * TODOS têm nome que bate com `pattern` e são do mesmo componente.
+ */
+export async function hasStandardItems(node: InstanceNode | ComponentNode, pattern: string): Promise<boolean> {
+  const items = collectItems(node);
+  if (items.length === 0) return false;
+  const nameRegex = new RegExp(pattern, "i");
+  if (!items.every((item) => nameRegex.test(item.name.trim()))) return false;
+  const componentNames = new Set<string | null>();
+  for (const item of items) componentNames.add(await resolveComponentName(item));
+  return componentNames.size === 1 && !componentNames.has(null);
+}
+
 /** Mesma normalização dos nomes de placeholder (sem acento, minúsculo). */
 function normalizePlaceholderKey(name: string): string {
   return name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
@@ -187,6 +206,10 @@ async function buildSpecificationItem(
   if (inheritRuleFrom) {
     const parentComponentName = await resolveComponentName(inheritRuleFrom);
     rule = findMatchingRule(accessibilityRules, { nodeName: inheritRuleFrom.name, componentName: parentComponentName }) ?? rule;
+    // Item de lista padrão (ex.: Popover Menu): regra própria do item.
+    if (rule?.standardItemNamePattern) {
+      rule = findRuleByKey(`${rule.key}--item`) ?? rule;
+    }
   }
 
   // Variante "dentro de contêiner" (ex.: Button Icon dentro do Drawer
