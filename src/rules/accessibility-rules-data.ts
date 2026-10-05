@@ -318,7 +318,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Action",
     "componente": "Button Primary",
     "estados": "Habilitado, Hover, Focus, Loading, Disabled.",
-    "verbalizacaoEsperada": "Habilitado/Focus: “[Label], Botão”.\nLoading macOS: “Carregando”.\nLoading Windows: “[Carregando]”.\nDisabled macOS: “[Label], Escurecido, Botão”.\nDisabled Windows: “[Label] Indisponível, Botão”.",
+    "verbalizacaoEsperada": "Habilitado/Focus: “[Label], Botão”.\nLoading macOS: “Carregando”.\nLoading Windows: “Carregando”.\nDisabled macOS: “[Label], Escurecido, Botão”.\nDisabled Windows: “[Label] Indisponível, Botão”.",
     "tipo": "Botão",
     "foco": "Sim"
   },
@@ -958,7 +958,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Navigation",
     "componente": "Carousel Nav",
     "estados": "Herda de Page Indicator e Button Icon.",
-    "verbalizacaoEsperada": "O leitor de tela anuncia os botões como controles de navegação.\n\nExemplo: “Carrossel. 3 itens. Item 1 de 3. Próximo, Botão.”",
+    "verbalizacaoEsperada": "O leitor de tela anuncia os botões como controles de navegação.\n\n“Carrossel. 3 itens. Item 1 de 3. Próximo, Botão”",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos"
   },

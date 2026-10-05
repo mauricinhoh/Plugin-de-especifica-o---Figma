@@ -78,7 +78,7 @@ export function Done({ summary, onViewOnCanvas, onNewSpecification, onClose, onD
         }}
       >
         <Button variant="primary" fullWidth onClick={onViewOnCanvas}>
-          Ver no canvas
+          Mostrar no canvas
         </Button>
         {SHOW_DOCX_DOWNLOAD && (
           <Button variant="secondary" fullWidth onClick={onDownloadDocx} icon={<Icon name="download" size={15} />}>

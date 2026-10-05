@@ -44,7 +44,7 @@ let knownNodeIds = new Set<string>();
 let stopManualSelectionListener: (() => void) | null = null;
 let lastGeneratedOutputNodeId: string | null = null;
 /**
- * true na tela "Marcadores excluídos": o "Ver no canvas" só dá zoom na
+ * true na tela "Marcadores excluídos": o "Mostrar no canvas" só dá zoom na
  * tela, sem selecioná-la — assim qualquer clique no canvas (inclusive
  * na própria tela) reinicia o fluxo, como na tela de sucesso normal.
  */
@@ -293,7 +293,7 @@ async function deleteExistingMarkupOfSelection(thenAnalyze: boolean): Promise<vo
     await runAnalysis();
     return;
   }
-  // "Ver no canvas" da tela de sucesso passa a enquadrar a própria tela.
+  // "Mostrar no canvas" da tela de sucesso passa a enquadrar a própria tela.
   lastGeneratedOutputNodeId = screenNode.id;
   outputIsDeletedScreen = true;
   postToUi({ type: "markup-deleted", deletedCount, screenName: screenNode.name, screenId: screenNode.id });

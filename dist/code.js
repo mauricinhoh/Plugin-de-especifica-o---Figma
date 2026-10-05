@@ -281,7 +281,7 @@
       "categoria": "Action",
       "componente": "Button Primary",
       "estados": "Habilitado, Hover, Focus, Loading, Disabled.",
-      "verbalizacaoEsperada": "Habilitado/Focus: \u201C[Label], Bot\xE3o\u201D.\nLoading macOS: \u201CCarregando\u201D.\nLoading Windows: \u201C[Carregando]\u201D.\nDisabled macOS: \u201C[Label], Escurecido, Bot\xE3o\u201D.\nDisabled Windows: \u201C[Label] Indispon\xEDvel, Bot\xE3o\u201D.",
+      "verbalizacaoEsperada": "Habilitado/Focus: \u201C[Label], Bot\xE3o\u201D.\nLoading macOS: \u201CCarregando\u201D.\nLoading Windows: \u201CCarregando\u201D.\nDisabled macOS: \u201C[Label], Escurecido, Bot\xE3o\u201D.\nDisabled Windows: \u201C[Label] Indispon\xEDvel, Bot\xE3o\u201D.",
       "tipo": "Bot\xE3o",
       "foco": "Sim"
     },
@@ -921,7 +921,7 @@
       "categoria": "Navigation",
       "componente": "Carousel Nav",
       "estados": "Herda de Page Indicator e Button Icon.",
-      "verbalizacaoEsperada": "O leitor de tela anuncia os bot\xF5es como controles de navega\xE7\xE3o.\n\nExemplo: \u201CCarrossel. 3 itens. Item 1 de 3. Pr\xF3ximo, Bot\xE3o.\u201D",
+      "verbalizacaoEsperada": "O leitor de tela anuncia os bot\xF5es como controles de navega\xE7\xE3o.\n\n\u201CCarrossel. 3 itens. Item 1 de 3. Pr\xF3ximo, Bot\xE3o\u201D",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos"
     },
