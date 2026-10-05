@@ -665,9 +665,19 @@
       "categoria": "Inputs",
       "componente": "Input Code Number",
       "estados": "habilitado, focus, hover e preenchido;",
-      "verbalizacaoEsperada": "Ao focar em cada um dos bot\xF5es leitor anuncia: \u201C6 ou 1, Bot\xE3o\u201D.\nFeedback din\xE2mico:\nQuando uma tecla \xE9 acionada, o campo de senha atualiza\u2028 \u201Cx d\xEDgitos inseridos\u201D\nBot\xE3o Limpar:\nDeve anunciar \u201CCaracteres apagados\u201D ap\xF3s a\xE7\xE3o.",
+      "verbalizacaoEsperada": "Ao focar em cada um dos bot\xF5es leitor anuncia: \u201C6 ou 1, Bot\xE3o, [Help Text]\u201D.\nFeedback din\xE2mico:\nQuando uma tecla \xE9 acionada, o campo de senha atualiza\u2028 \u201Cx d\xEDgitos inseridos\u201D\nBot\xE3o Limpar:\nDeve anunciar \u201CCaracteres apagados\u201D ap\xF3s a\xE7\xE3o.",
       "tipo": "Entrada",
-      "foco": "Sim"
+      "foco": "Sim",
+      "textosPorCamada": {
+        "help text": [
+          "help",
+          "texto de apoio",
+          "texto de ajuda",
+          "texto de suporte",
+          "suporte",
+          "support"
+        ]
+      }
     },
     {
       "categoria": "Inputs",

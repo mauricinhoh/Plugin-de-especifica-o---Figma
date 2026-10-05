@@ -702,9 +702,19 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Input Code Number",
     "estados": "habilitado, focus, hover e preenchido;",
-    "verbalizacaoEsperada": "Ao focar em cada um dos botões leitor anuncia: “6 ou 1, Botão”.\nFeedback dinâmico:\nQuando uma tecla é acionada, o campo de senha atualiza  “x dígitos inseridos”\nBotão Limpar:\nDeve anunciar “Caracteres apagados” após ação.",
+    "verbalizacaoEsperada": "Ao focar em cada um dos botões leitor anuncia: “6 ou 1, Botão, [Help Text]”.\nFeedback dinâmico:\nQuando uma tecla é acionada, o campo de senha atualiza  “x dígitos inseridos”\nBotão Limpar:\nDeve anunciar “Caracteres apagados” após ação.",
     "tipo": "Entrada",
-    "foco": "Sim"
+    "foco": "Sim",
+    "textosPorCamada": {
+      "help text": [
+        "help",
+        "texto de apoio",
+        "texto de ajuda",
+        "texto de suporte",
+        "suporte",
+        "support"
+      ]
+    }
   },
   {
     "categoria": "Inputs",
