@@ -236,6 +236,7 @@ function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<Extracted
     lastInside: record.ultimosDentro,
     stateFlagAliases: record.stateFlagAliases,
     derivedStates: record.derivedStates,
+    templatesByDerivedState: record.verbalizacaoPorEstadoDerivado,
     links: record.links
   };
 }

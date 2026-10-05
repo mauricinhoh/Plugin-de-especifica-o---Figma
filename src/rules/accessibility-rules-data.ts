@@ -241,6 +241,15 @@ export interface AccessibilityRuleRecord {
    * `verbalizacaoEsperada` — é esse trecho que vira o link.
    */
   links?: Array<{ text: string; url: string }>;
+  /**
+   * NÃO vem da planilha — campo de extensão. Verbalização inteira a
+   * usar quando um estado de `derivedStates` bate (chave = `thenState`).
+   * Vale a PRIMEIRA chave, na ordem escrita aqui, que bater; se
+   * nenhuma bater, usa `verbalizacaoEsperada`. Ex.: Currency — oculto
+   * (Hiden = true) → só "Valor oculto"; Type = Negative → texto sem o
+   * "Menos". Confirmado com o usuário em 05/10/2026.
+   */
+  verbalizacaoPorEstadoDerivado?: Record<string, string>;
 }
 
 export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
@@ -325,9 +334,17 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Content",
     "componente": "Currency",
     "estados": "Padrão, Mascarado; variação positiva ou negativa apenas visual.",
-    "verbalizacaoEsperada": "Hiden true: \"Valor oculto\" Hiden false positive: \"[Label]\" Hiden true negative: \"Menos [Label]\"",
+    "verbalizacaoEsperada": "Hiden true: \"Valor oculto\" Hiden false positive: \"[Label]\" Hiden true negative: \"-[Label]\"",
     "tipo": "Não interativo",
-    "foco": "Não"
+    "foco": "Não",
+    "derivedStates": [
+      { "whenFlagsEqual": { "Hiden": "True" }, "thenState": "Currency oculto" },
+      { "whenFlagsEqual": { "Type": "Negative" }, "thenState": "Currency negativo" }
+    ],
+    "verbalizacaoPorEstadoDerivado": {
+      "Currency oculto": "Hiden true: \"Valor oculto\"",
+      "Currency negativo": "Hiden true: \"Valor oculto\" Hiden false positive: \"[Label sem sinal]\" Hiden true negative: \"[Label]\""
+    }
   },
   {
     "categoria": "Content",

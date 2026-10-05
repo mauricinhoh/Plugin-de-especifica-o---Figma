@@ -35,6 +35,13 @@
     // (aba "{Atualizado} Fonte da verdade", 21/09/2026) — mesmo dado
     // (texto visível do componente), nome diferente.
     label: (data) => data.text,
+    // Mesmo texto do [Label], sem o sinal de menos do começo (ex.:
+    // Currency negativo: "-R$ 500,00" → "R$ 500,00"). Confirmado com o
+    // usuário em 05/10/2026.
+    "label sem sinal": (data) => {
+      var _a2;
+      return (_a2 = data.text) == null ? void 0 : _a2.replace(/^\s*[-\u2212\u2013]\s*/, "");
+    },
     "rotulo acessivel": (data) => data.text,
     "label acessivel": (data) => data.text,
     "label do botao": (data) => data.text,
@@ -168,11 +175,12 @@
     return void 0;
   }
   function computeVerbalization(rule, extractedData, variantValues = []) {
-    var _a2, _b, _c;
+    var _a2, _b, _c, _d;
     if (!rule || !rule.hasVerbalization) {
       return "";
     }
-    const template = rule.templateWithoutTitle && extractedData.text === void 0 && extractedData.text2 !== void 0 ? rule.templateWithoutTitle : rule.templateWithoutDescription && extractedData.text !== void 0 && extractedData.text2 === void 0 ? rule.templateWithoutDescription : (_a2 = selectVerbalizationTemplate(rule, variantValues)) != null ? _a2 : rule.template;
+    const derivedTemplate = rule.templatesByDerivedState ? (_a2 = Object.entries(rule.templatesByDerivedState).find(([state]) => variantValues.includes(state))) == null ? void 0 : _a2[1] : void 0;
+    const template = derivedTemplate != null ? derivedTemplate : rule.templateWithoutTitle && extractedData.text === void 0 && extractedData.text2 !== void 0 ? rule.templateWithoutTitle : rule.templateWithoutDescription && extractedData.text !== void 0 && extractedData.text2 === void 0 ? rule.templateWithoutDescription : (_b = selectVerbalizationTemplate(rule, variantValues)) != null ? _b : rule.template;
     if (!template) {
       return "";
     }
@@ -190,7 +198,7 @@
           posicao: String(index + 1),
           total: String(tabs.length)
         })
-      ).join((_b = format.separador) != null ? _b : "\n");
+      ).join((_c = format.separador) != null ? _c : "\n");
       return resolvePlaceholders(template, __spreadProps(__spreadValues({}, extractedData), { abas: formatted }));
     }
     if (rule.listFormat && extractedData.lista) {
@@ -203,7 +211,7 @@
       const format = rule.listFormat;
       const formatted = items.map(
         (text, index) => resolvePlaceholders(index === items.length - 1 ? format.ultimo : format.item, { text })
-      ).join((_c = format.separador) != null ? _c : ", ");
+      ).join((_d = format.separador) != null ? _d : ", ");
       return resolvePlaceholders(template, __spreadProps(__spreadValues({}, extractedData), { niveis: formatted }));
     }
     return resolvePlaceholders(template, extractedData);
@@ -314,9 +322,17 @@
       "categoria": "Content",
       "componente": "Currency",
       "estados": "Padr\xE3o, Mascarado; varia\xE7\xE3o positiva ou negativa apenas visual.",
-      "verbalizacaoEsperada": 'Hiden true: "Valor oculto" Hiden false positive: "[Label]" Hiden true negative: "Menos [Label]"',
+      "verbalizacaoEsperada": 'Hiden true: "Valor oculto" Hiden false positive: "[Label]" Hiden true negative: "-[Label]"',
       "tipo": "N\xE3o interativo",
-      "foco": "N\xE3o"
+      "foco": "N\xE3o",
+      "derivedStates": [
+        { "whenFlagsEqual": { "Hiden": "True" }, "thenState": "Currency oculto" },
+        { "whenFlagsEqual": { "Type": "Negative" }, "thenState": "Currency negativo" }
+      ],
+      "verbalizacaoPorEstadoDerivado": {
+        "Currency oculto": 'Hiden true: "Valor oculto"',
+        "Currency negativo": 'Hiden true: "Valor oculto" Hiden false positive: "[Label sem sinal]" Hiden true negative: "[Label]"'
+      }
     },
     {
       "categoria": "Content",
@@ -1100,6 +1116,7 @@
       lastInside: record.ultimosDentro,
       stateFlagAliases: record.stateFlagAliases,
       derivedStates: record.derivedStates,
+      templatesByDerivedState: record.verbalizacaoPorEstadoDerivado,
       links: record.links
     };
   }

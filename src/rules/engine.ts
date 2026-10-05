@@ -163,6 +163,13 @@ export interface ComponentTypeRule<TExtracted extends object = ExtractedTextData
    */
   derivedStates?: Array<{ whenFlagsEqual: Record<string, string>; thenState: string }>;
   /**
+   * Verbalização inteira por estado derivado (chave = `thenState` de
+   * `derivedStates`). A primeira chave que aparecer entre os
+   * candidatos vence; tem prioridade sobre os outros modelos (ver
+   * dados: verbalizacaoPorEstadoDerivado).
+   */
+  templatesByDerivedState?: Record<string, string>;
+  /**
    * Links reais que devem virar HYPERLINK de verdade no .docx
    * exportado (não só texto azul — um link clicável de verdade).
    * `text` precisa aparecer exatamente dentro do template/verbalização
@@ -365,12 +372,16 @@ export function computeVerbalization(
   if (!rule || !rule.hasVerbalization) {
     return "";
   }
+  const derivedTemplate = rule.templatesByDerivedState
+    ? Object.entries(rule.templatesByDerivedState).find(([state]) => variantValues.includes(state))?.[1]
+    : undefined;
   const template =
-    rule.templateWithoutTitle && extractedData.text === undefined && extractedData.text2 !== undefined
+    derivedTemplate ??
+    (rule.templateWithoutTitle && extractedData.text === undefined && extractedData.text2 !== undefined
       ? rule.templateWithoutTitle
       : rule.templateWithoutDescription && extractedData.text !== undefined && extractedData.text2 === undefined
         ? rule.templateWithoutDescription
-        : selectVerbalizationTemplate(rule, variantValues) ?? rule.template;
+        : selectVerbalizationTemplate(rule, variantValues) ?? rule.template);
   if (!template) {
     return "";
   }
