@@ -238,6 +238,7 @@ function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<Extracted
     derivedStates: record.derivedStates,
     templatesByDerivedState: record.verbalizacaoPorEstadoDerivado,
     onlyWithUnderline: record.trechoSoComSublinhado,
+    lastTextLayer: record.ultimaCamadaDeTexto,
     links: record.links
   };
 }

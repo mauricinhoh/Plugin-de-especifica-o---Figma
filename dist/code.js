@@ -188,6 +188,9 @@
     if (rule.onlyWithUnderline && extractedData.sublinhado === "nao") {
       template = template.split(rule.onlyWithUnderline).join("");
     }
+    if (rule.lastTextLayer && extractedData.ultimaCamadaOculta === "sim") {
+      template = template.split(rule.lastTextLayer.trechoSeOculta).join("");
+    }
     if (rule.tabFormat && extractedData.abas) {
       let tabs = [];
       try {
@@ -784,6 +787,10 @@
           "suporte",
           "support"
         ]
+      },
+      "ultimaCamadaDeTexto": {
+        "placeholder": "contador",
+        "trechoSeOculta": "[contador], "
       }
     },
     {
@@ -1124,6 +1131,7 @@
       derivedStates: record.derivedStates,
       templatesByDerivedState: record.verbalizacaoPorEstadoDerivado,
       onlyWithUnderline: record.trechoSoComSublinhado,
+      lastTextLayer: record.ultimaCamadaDeTexto,
       links: record.links
     };
   }
@@ -1425,9 +1433,10 @@
   function normalizeLayerName(value) {
     return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
   }
-  function extractTextsByLayerName(node, spec) {
+  function extractTextsByLayerName(node, spec, excludeNodeId) {
     const result = {};
     for (const textNode of findAllTexts(node)) {
+      if (textNode.id === excludeNodeId) continue;
       const layerName = normalizeLayerName(textNode.name);
       for (const [placeholder, patterns] of Object.entries(spec)) {
         if (result[placeholder] !== void 0) continue;
@@ -1557,6 +1566,23 @@
   function extractFirstText(node) {
     const textNode = findFirstText(node);
     return textNode ? textNode.characters : void 0;
+  }
+  function findLastTextLayer(node) {
+    let last = null;
+    const walk = (current, parentVisible) => {
+      const visible = parentVisible && !("visible" in current && current.visible === false);
+      if (current.type === "TEXT") {
+        last = { node: current, visible };
+        return;
+      }
+      if ("children" in current) {
+        for (const child of current.children) walk(child, visible);
+      }
+    };
+    if ("children" in node) {
+      for (const child of node.children) walk(child, true);
+    }
+    return last;
   }
   function hasUnderlinedText(node) {
     return findAllTexts(node).some((text) => {
@@ -1823,13 +1849,22 @@
         extractedData[`camada:${rule.innerButtonTextPlaceholder}`] = buttonText;
       }
     }
+    const lastTextLayer = !isTextNode && (rule == null ? void 0 : rule.lastTextLayer) ? findLastTextLayer(node) : null;
     if (!isTextNode && (rule == null ? void 0 : rule.textsByLayerName)) {
-      const byLayer = extractTextsByLayerName(node, rule.textsByLayerName);
+      const byLayer = extractTextsByLayerName(node, rule.textsByLayerName, lastTextLayer == null ? void 0 : lastTextLayer.node.id);
       for (const [placeholder, value] of Object.entries(byLayer)) {
         extractedData[`camada:${placeholder}`] = value;
       }
       if (DEBUG_TEXT_LAYERS) {
         console.log("[text-layers-debug]", { nodeName: node.name, ruleKey: rule.key, camadasDeTexto: listTextLayers(node), preenchidos: byLayer });
+      }
+    }
+    if ((rule == null ? void 0 : rule.lastTextLayer) && lastTextLayer) {
+      if (lastTextLayer.visible && lastTextLayer.node.characters.trim().length > 0) {
+        extractedData[`camada:${rule.lastTextLayer.placeholder}`] = lastTextLayer.node.characters;
+      } else {
+        delete extractedData[`camada:${rule.lastTextLayer.placeholder}`];
+        extractedData.ultimaCamadaOculta = "sim";
       }
     }
     if (!isTextNode && (rule == null ? void 0 : rule.key) === "heading" && extractedData.nivel === void 0) {

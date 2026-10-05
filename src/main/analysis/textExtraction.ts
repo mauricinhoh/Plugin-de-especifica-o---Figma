@@ -59,9 +59,14 @@ function normalizeLayerName(value: string): string {
  * Cada camada preenche no máximo um placeholder (o primeiro da lista
  * que bater), para não repetir o mesmo texto em dois lugares.
  */
-export function extractTextsByLayerName(node: SceneNode, spec: Record<string, string[]>): Record<string, string> {
+export function extractTextsByLayerName(
+  node: SceneNode,
+  spec: Record<string, string[]>,
+  excludeNodeId?: string
+): Record<string, string> {
   const result: Record<string, string> = {};
   for (const textNode of findAllTexts(node)) {
+    if (textNode.id === excludeNodeId) continue;
     const layerName = normalizeLayerName(textNode.name);
     for (const [placeholder, patterns] of Object.entries(spec)) {
       if (result[placeholder] !== undefined) continue;
@@ -248,6 +253,29 @@ export function extractFirstText(node: SceneNode): string | undefined {
  * do usuário depois de notar que "primeiro texto" não bastava para
  * esses casos.
  */
+/**
+ * ÚLTIMA camada de texto do componente, na ordem das camadas, mesmo se
+ * estiver oculta — e se ela está visível (ela e todas as camadas acima
+ * dela até o componente). Ex.: contador "000/000" do Input Text Area.
+ */
+export function findLastTextLayer(node: SceneNode): { node: TextNode; visible: boolean } | null {
+  let last: { node: TextNode; visible: boolean } | null = null;
+  const walk = (current: SceneNode, parentVisible: boolean): void => {
+    const visible = parentVisible && !("visible" in current && current.visible === false);
+    if (current.type === "TEXT") {
+      last = { node: current, visible };
+      return;
+    }
+    if ("children" in current) {
+      for (const child of current.children) walk(child, visible);
+    }
+  };
+  if ("children" in node) {
+    for (const child of node.children) walk(child, true);
+  }
+  return last;
+}
+
 /**
  * true quando algum texto visível dentro do componente tem trecho
  * SUBLINHADO (o jeito como o link aparece no Flag/Flag Cooperado).

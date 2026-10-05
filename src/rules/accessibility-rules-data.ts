@@ -144,6 +144,16 @@ export interface AccessibilityRuleRecord {
    */
   trechoSoComSublinhado?: string;
   /**
+   * NÃO vem da planilha — campo de extensão. A ÚLTIMA camada de texto
+   * do componente (mesmo oculta) é reservada para `placeholder`: se
+   * estiver visível, o texto dela preenche o placeholder; se estiver
+   * oculta, `trechoSeOculta` é tirado da verbalização. Essa camada não
+   * entra no `textosPorCamada` dos outros placeholders. Ex.: Input Text
+   * Area → contador ("000/000") na camada "Support". Confirmado com o
+   * usuário em 05/10/2026.
+   */
+  ultimaCamadaDeTexto?: { placeholder: string; trechoSeOculta: string };
+  /**
    * NÃO vem da planilha — campo de extensão. Na extração
    * "titulo-descricao", lê só os textos do PRÓPRIO componente, sem
    * entrar em componentes internos (ex.: o "x" do Button Icon do Alert
@@ -799,6 +809,10 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
         "suporte",
         "support"
       ]
+    },
+    "ultimaCamadaDeTexto": {
+      "placeholder": "contador",
+      "trechoSeOculta": "[contador], "
     }
   },
   {

@@ -16,6 +16,7 @@ import {
   extractFirstThreeTexts,
   extractFirstTwoTexts,
   extractTextsByLayerName,
+  findLastTextLayer,
   extractOwnTextSlots,
   findInnerInstanceText,
   extractTextList,
@@ -281,13 +282,24 @@ async function buildSpecificationItem(
     }
   }
 
+  // Última camada de texto reservada (ex.: contador do Input Text Area).
+  const lastTextLayer = !isTextNode && rule?.lastTextLayer ? findLastTextLayer(node) : null;
   if (!isTextNode && rule?.textsByLayerName) {
-    const byLayer = extractTextsByLayerName(node, rule.textsByLayerName);
+    const byLayer = extractTextsByLayerName(node, rule.textsByLayerName, lastTextLayer?.node.id);
     for (const [placeholder, value] of Object.entries(byLayer)) {
       extractedData[`camada:${placeholder}`] = value;
     }
     if (DEBUG_TEXT_LAYERS) {
       console.log("[text-layers-debug]", { nodeName: node.name, ruleKey: rule.key, camadasDeTexto: listTextLayers(node), preenchidos: byLayer });
+    }
+  }
+
+  if (rule?.lastTextLayer && lastTextLayer) {
+    if (lastTextLayer.visible && lastTextLayer.node.characters.trim().length > 0) {
+      extractedData[`camada:${rule.lastTextLayer.placeholder}`] = lastTextLayer.node.characters;
+    } else {
+      delete extractedData[`camada:${rule.lastTextLayer.placeholder}`];
+      extractedData.ultimaCamadaOculta = "sim";
     }
   }
 

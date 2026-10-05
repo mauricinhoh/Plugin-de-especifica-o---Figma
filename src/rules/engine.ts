@@ -176,6 +176,12 @@ export interface ComponentTypeRule<TExtracted extends object = ExtractedTextData
    */
   onlyWithUnderline?: string;
   /**
+   * Última camada de texto reservada para um placeholder (ver dados:
+   * ultimaCamadaDeTexto). Quando o analyzer marca
+   * `extractedData.ultimaCamadaOculta = "sim"`, `trechoSeOculta` sai do texto.
+   */
+  lastTextLayer?: { placeholder: string; trechoSeOculta: string };
+  /**
    * Links reais que devem virar HYPERLINK de verdade no .docx
    * exportado (não só texto azul — um link clicável de verdade).
    * `text` precisa aparecer exatamente dentro do template/verbalização
@@ -399,6 +405,11 @@ export function computeVerbalization(
   // sublinhado ("nao"); sem a informação, mantém o texto como está.
   if (rule.onlyWithUnderline && extractedData.sublinhado === "nao") {
     template = template.split(rule.onlyWithUnderline).join("");
+  }
+  // Última camada de texto oculta (ex.: contador do Input Text Area
+  // desligado): tira o trecho do placeholder dela.
+  if (rule.lastTextLayer && extractedData.ultimaCamadaOculta === "sim") {
+    template = template.split(rule.lastTextLayer.trechoSeOculta).join("");
   }
   // Abas (ex.: Tab): uma linha por aba, com posição e total; a aba
   // selecionada usa o modelo "selecionada", as demais "não selecionada".
