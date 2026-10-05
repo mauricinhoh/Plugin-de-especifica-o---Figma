@@ -289,7 +289,7 @@
       "categoria": "Action",
       "componente": "Button Secondary",
       "estados": "Habilitado, Hover, Focus, Loading, Disabled.",
-      "verbalizacaoEsperada": "Habilitado/Focus: \u201C[Label], Bot\xE3o\u201D.\nLoading macOS: \u201CCarregando\u201D.\nLoading Windows: \u201C[Carregando]\u201D.\nDisabled macOS: \u201C[Label], Escurecido, Bot\xE3o\u201D.\nDisabled Windows: \u201C[Label] Indispon\xEDvel, Bot\xE3o\u201D.",
+      "verbalizacaoEsperada": "Habilitado/Focus: \u201C[Label], Bot\xE3o\u201D.\nLoading macOS: \u201CCarregando\u201D.\nLoading Windows: \u201CCarregando\u201D.\nDisabled macOS: \u201C[Label], Escurecido, Bot\xE3o\u201D.\nDisabled Windows: \u201C[Label] Indispon\xEDvel, Bot\xE3o\u201D.",
       "tipo": "Bot\xE3o",
       "foco": "Sim"
     },

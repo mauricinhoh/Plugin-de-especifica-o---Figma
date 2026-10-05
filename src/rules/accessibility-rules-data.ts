@@ -326,7 +326,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Action",
     "componente": "Button Secondary",
     "estados": "Habilitado, Hover, Focus, Loading, Disabled.",
-    "verbalizacaoEsperada": "Habilitado/Focus: “[Label], Botão”.\nLoading macOS: “Carregando”.\nLoading Windows: “[Carregando]”.\nDisabled macOS: “[Label], Escurecido, Botão”.\nDisabled Windows: “[Label] Indisponível, Botão”.",
+    "verbalizacaoEsperada": "Habilitado/Focus: “[Label], Botão”.\nLoading macOS: “Carregando”.\nLoading Windows: “Carregando”.\nDisabled macOS: “[Label], Escurecido, Botão”.\nDisabled Windows: “[Label] Indisponível, Botão”.",
     "tipo": "Botão",
     "foco": "Sim"
   },
