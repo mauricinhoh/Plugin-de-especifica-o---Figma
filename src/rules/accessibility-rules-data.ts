@@ -899,8 +899,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "foco": "Apenas elementos interativos",
     "extracaoTexto": "lista",
     "formatoLista": {
-      "item": "[Label] Link",
-      "ultimo": "[Label] Página atual",
+      "item": "[Label] link",
+      "ultimo": "[Label] link, Página atual",
       "separador": ", "
     }
   },

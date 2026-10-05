@@ -888,8 +888,8 @@
       "foco": "Apenas elementos interativos",
       "extracaoTexto": "lista",
       "formatoLista": {
-        "item": "[Label] Link",
-        "ultimo": "[Label] P\xE1gina atual",
+        "item": "[Label] link",
+        "ultimo": "[Label] link, P\xE1gina atual",
         "separador": ", "
       }
     },
