@@ -22,6 +22,7 @@ import {
   extractTabs,
   extractTitleAndDescription,
   findFirstTextNode,
+  hasUnderlinedText,
   findOwnTexts,
   listTextLayers
 } from "./textExtraction";
@@ -299,6 +300,10 @@ async function buildSpecificationItem(
     if (level) {
       extractedData.nivel = level;
     }
+  }
+
+  if (rule?.onlyWithUnderline) {
+    extractedData.sublinhado = hasUnderlinedText(node) ? "sim" : "nao";
   }
 
   const variantProperties = extractVariantProperties(node);

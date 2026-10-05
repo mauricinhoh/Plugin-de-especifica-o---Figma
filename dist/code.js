@@ -181,9 +181,12 @@
       return "";
     }
     const derivedTemplate = rule.templatesByDerivedState ? (_a2 = Object.entries(rule.templatesByDerivedState).find(([state]) => variantValues.includes(state))) == null ? void 0 : _a2[1] : void 0;
-    const template = derivedTemplate != null ? derivedTemplate : rule.templateWithoutTitle && extractedData.text === void 0 && extractedData.text2 !== void 0 ? rule.templateWithoutTitle : rule.templateWithoutDescription && extractedData.text !== void 0 && extractedData.text2 === void 0 ? rule.templateWithoutDescription : (_b = selectVerbalizationTemplate(rule, variantValues)) != null ? _b : rule.template;
+    let template = derivedTemplate != null ? derivedTemplate : rule.templateWithoutTitle && extractedData.text === void 0 && extractedData.text2 !== void 0 ? rule.templateWithoutTitle : rule.templateWithoutDescription && extractedData.text !== void 0 && extractedData.text2 === void 0 ? rule.templateWithoutDescription : (_b = selectVerbalizationTemplate(rule, variantValues)) != null ? _b : rule.template;
     if (!template) {
       return "";
+    }
+    if (rule.onlyWithUnderline && extractedData.sublinhado === "nao") {
+      template = template.split(rule.onlyWithUnderline).join("");
     }
     if (rule.tabFormat && extractedData.abas) {
       let tabs = [];
@@ -549,7 +552,8 @@
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
       "extracaoTexto": "titulo-descricao",
-      "verbalizacaoSemTitulo": "[Descri\xE7\xE3o], Link"
+      "verbalizacaoSemTitulo": "[Descri\xE7\xE3o], Link",
+      "trechoSoComSublinhado": ", Link"
     },
     {
       "categoria": "Feedback",
@@ -559,7 +563,8 @@
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
       "extracaoTexto": "titulo-descricao",
-      "verbalizacaoSemTitulo": "[Descri\xE7\xE3o], Link"
+      "verbalizacaoSemTitulo": "[Descri\xE7\xE3o], Link",
+      "trechoSoComSublinhado": ", Link"
     },
     {
       "categoria": "Feedback",
@@ -1118,6 +1123,7 @@
       stateFlagAliases: record.stateFlagAliases,
       derivedStates: record.derivedStates,
       templatesByDerivedState: record.verbalizacaoPorEstadoDerivado,
+      onlyWithUnderline: record.trechoSoComSublinhado,
       links: record.links
     };
   }
@@ -1552,6 +1558,15 @@
     const textNode = findFirstText(node);
     return textNode ? textNode.characters : void 0;
   }
+  function hasUnderlinedText(node) {
+    return findAllTexts(node).some((text) => {
+      if (text.textDecoration === "UNDERLINE") return true;
+      if (text.textDecoration === figma.mixed) {
+        return text.getStyledTextSegments(["textDecoration"]).some((segment) => segment.textDecoration === "UNDERLINE");
+      }
+      return false;
+    });
+  }
   function findAllTexts(node) {
     if ("visible" in node && node.visible === false) {
       return [];
@@ -1823,6 +1838,9 @@
       if (level) {
         extractedData.nivel = level;
       }
+    }
+    if (rule == null ? void 0 : rule.onlyWithUnderline) {
+      extractedData.sublinhado = hasUnderlinedText(node) ? "sim" : "nao";
     }
     const variantProperties = extractVariantProperties(node);
     const booleanProperties = extractBooleanProperties(node);

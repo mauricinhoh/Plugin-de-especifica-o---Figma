@@ -248,6 +248,21 @@ export function extractFirstText(node: SceneNode): string | undefined {
  * do usuário depois de notar que "primeiro texto" não bastava para
  * esses casos.
  */
+/**
+ * true quando algum texto visível dentro do componente tem trecho
+ * SUBLINHADO (o jeito como o link aparece no Flag/Flag Cooperado).
+ * Texto com estilos misturados é conferido trecho a trecho.
+ */
+export function hasUnderlinedText(node: SceneNode): boolean {
+  return findAllTexts(node).some((text) => {
+    if (text.textDecoration === "UNDERLINE") return true;
+    if (text.textDecoration === figma.mixed) {
+      return text.getStyledTextSegments(["textDecoration"]).some((segment) => segment.textDecoration === "UNDERLINE");
+    }
+    return false;
+  });
+}
+
 function findAllTexts(node: SceneNode): TextNode[] {
   if ("visible" in node && node.visible === false) {
     return [];

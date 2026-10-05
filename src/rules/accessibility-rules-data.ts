@@ -137,6 +137,13 @@ export interface AccessibilityRuleRecord {
    */
   verbalizacaoSemTitulo?: string;
   /**
+   * NÃO vem da planilha — campo de extensão. Trecho da verbalização que
+   * só aparece quando o plugin acha um texto SUBLINHADO (link) dentro
+   * do componente; sem sublinhado, esse trecho é tirado do texto. Ex.:
+   * Flag → ", Link". Confirmado com o usuário em 05/10/2026.
+   */
+  trechoSoComSublinhado?: string;
+  /**
    * NÃO vem da planilha — campo de extensão. Na extração
    * "titulo-descricao", lê só os textos do PRÓPRIO componente, sem
    * entrar em componentes internos (ex.: o "x" do Button Icon do Alert
@@ -560,7 +567,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
     "extracaoTexto": "titulo-descricao",
-    "verbalizacaoSemTitulo": "[Descrição], Link"
+    "verbalizacaoSemTitulo": "[Descrição], Link",
+    "trechoSoComSublinhado": ", Link"
   },
   {
     "categoria": "Feedback",
@@ -570,7 +578,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
     "extracaoTexto": "titulo-descricao",
-    "verbalizacaoSemTitulo": "[Descrição], Link"
+    "verbalizacaoSemTitulo": "[Descrição], Link",
+    "trechoSoComSublinhado": ", Link"
   },
   {
     "categoria": "Feedback",

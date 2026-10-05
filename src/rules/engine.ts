@@ -170,6 +170,12 @@ export interface ComponentTypeRule<TExtracted extends object = ExtractedTextData
    */
   templatesByDerivedState?: Record<string, string>;
   /**
+   * Trecho do texto que só fica quando há texto sublinhado no
+   * componente (ver dados: trechoSoComSublinhado). Depende de
+   * `extractedData.sublinhado` ("sim"/"nao"), preenchido pelo analyzer.
+   */
+  onlyWithUnderline?: string;
+  /**
    * Links reais que devem virar HYPERLINK de verdade no .docx
    * exportado (não só texto azul — um link clicável de verdade).
    * `text` precisa aparecer exatamente dentro do template/verbalização
@@ -378,7 +384,7 @@ export function computeVerbalization(
   const derivedTemplate = rule.templatesByDerivedState
     ? Object.entries(rule.templatesByDerivedState).find(([state]) => variantValues.includes(state))?.[1]
     : undefined;
-  const template =
+  let template =
     derivedTemplate ??
     (rule.templateWithoutTitle && extractedData.text === undefined && extractedData.text2 !== undefined
       ? rule.templateWithoutTitle
@@ -387,6 +393,12 @@ export function computeVerbalization(
         : selectVerbalizationTemplate(rule, variantValues) ?? rule.template);
   if (!template) {
     return "";
+  }
+  // Sem texto sublinhado no componente: tira o trecho do link (ex.:
+  // Flag → ", Link"). Só quando o analyzer confirmou que não há
+  // sublinhado ("nao"); sem a informação, mantém o texto como está.
+  if (rule.onlyWithUnderline && extractedData.sublinhado === "nao") {
+    template = template.split(rule.onlyWithUnderline).join("");
   }
   // Abas (ex.: Tab): uma linha por aba, com posição e total; a aba
   // selecionada usa o modelo "selecionada", as demais "não selecionada".

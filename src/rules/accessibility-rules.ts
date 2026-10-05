@@ -237,6 +237,7 @@ function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<Extracted
     stateFlagAliases: record.stateFlagAliases,
     derivedStates: record.derivedStates,
     templatesByDerivedState: record.verbalizacaoPorEstadoDerivado,
+    onlyWithUnderline: record.trechoSoComSublinhado,
     links: record.links
   };
 }
