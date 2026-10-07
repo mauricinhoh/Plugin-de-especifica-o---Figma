@@ -440,6 +440,16 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "foco": "Não"
   },
   {
+    // NÃO vem da planilha — componente usado dentro do frame "PDF".
+    // Verbalização passada pelo usuário em 07/10/2026.
+    "categoria": "Content",
+    "componente": "Sicredi Logo",
+    "estados": null,
+    "verbalizacaoEsperada": "Alt Text: Sicredi, Logo Sicredi",
+    "tipo": "Imagem",
+    "foco": "Não"
+  },
+  {
     "categoria": "Content",
     "componente": "Brand",
     "estados": "Estático; quando usado como link, possui interação.",

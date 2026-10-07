@@ -366,6 +366,16 @@
       "foco": "N\xE3o"
     },
     {
+      // NÃO vem da planilha — componente usado dentro do frame "PDF".
+      // Verbalização passada pelo usuário em 07/10/2026.
+      "categoria": "Content",
+      "componente": "Sicredi Logo",
+      "estados": null,
+      "verbalizacaoEsperada": "Alt Text: Sicredi, Logo Sicredi",
+      "tipo": "Imagem",
+      "foco": "N\xE3o"
+    },
+    {
       "categoria": "Content",
       "componente": "Brand",
       "estados": "Est\xE1tico; quando usado como link, possui intera\xE7\xE3o.",
