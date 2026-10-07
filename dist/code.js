@@ -2190,6 +2190,7 @@
       const item = items[index];
       const node = nodes[index];
       if (!node) continue;
+      if (isInsidePdfFrame(node)) continue;
       const isHeading = item.ruleKey === "heading";
       const isHeaderProductWithTitle = item.ruleKey === "header-product" && item.extractedData.text !== void 0;
       if (!isHeading && !isHeaderProductWithTitle) continue;

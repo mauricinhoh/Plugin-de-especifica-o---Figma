@@ -595,7 +595,8 @@ export async function analyzeScreen(
  *   Depois do nível 6: títulos continuam nível 6, mas texto solto
  *   pequeno (14/16 px) vira só texto (regra "texto", sem "Título de
  *   nível").
- * - Não entram: textos do frame PDF (nível manual pelo PD) e textos
+ * - Não entram: NADA dentro do frame PDF (textos e componentes ficam
+ *   com as regras do PDF / do próprio componente, como antes) e textos
  *   pequenos do Header Flow (já são regra "texto").
  */
 const SCREEN_FIRST_HEADING_LEVEL = 2;
@@ -608,6 +609,9 @@ export async function renumberHeadingsInLogicalOrder(nodes: SceneNode[], items: 
     const item = items[index];
     const node = nodes[index];
     if (!node) continue;
+    // Frame "PDF": regras próprias (Bold/ExtraBold, nível manual pelo PD).
+    // Nada dentro dele entra nesta contagem nem é renumerado.
+    if (isInsidePdfFrame(node)) continue;
     const isHeading = item.ruleKey === "heading";
     const isHeaderProductWithTitle = item.ruleKey === "header-product" && item.extractedData.text !== undefined;
     if (!isHeading && !isHeaderProductWithTitle) continue;
