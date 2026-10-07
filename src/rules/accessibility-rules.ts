@@ -240,6 +240,7 @@ function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<Extracted
     onlyWithUnderline: record.trechoSoComSublinhado,
     lastTextLayer: record.ultimaCamadaDeTexto,
     headingsInLogicalOrder: record.titulosEmOrdemLogica ?? false,
+    smallTextAsPlainText: record.textoPequenoSemTitulo ?? false,
     firstTextPlaceholder: record.primeiroTextoEm,
     textsByPosition: record.textosPorPosicao,
     stateFromInnerComponent: record.estadoDoComponenteInterno,
@@ -286,18 +287,21 @@ export const standardItemRules: ComponentTypeRule<ExtractedTextData>[] = accessi
   }));
 
 /**
- * Regras dos textos dentro de um frame "PDF" (ver
- * main/analysis/pdfFrame.ts). NÃO vêm da planilha — o PDF não é
- * componente do Design System, é um frame montado à mão pelo designer.
- * Reaproveitam as categorias de Título e de texto (Não interativo).
+ * Regras de TEXTO SOLTO que não vêm da planilha:
+ * - "pdf-titulo": título dentro de um frame "PDF" (ver
+ *   main/analysis/pdfFrame.ts) — o PDF não é componente do Design
+ *   System, é um frame montado à mão pelo designer.
+ * - "texto": texto simples, verbalizado com o próprio texto. Usado nos
+ *   textos (não títulos) do PDF e nos textos pequenos dentro de
+ *   contêineres com `textoPequenoSemTitulo` (ex.: Header Flow).
  * Ficam fora de `accessibilityRules` de propósito: não são achadas
- * pelo nome, só quando o analyzer confirma que o texto está num PDF.
+ * pelo nome, só quando o analyzer confirma o contexto do texto.
  * Confirmado com o usuário em 07/10/2026.
  */
 export const PDF_HEADING_RULE_KEY = "pdf-titulo";
-export const PDF_TEXT_RULE_KEY = "pdf-texto";
+export const PLAIN_TEXT_RULE_KEY = "texto";
 
-export const pdfRules: ComponentTypeRule<ExtractedTextData>[] = [
+export const looseTextRules: ComponentTypeRule<ExtractedTextData>[] = [
   {
     ...buildRule({
       categoria: "Content",
@@ -313,14 +317,14 @@ export const pdfRules: ComponentTypeRule<ExtractedTextData>[] = [
   {
     ...buildRule({
       categoria: "Content",
-      componente: "PDF Texto",
+      componente: "Texto",
       estados: null,
       // O próprio texto.
       verbalizacaoEsperada: "[Label]",
       tipo: "Não interativo",
       foco: "Não"
     }),
-    key: PDF_TEXT_RULE_KEY
+    key: PLAIN_TEXT_RULE_KEY
   }
 ];
 
@@ -331,7 +335,7 @@ export function findRuleByKey(key: string | null | undefined): ComponentTypeRule
     accessibilityRules.find((r) => r.key === key) ??
     containerVariantRules.find((r) => r.key === key) ??
     standardItemRules.find((r) => r.key === key) ??
-    pdfRules.find((r) => r.key === key)
+    looseTextRules.find((r) => r.key === key)
   );
 }
 

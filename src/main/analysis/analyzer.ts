@@ -1,7 +1,7 @@
 /// <reference types="@figma/plugin-typings" />
 
 import { ScreenAnalysisResult, ScreenContext, SpecificationItem } from "../../shared/types";
-import { accessibilityRules, findRuleByKey, PDF_HEADING_RULE_KEY, PDF_TEXT_RULE_KEY } from "../../rules/accessibility-rules";
+import { accessibilityRules, findRuleByKey, PDF_HEADING_RULE_KEY, PLAIN_TEXT_RULE_KEY } from "../../rules/accessibility-rules";
 import { computeVerbalization, buildStateCandidates, findMatchingRule, UNSPECIFIED_TYPE_KEY } from "../../rules/engine";
 import { generateSpecificationId } from "../idGenerator";
 import { collectItems, discoverTopLevelComponents } from "./discovery";
@@ -183,6 +183,24 @@ async function findAncestorRules(
   return result;
 }
 
+/**
+ * O texto está dentro de um contêiner com `textoPequenoSemTitulo` (ex.:
+ * Header Flow)? Confere qualquer ancestral — instância/componente pelo
+ * nome do componente principal, e também frames/grupos pelo nome da
+ * camada (o Header Flow pode ser só uma composição do arquivo).
+ */
+async function isInsideSmallTextAsPlainTextContainer(node: SceneNode): Promise<boolean> {
+  let current = node.parent;
+  while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
+    const componentName =
+      current.type === "INSTANCE" || current.type === "COMPONENT" ? await resolveComponentName(current) : null;
+    const rule = findMatchingRule(accessibilityRules, { nodeName: current.name, componentName });
+    if (rule?.smallTextAsPlainText) return true;
+    current = current.parent;
+  }
+  return false;
+}
+
 async function buildSpecificationItem(
   node: SceneNode,
   order: number,
@@ -232,14 +250,18 @@ async function buildSpecificationItem(
     // Texto dentro de um frame "PDF" (ver pdfFrame.ts): Bold/ExtraBold
     // = título, sem nível automático (o PD completa); o resto = o
     // próprio texto. O tamanho da fonte não é usado aqui.
-    rule = findRuleByKey(isPdfHeadingText(node as TextNode) ? PDF_HEADING_RULE_KEY : PDF_TEXT_RULE_KEY);
+    rule = findRuleByKey(isPdfHeadingText(node as TextNode) ? PDF_HEADING_RULE_KEY : PLAIN_TEXT_RULE_KEY);
     extractedData.text = (node as TextNode).characters;
   } else if (isTextNode) {
     // Título "solto": usa sempre a regra "Heading", independente do
     // nome da camada — o motivo de ter sido descoberto já é o tamanho
     // da fonte bater com um nível de título (ver classifyComponent).
     const headingLevel = detectHeadingLevelFromFontSize(node as TextNode);
-    if (headingLevel) {
+    if (headingLevel && SMALL_TEXT_HEADING_LEVELS.has(headingLevel) && (await isInsideSmallTextAsPlainTextContainer(node))) {
+      // Texto pequeno dentro de contêiner como o Header Flow: só texto.
+      rule = findRuleByKey(PLAIN_TEXT_RULE_KEY);
+      extractedData.text = (node as TextNode).characters;
+    } else if (headingLevel) {
       rule = accessibilityRules.find((r) => r.key === "heading");
       extractedData.text = (node as TextNode).characters;
       extractedData.nivel = headingLevel;

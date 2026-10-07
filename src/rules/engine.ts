@@ -183,6 +183,8 @@ export interface ComponentTypeRule<TExtracted extends object = ExtractedTextData
   lastTextLayer?: { placeholder: string; trechoSeOculta: string };
   /** Títulos dentro deste contêiner usam nível pela ordem lógica (ver dados: titulosEmOrdemLogica). */
   headingsInLogicalOrder?: boolean;
+  /** Textos soltos pequenos (nível 5/6 pelo tamanho) dentro deste contêiner viram texto, não título (ver dados: textoPequenoSemTitulo). */
+  smallTextAsPlainText?: boolean;
   /** Placeholder preenchido com o primeiro texto visível do componente (ver dados: primeiroTextoEm). */
   firstTextPlaceholder?: string;
   /** Placeholders preenchidos pela posição do texto visível (ver dados: textosPorPosicao). */

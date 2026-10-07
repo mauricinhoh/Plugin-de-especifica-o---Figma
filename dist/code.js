@@ -650,15 +650,9 @@
       "verbalizacaoEsperada": 'Quando vazio: Label acess\xEDvel "Informe o c\xF3digo, [posi\xE7\xE3o], Campo de edi\xE7\xE3o, [Help Text]". Quando preenchido: Label acess\xEDvel "Informe o c\xF3digo, Marcador, [posi\xE7\xE3o], Campo de edi\xE7\xE3o, [Help Text]".\n',
       "tipo": "Entrada",
       "foco": "Sim",
-      "textosPorCamada": {
-        "help text": [
-          "help",
-          "texto de apoio",
-          "texto de ajuda",
-          "texto de suporte",
-          "suporte",
-          "support"
-        ]
+      "ultimaCamadaDeTexto": {
+        "placeholder": "help text",
+        "trechoSeOculta": ", [Help Text]"
       }
     },
     {
@@ -668,15 +662,9 @@
       "verbalizacaoEsperada": "Ao focar em cada um dos bot\xF5es leitor anuncia: \u201C6 ou 1, Bot\xE3o, [Help Text]\u201D.\nFeedback din\xE2mico:\nQuando uma tecla \xE9 acionada, o campo de senha atualiza\u2028 \u201Cx d\xEDgitos inseridos\u201D\nBot\xE3o Limpar:\nDeve anunciar \u201CCaracteres apagados\u201D ap\xF3s a\xE7\xE3o.",
       "tipo": "Entrada",
       "foco": "Sim",
-      "textosPorCamada": {
-        "help text": [
-          "help",
-          "texto de apoio",
-          "texto de ajuda",
-          "texto de suporte",
-          "suporte",
-          "support"
-        ]
+      "ultimaCamadaDeTexto": {
+        "placeholder": "help text",
+        "trechoSeOculta": ", [Help Text]"
       }
     },
     {
@@ -858,7 +846,7 @@
       "somenteFilhos": true,
       "itensPadrao": {
         "nomeDoItem": "^item\\s*\\d+$",
-        "verbalizacaoDoItem": "N\xE3o deve ser verbalizado, [Label]"
+        "verbalizacaoDoItem": "[Label]"
       }
     },
     {
@@ -972,7 +960,8 @@
       "verbalizacaoEsperada": null,
       "tipo": null,
       "foco": null,
-      "sempreAprofundar": true
+      "sempreAprofundar": true,
+      "textoPequenoSemTitulo": true
     },
     {
       "categoria": "Navigation",
@@ -1128,7 +1117,7 @@
     return map;
   }
   function buildRule(record) {
-    var _a2, _b, _c, _d, _e, _f, _g, _h, _i;
+    var _a2, _b, _c, _d, _e, _f, _g, _h, _i, _j;
     const states = parseVerbalizationStates(record.verbalizacaoEsperada);
     const statesMap = states.length > 0 ? states.reduce((acc, s) => {
       acc[s.label] = s.text;
@@ -1168,10 +1157,11 @@
       onlyWithUnderline: record.trechoSoComSublinhado,
       lastTextLayer: record.ultimaCamadaDeTexto,
       headingsInLogicalOrder: (_h = record.titulosEmOrdemLogica) != null ? _h : false,
+      smallTextAsPlainText: (_i = record.textoPequenoSemTitulo) != null ? _i : false,
       firstTextPlaceholder: record.primeiroTextoEm,
       textsByPosition: record.textosPorPosicao,
       stateFromInnerComponent: record.estadoDoComponenteInterno,
-      standardItemNamePattern: (_i = record.itensPadrao) == null ? void 0 : _i.nomeDoItem,
+      standardItemNamePattern: (_j = record.itensPadrao) == null ? void 0 : _j.nomeDoItem,
       links: record.links
     };
   }
@@ -1194,8 +1184,8 @@
     key: `${slugify(record.componente)}--item`
   }));
   var PDF_HEADING_RULE_KEY = "pdf-titulo";
-  var PDF_TEXT_RULE_KEY = "pdf-texto";
-  var pdfRules = [
+  var PLAIN_TEXT_RULE_KEY = "texto";
+  var looseTextRules = [
     __spreadProps(__spreadValues({}, buildRule({
       categoria: "Content",
       componente: "PDF T\xEDtulo",
@@ -1209,20 +1199,20 @@
     }),
     __spreadProps(__spreadValues({}, buildRule({
       categoria: "Content",
-      componente: "PDF Texto",
+      componente: "Texto",
       estados: null,
       // O próprio texto.
       verbalizacaoEsperada: "[Label]",
       tipo: "N\xE3o interativo",
       foco: "N\xE3o"
     })), {
-      key: PDF_TEXT_RULE_KEY
+      key: PLAIN_TEXT_RULE_KEY
     })
   ];
   function findRuleByKey(key) {
     var _a2, _b, _c;
     if (!key) return void 0;
-    return (_c = (_b = (_a2 = accessibilityRules.find((r) => r.key === key)) != null ? _a2 : containerVariantRules.find((r) => r.key === key)) != null ? _b : standardItemRules.find((r) => r.key === key)) != null ? _c : pdfRules.find((r) => r.key === key);
+    return (_c = (_b = (_a2 = accessibilityRules.find((r) => r.key === key)) != null ? _a2 : containerVariantRules.find((r) => r.key === key)) != null ? _b : standardItemRules.find((r) => r.key === key)) != null ? _c : looseTextRules.find((r) => r.key === key);
   }
 
   // src/main/figma-api.ts
@@ -1879,6 +1869,16 @@
     }
     return result;
   }
+  async function isInsideSmallTextAsPlainTextContainer(node) {
+    let current = node.parent;
+    while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
+      const componentName = current.type === "INSTANCE" || current.type === "COMPONENT" ? await resolveComponentName(current) : null;
+      const rule = findMatchingRule(accessibilityRules, { nodeName: current.name, componentName });
+      if (rule == null ? void 0 : rule.smallTextAsPlainText) return true;
+      current = current.parent;
+    }
+    return false;
+  }
   async function buildSpecificationItem(node, order, manuallyAdded, inheritRuleFrom) {
     var _a2, _b, _c, _d, _e, _f;
     const isComponentLike = node.type === "INSTANCE" || node.type === "COMPONENT";
@@ -1904,11 +1904,14 @@
     }
     const extractedData = {};
     if (isTextNode && isInsidePdfFrame(node)) {
-      rule = findRuleByKey(isPdfHeadingText(node) ? PDF_HEADING_RULE_KEY : PDF_TEXT_RULE_KEY);
+      rule = findRuleByKey(isPdfHeadingText(node) ? PDF_HEADING_RULE_KEY : PLAIN_TEXT_RULE_KEY);
       extractedData.text = node.characters;
     } else if (isTextNode) {
       const headingLevel = detectHeadingLevelFromFontSize(node);
-      if (headingLevel) {
+      if (headingLevel && SMALL_TEXT_HEADING_LEVELS.has(headingLevel) && await isInsideSmallTextAsPlainTextContainer(node)) {
+        rule = findRuleByKey(PLAIN_TEXT_RULE_KEY);
+        extractedData.text = node.characters;
+      } else if (headingLevel) {
         rule = accessibilityRules.find((r) => r.key === "heading");
         extractedData.text = node.characters;
         extractedData.nivel = headingLevel;
