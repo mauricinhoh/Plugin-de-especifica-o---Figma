@@ -321,6 +321,9 @@ async function groupReadingBlocks<T extends SceneNode>(nodes: T[]): Promise<T[]>
   return result;
 }
 
+/** Nome do card de um título solto (texto sem componente). Confirmado com o usuário em 07/10/2026. */
+const LOOSE_HEADING_CARD_NAME = "Heading";
+
 async function buildSpecificationItem(
   node: SceneNode,
   order: number,
@@ -570,7 +573,9 @@ async function buildSpecificationItem(
   return {
     id: generateSpecificationId(),
     nodeId: node.id,
-    nodeName: node.name,
+    // Título solto (texto sem componente, inclusive título do PDF): o
+    // card leva o nome do componente "Heading", não o texto da camada.
+    nodeName: isTextNode && (rule?.key === "heading" || rule?.key === PDF_HEADING_RULE_KEY) ? LOOSE_HEADING_CARD_NAME : node.name,
     nodeType: node.type,
     markupType: rule?.markupType ?? UNSPECIFIED_TYPE_KEY,
     ruleKey: rule?.key ?? null,
@@ -781,7 +786,7 @@ export async function renumberHeadingsInLogicalOrder(nodes: SceneNode[], items: 
     // Passou do nível 6.
     const isSmallLooseText = node.type === "TEXT" && currentLevel !== undefined && SMALL_TEXT_HEADING_LEVELS.has(currentLevel);
     if (isSmallLooseText) {
-      turnIntoPlainText(item);
+      turnIntoPlainText(item, node);
     } else {
       applyHeadingLevel(item, String(MAX_HEADING_LEVEL));
     }
@@ -803,9 +808,11 @@ function applyHeadingLevel(item: SpecificationItem, level: string): void {
   recomputeVerbalization(item);
 }
 
-function turnIntoPlainText(item: SpecificationItem): void {
+function turnIntoPlainText(item: SpecificationItem, node: SceneNode): void {
   const textRule = findRuleByKey(PLAIN_TEXT_RULE_KEY);
   if (!textRule) return;
+  // Deixou de ser título: volta o nome da camada (ex.: "Paragraph").
+  item.nodeName = node.name;
   const { nivel: _nivel, ...rest } = item.extractedData;
   item.extractedData = rest;
   item.ruleKey = textRule.key;

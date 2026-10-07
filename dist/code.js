@@ -1995,6 +1995,7 @@
     }
     return result;
   }
+  var LOOSE_HEADING_CARD_NAME = "Heading";
   async function buildSpecificationItem(node, order, manuallyAdded, inheritRuleFrom) {
     var _a2, _b, _c, _d, _e, _f;
     const isComponentLike = node.type === "INSTANCE" || node.type === "COMPONENT";
@@ -2183,7 +2184,9 @@
     return __spreadValues({
       id: generateSpecificationId(),
       nodeId: node.id,
-      nodeName: node.name,
+      // Título solto (texto sem componente, inclusive título do PDF): o
+      // card leva o nome do componente "Heading", não o texto da camada.
+      nodeName: isTextNode && ((rule == null ? void 0 : rule.key) === "heading" || (rule == null ? void 0 : rule.key) === PDF_HEADING_RULE_KEY) ? LOOSE_HEADING_CARD_NAME : node.name,
       nodeType: node.type,
       markupType: (_d = rule == null ? void 0 : rule.markupType) != null ? _d : UNSPECIFIED_TYPE_KEY,
       ruleKey: (_e = rule == null ? void 0 : rule.key) != null ? _e : null,
@@ -2321,7 +2324,7 @@
       }
       const isSmallLooseText = node.type === "TEXT" && currentLevel !== void 0 && SMALL_TEXT_HEADING_LEVELS.has(currentLevel);
       if (isSmallLooseText) {
-        turnIntoPlainText(item);
+        turnIntoPlainText(item, node);
       } else {
         applyHeadingLevel(item, String(MAX_HEADING_LEVEL));
       }
@@ -2340,9 +2343,10 @@
     item.extractedData = __spreadProps(__spreadValues({}, item.extractedData), { nivel: level });
     recomputeVerbalization(item);
   }
-  function turnIntoPlainText(item) {
+  function turnIntoPlainText(item, node) {
     const textRule = findRuleByKey(PLAIN_TEXT_RULE_KEY);
     if (!textRule) return;
+    item.nodeName = node.name;
     const _a2 = item.extractedData, { nivel: _nivel } = _a2, rest = __objRest(_a2, ["nivel"]);
     item.extractedData = rest;
     item.ruleKey = textRule.key;
