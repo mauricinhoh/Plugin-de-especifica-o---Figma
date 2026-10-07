@@ -77,6 +77,11 @@ async function classifyComponent(
   const rule = findMatchingRule(accessibilityRules, { nodeName: node.name, componentName });
   // Lista no formato padrão (ex.: Popover Menu com Item1..Item4): um
   // card por item. Alterada pelo PD: cada componente de dentro.
+  // Item de lista padrão (ex.: "Item 2") dentro de um Popover Menu cuja
+  // lista foi ALTERADA: continua sendo um card só com o texto dele.
+  if (!rule && (await findItemListContainer(node))) {
+    return { recognized: true, alwaysDescend: false };
+  }
   if (rule?.standardItemNamePattern) {
     const items = await findStandardItems(node, rule.standardItemNamePattern);
     if (items) {
@@ -156,6 +161,20 @@ function logStateDebugInfo(
  * precisam ter nome de item e ser do mesmo componente; se houver outro
  * componente no meio, a lista foi alterada (null).
  */
+/**
+ * Contêiner com lista padrão (ex.: Popover Menu) do qual este node é um
+ * item pelo NOME (ex.: "Item 2") — usado quando a lista foi alterada
+ * pelo PD: os itens que sobraram continuam com a verbalização do item.
+ * Só vale para componentes sem regra própria.
+ */
+async function findItemListContainer(node: SceneNode): Promise<SceneNode | null> {
+  if (node.type !== "INSTANCE" && node.type !== "COMPONENT") return null;
+  return findAncestorWithRule(
+    node,
+    (rule) => rule.standardItemNamePattern !== undefined && new RegExp(rule.standardItemNamePattern, "i").test(node.name.trim())
+  );
+}
+
 export async function findStandardItems(
   node: InstanceNode | ComponentNode,
   pattern: string
@@ -321,6 +340,18 @@ async function buildSpecificationItem(
     // Item de lista padrão (ex.: Popover Menu): regra própria do item.
     if (rule?.standardItemNamePattern) {
       rule = findRuleByKey(`${rule.key}--item`) ?? rule;
+    }
+  }
+
+  // Item de lista padrão numa lista ALTERADA (ex.: "Item 2" no Popover
+  // Menu com um Button no meio): regra do item do contêiner.
+  if (!rule && !inheritRuleFrom && isComponentLike) {
+    const listContainer = await findItemListContainer(node);
+    if (listContainer) {
+      const containerName =
+        listContainer.type === "INSTANCE" || listContainer.type === "COMPONENT" ? await resolveComponentName(listContainer) : null;
+      const containerRule = findMatchingRule(accessibilityRules, { nodeName: listContainer.name, componentName: containerName });
+      if (containerRule) rule = findRuleByKey(`${containerRule.key}--item`);
     }
   }
 

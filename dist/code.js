@@ -1837,6 +1837,9 @@
     }
     const componentName = await resolveComponentName(node);
     const rule = findMatchingRule(accessibilityRules, { nodeName: node.name, componentName });
+    if (!rule && await findItemListContainer(node)) {
+      return { recognized: true, alwaysDescend: false };
+    }
     if (rule == null ? void 0 : rule.standardItemNamePattern) {
       const items = await findStandardItems(node, rule.standardItemNamePattern);
       if (items) {
@@ -1862,6 +1865,13 @@
       variantPropertiesDoFigma: variantProperties,
       valoresComparados: variantValues
     });
+  }
+  async function findItemListContainer(node) {
+    if (node.type !== "INSTANCE" && node.type !== "COMPONENT") return null;
+    return findAncestorWithRule(
+      node,
+      (rule) => rule.standardItemNamePattern !== void 0 && new RegExp(rule.standardItemNamePattern, "i").test(node.name.trim())
+    );
   }
   async function findStandardItems(node, pattern) {
     const nameRegex = new RegExp(pattern, "i");
@@ -1973,6 +1983,14 @@
       rule = (_a2 = findMatchingRule(accessibilityRules, { nodeName: inheritRuleFrom.name, componentName: parentComponentName })) != null ? _a2 : rule;
       if (rule == null ? void 0 : rule.standardItemNamePattern) {
         rule = (_b = findRuleByKey(`${rule.key}--item`)) != null ? _b : rule;
+      }
+    }
+    if (!rule && !inheritRuleFrom && isComponentLike) {
+      const listContainer = await findItemListContainer(node);
+      if (listContainer) {
+        const containerName = listContainer.type === "INSTANCE" || listContainer.type === "COMPONENT" ? await resolveComponentName(listContainer) : null;
+        const containerRule = findMatchingRule(accessibilityRules, { nodeName: listContainer.name, componentName: containerName });
+        if (containerRule) rule = findRuleByKey(`${containerRule.key}--item`);
       }
     }
     if (rule == null ? void 0 : rule.variantsInsideContainer) {
