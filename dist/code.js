@@ -1364,11 +1364,11 @@
       const shouldClassify = node.type === "INSTANCE" || node.type === "COMPONENT" || node.type === "TEXT" && !insideRecognizedContainer;
       let nextInsideRecognizedContainer = insideRecognizedContainer;
       if (shouldClassify) {
-        const { recognized, alwaysDescend, childrenOnly, cardPerItem, ignoreLooseText } = await classify(
+        const { recognized, alwaysDescend, childrenOnly, cardPerItem, ignoreLooseText, items: classifiedItems } = await classify(
           node
         );
         if (recognized && cardPerItem && (node.type === "INSTANCE" || node.type === "COMPONENT")) {
-          const items = collectItems(node);
+          const items = classifiedItems != null ? classifiedItems : collectItems(node);
           if (items.length === 0) {
             found.push(node);
           } else {
@@ -1837,8 +1837,11 @@
     }
     const componentName = await resolveComponentName(node);
     const rule = findMatchingRule(accessibilityRules, { nodeName: node.name, componentName });
-    if ((rule == null ? void 0 : rule.standardItemNamePattern) && await hasStandardItems(node, rule.standardItemNamePattern)) {
-      return { recognized: true, alwaysDescend: false, childrenOnly: false, cardPerItem: true, ignoreLooseText: false };
+    if (rule == null ? void 0 : rule.standardItemNamePattern) {
+      const items = await findStandardItems(node, rule.standardItemNamePattern);
+      if (items) {
+        return { recognized: true, alwaysDescend: false, childrenOnly: false, cardPerItem: true, ignoreLooseText: false, items };
+      }
     }
     return {
       recognized: rule !== void 0,
@@ -1860,14 +1863,24 @@
       valoresComparados: variantValues
     });
   }
-  async function hasStandardItems(node, pattern) {
-    const items = collectItems(node);
-    if (items.length === 0) return false;
+  async function findStandardItems(node, pattern) {
     const nameRegex = new RegExp(pattern, "i");
-    if (!items.every((item) => nameRegex.test(item.name.trim()))) return false;
-    const componentNames = /* @__PURE__ */ new Set();
-    for (const item of items) componentNames.add(await resolveComponentName(item));
-    return componentNames.size === 1 && !componentNames.has(null);
+    let current = node;
+    for (; ; ) {
+      const items = collectItems(current);
+      if (items.length === 0) return null;
+      const matching = items.filter((item) => nameRegex.test(item.name.trim()));
+      if (matching.length === items.length) {
+        const componentNames = /* @__PURE__ */ new Set();
+        for (const item of items) componentNames.add(await resolveComponentName(item));
+        return componentNames.size === 1 && !componentNames.has(null) ? items : null;
+      }
+      if (matching.length === 0 && items.length === 1) {
+        current = items[0];
+        continue;
+      }
+      return null;
+    }
   }
   function normalizePlaceholderKey(name) {
     return name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");

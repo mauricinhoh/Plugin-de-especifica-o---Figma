@@ -40,6 +40,8 @@ export type ComponentClassifier = (
   childrenOnly?: boolean;
   cardPerItem?: boolean;
   ignoreLooseText?: boolean;
+  /** Itens já encontrados pelo classificador (ex.: lista padrão do Popover Menu, mesmo embrulhada). */
+  items?: (InstanceNode | ComponentNode)[];
 }>;
 
 /**
@@ -146,14 +148,14 @@ export async function discoverTopLevelComponents(
     let nextInsideRecognizedContainer = insideRecognizedContainer;
 
     if (shouldClassify) {
-      const { recognized, alwaysDescend, childrenOnly, cardPerItem, ignoreLooseText } = await classify(
+      const { recognized, alwaysDescend, childrenOnly, cardPerItem, ignoreLooseText, items: classifiedItems } = await classify(
         node as InstanceNode | ComponentNode | TextNode
       );
       if (recognized && cardPerItem && (node.type === "INSTANCE" || node.type === "COMPONENT")) {
         // Contêiner de itens iguais (ex.: Chip Filter): cada item de
         // dentro vira card com a regra do contêiner. Se não achar
         // nenhum item, cai no card único do contêiner (nada se perde).
-        const items = collectItems(node);
+        const items = classifiedItems ?? collectItems(node);
         if (items.length === 0) {
           found.push(node);
         } else {
