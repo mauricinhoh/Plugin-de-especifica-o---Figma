@@ -243,6 +243,7 @@ function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<Extracted
     smallTextAsPlainText: record.textoPequenoSemTitulo ?? false,
     looseTextAsPlainText: record.textosSoltosComoTexto ?? false,
     readAsBlock: record.lerInteiro ?? false,
+    childrenWithoutMarker: record.filhosSemMarcador ?? false,
     firstTextPlaceholder: record.primeiroTextoEm,
     textsByPosition: record.textosPorPosicao,
     stateFromInnerComponent: record.estadoDoComponenteInterno,

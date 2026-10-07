@@ -186,6 +186,14 @@ export interface AccessibilityRuleRecord {
    */
   lerInteiro?: boolean;
   /**
+   * NÃO vem da planilha — campo de extensão. Só o contêiner ganha
+   * marcador no frame; cada componente/texto de dentro ganha card na
+   * direita com a própria regra, SEM marcador, SEM ordem de foco e com
+   * o subnúmero do contêiner (ex.: 02.1, 02.2). Continuam contando na
+   * ordem de leitura. Ex.: Card. Confirmado com o usuário em 07/10/2026.
+   */
+  filhosSemMarcador?: boolean;
+  /**
    * NÃO vem da planilha — campo de extensão. Nome do placeholder que é
    * preenchido com o PRIMEIRO texto visível do componente (ex.: Input
    * Search → [Placeholder] = primeira label de dentro). Confirmado com
@@ -569,9 +577,10 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "verbalizacaoEsperada": "Ordem lógica dos componentes",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "somenteFilhos": true,
+    "sempreAprofundar": true,
     "textosSoltosComoTexto": true,
-    "lerInteiro": true
+    "lerInteiro": true,
+    "filhosSemMarcador": true
   },
   {
     "categoria": "Containers",
@@ -748,7 +757,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Input Code",
     "estados": "enabled, focus, hover, filled.",
-    "verbalizacaoEsperada": "Quando vazio: Label acessível \"Informe o código, [posição], Campo de edição, [Help Text]\". Quando preenchido: Label acessível \"Informe o código, Marcador, [posição], Campo de edição, [Help Text]\".\n",
+    "verbalizacaoEsperada": "Quando vazio: Label acessível \"Informe o código, 1 de 3, Campo de edição, [Help Text]\". Quando preenchido: Label acessível \"Informe o código, Marcador, 1 de 3, Campo de edição, [Help Text]\".\n",
     "tipo": "Entrada",
     "foco": "Sim",
     "ultimaCamadaDeTexto": {

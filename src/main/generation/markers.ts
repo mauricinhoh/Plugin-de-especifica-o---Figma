@@ -1,6 +1,7 @@
 /// <reference types="@figma/plugin-typings" />
 
 import { SpecificationItem } from "../../shared/types";
+import { computeDisplayNumbers } from "../../shared/displayNumbers";
 
 const MARKER_BLUE: RGB = { r: 0x33 / 255, g: 0x6c / 255, b: 0xff / 255 };
 const MARKER_STROKE_WIDTH = 2;
@@ -20,14 +21,14 @@ const MARKER_FONT: FontName = { family: "Inter", style: "Bold" };
  * (seção 33) se refere à interface do plugin, não a objetos gerados
  * no canvas de um arquivo cujas fontes locais podem variar.
  */
-export async function createMarkerForItem(node: SceneNode, index: number): Promise<GroupNode> {
+export async function createMarkerForItem(node: SceneNode, labelText: string): Promise<GroupNode> {
   const bounds = node.absoluteBoundingBox;
   if (!bounds) {
     throw new Error(`Não foi possível ler a posição do componente "${node.name}".`);
   }
 
   const outline = figma.createRectangle();
-  outline.name = `Marcação ${formatIndex(index)} - contorno`;
+  outline.name = `Marcação ${labelText} - contorno`;
   outline.x = bounds.x - MARKER_PADDING;
   outline.y = bounds.y - MARKER_PADDING;
   outline.resize(bounds.width + MARKER_PADDING * 2, bounds.height + MARKER_PADDING * 2);
@@ -38,8 +39,10 @@ export async function createMarkerForItem(node: SceneNode, index: number): Promi
   outline.cornerRadius = 4;
 
   const circle = figma.createEllipse();
-  circle.name = `Marcação ${formatIndex(index)} - círculo`;
-  circle.resize(CIRCLE_DIAMETER, CIRCLE_DIAMETER);
+  circle.name = `Marcação ${labelText} - círculo`;
+  // Subnúmero (ex.: "02.1", só na prévia) precisa de um círculo mais largo.
+  const circleWidth = labelText.length > 2 ? CIRCLE_DIAMETER + 8 * (labelText.length - 2) : CIRCLE_DIAMETER;
+  circle.resize(circleWidth, CIRCLE_DIAMETER);
   circle.x = bounds.x - MARKER_PADDING - CIRCLE_DIAMETER / 2;
   circle.y = bounds.y - MARKER_PADDING - CIRCLE_DIAMETER / 2;
   circle.fills = [{ type: "SOLID", color: MARKER_BLUE }];
@@ -48,7 +51,7 @@ export async function createMarkerForItem(node: SceneNode, index: number): Promi
   await figma.loadFontAsync(MARKER_FONT);
   const label = figma.createText();
   label.fontName = MARKER_FONT;
-  label.characters = formatIndex(index);
+  label.characters = labelText;
   label.fontSize = 12;
   label.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
   label.textAlignHorizontal = "CENTER";
@@ -57,18 +60,15 @@ export async function createMarkerForItem(node: SceneNode, index: number): Promi
   // (auto-size nas duas direções). resize() lança erro em runtime a
   // menos que textAutoResize seja "NONE" antes de chamar resize().
   label.textAutoResize = "NONE";
-  label.resize(CIRCLE_DIAMETER, CIRCLE_DIAMETER);
+  label.resize(circleWidth, CIRCLE_DIAMETER);
   label.x = circle.x;
   label.y = circle.y;
 
   const group = figma.group([outline, circle, label], figma.currentPage);
-  group.name = `Marcação ${formatIndex(index)} - ${node.name}`;
+  group.name = `Marcação ${labelText} - ${node.name}`;
   return group;
 }
 
-function formatIndex(index: number): string {
-  return String(index + 1).padStart(2, "0");
-}
 
 /**
  * Gera as marcações para todos os itens da especificação, na ordem
@@ -84,18 +84,25 @@ export async function generateMarkers(
   const missingNodeErrors: string[] = [];
 
   const ordered = [...items].sort((a, b) => a.order - b.order);
+  const numbers = computeDisplayNumbers(ordered);
   const total = ordered.length;
   onProgress?.(0, total);
 
   for (let i = 0; i < ordered.length; i += 1) {
     const item = ordered[i];
+    const number = numbers.get(item.id);
+    // Itens dentro de Card não ganham marcador no frame (só o Card).
+    if (number?.isSubItem) {
+      onProgress?.(i + 1, total);
+      continue;
+    }
     const node = await figma.getNodeByIdAsync(item.nodeId);
     if (!node || !("absoluteBoundingBox" in node)) {
       missingNodeErrors.push(item.nodeName);
       onProgress?.(i + 1, total);
       continue;
     }
-    const group = await createMarkerForItem(node as SceneNode, i);
+    const group = await createMarkerForItem(node as SceneNode, number?.label ?? String(i + 1).padStart(2, "0"));
     createdGroups.push(group);
     onProgress?.(i + 1, total);
   }

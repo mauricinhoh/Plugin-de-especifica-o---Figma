@@ -55,6 +55,7 @@ async function classifyComponent(
   cardPerItem?: boolean;
   ignoreLooseText?: boolean;
   items?: (InstanceNode | ComponentNode)[];
+  keepLooseText?: boolean;
 }> {
   if (node.type === "TEXT") {
     // Texto solto dentro de contêiner como o Card: sempre vira card.
@@ -93,7 +94,8 @@ async function classifyComponent(
     alwaysDescend: rule?.alwaysDescend ?? false,
     childrenOnly: rule?.childrenOnly ?? false,
     cardPerItem: rule?.cardPerItem ?? false,
-    ignoreLooseText: rule?.ignoreLooseText ?? false
+    ignoreLooseText: rule?.ignoreLooseText ?? false,
+    keepLooseText: rule?.looseTextAsPlainText ?? false
   };
 }
 
@@ -283,6 +285,12 @@ async function groupReadingBlocks<T extends SceneNode>(nodes: T[]): Promise<T[]>
     if (outermost) blockOf.set(node.id, outermost);
   }
   if (blockOf.size === 0) return nodes;
+  // O próprio contêiner (ex.: Card com card próprio) entra no bloco
+  // dele, para ficar junto dos itens de dentro.
+  const blockIds = new Set([...blockOf.values()].map((block) => block.id));
+  for (const node of nodes) {
+    if (blockIds.has(node.id) && !blockOf.has(node.id)) blockOf.set(node.id, node);
+  }
 
   // Unidades da tela: cada item solto, ou um bloco (representado pelo
   // próprio contêiner, para ordenar pela posição dele).
@@ -312,6 +320,9 @@ async function groupReadingBlocks<T extends SceneNode>(nodes: T[]): Promise<T[]>
   }
   return result;
 }
+
+/** Nome do card de um título solto (texto sem componente). Confirmado com o usuário em 07/10/2026. */
+const LOOSE_HEADING_CARD_NAME = "Heading";
 
 async function buildSpecificationItem(
   node: SceneNode,
@@ -551,6 +562,10 @@ async function buildSpecificationItem(
       if (innerBooleans) booleanProperties = { ...(booleanProperties ?? {}), ...innerBooleans };
     }
   }
+  // Dentro de um Card (regra "filhosSemMarcador"): sem marcador, sem
+  // ordem de foco, subnúmero do Card.
+  const cardContainer = await findAncestorWithRule(node, (r) => r.childrenWithoutMarker === true);
+
   const variantValues = buildStateCandidates(variantProperties, rule?.derivedStates, booleanProperties);
   logStateDebugInfo(node, rule, variantProperties, variantValues);
   const verbalization = computeVerbalization(rule, extractedData, variantValues);
@@ -558,7 +573,9 @@ async function buildSpecificationItem(
   return {
     id: generateSpecificationId(),
     nodeId: node.id,
-    nodeName: node.name,
+    // Título solto (texto sem componente, inclusive título do PDF): o
+    // card leva o nome do componente "Heading", não o texto da camada.
+    nodeName: isTextNode && (rule?.key === "heading" || rule?.key === PDF_HEADING_RULE_KEY) ? LOOSE_HEADING_CARD_NAME : node.name,
     nodeType: node.type,
     markupType: rule?.markupType ?? UNSPECIFIED_TYPE_KEY,
     ruleKey: rule?.key ?? null,
@@ -570,7 +587,8 @@ async function buildSpecificationItem(
     order,
     manuallyAdded,
     verbalizationEdited: false,
-    focusEligible: rule?.focusEligible ?? false
+    focusEligible: cardContainer ? false : rule?.focusEligible ?? false,
+    ...(cardContainer ? { insideCardOf: cardContainer.id } : {})
   };
 }
 
@@ -768,7 +786,7 @@ export async function renumberHeadingsInLogicalOrder(nodes: SceneNode[], items: 
     // Passou do nível 6.
     const isSmallLooseText = node.type === "TEXT" && currentLevel !== undefined && SMALL_TEXT_HEADING_LEVELS.has(currentLevel);
     if (isSmallLooseText) {
-      turnIntoPlainText(item);
+      turnIntoPlainText(item, node);
     } else {
       applyHeadingLevel(item, String(MAX_HEADING_LEVEL));
     }
@@ -790,9 +808,11 @@ function applyHeadingLevel(item: SpecificationItem, level: string): void {
   recomputeVerbalization(item);
 }
 
-function turnIntoPlainText(item: SpecificationItem): void {
+function turnIntoPlainText(item: SpecificationItem, node: SceneNode): void {
   const textRule = findRuleByKey(PLAIN_TEXT_RULE_KEY);
   if (!textRule) return;
+  // Deixou de ser título: volta o nome da camada (ex.: "Paragraph").
+  item.nodeName = node.name;
   const { nivel: _nivel, ...rest } = item.extractedData;
   item.extractedData = rest;
   item.ruleKey = textRule.key;
