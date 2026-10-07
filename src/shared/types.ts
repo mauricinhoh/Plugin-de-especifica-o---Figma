@@ -76,6 +76,12 @@ export interface SpecificationItem {
    * internos têm sua própria entrada com seu próprio valor.
    */
   focusEligible: boolean;
+  /**
+   * nodeId do Card em que este item está (regra "filhosSemMarcador").
+   * Itens dentro de Card: sem marcador no frame, sem ordem de foco e
+   * com subnúmero do Card (ex.: "02.1"). Ver shared/displayNumbers.ts.
+   */
+  insideCardOf?: string;
 }
 
 /** Aviso de incompatibilidade de Core (bloqueia a geração). */

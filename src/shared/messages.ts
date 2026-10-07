@@ -28,7 +28,7 @@ export type UiToMainMessage =
   | { type: "sync-known-node-ids"; nodeIds: string[] }
   | { type: "generate-specifications"; items: SpecificationItem[] }
   /** Mostra/atualiza a marcação temporária do componente cujo card está expandido na Etapa 2. */
-  | { type: "preview-marker"; nodeId: string; index: number }
+  | { type: "preview-marker"; nodeId: string; label: string }
   /** Remove a marcação temporária (card fechado, trocado ou removido). */
   | { type: "clear-preview-marker" }
   /** Seleciona e enquadra um node incompatível no canvas ("Ir para"). */

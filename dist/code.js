@@ -492,9 +492,10 @@
       "verbalizacaoEsperada": "Ordem l\xF3gica dos componentes",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "somenteFilhos": true,
+      "sempreAprofundar": true,
       "textosSoltosComoTexto": true,
-      "lerInteiro": true
+      "lerInteiro": true,
+      "filhosSemMarcador": true
     },
     {
       "categoria": "Containers",
@@ -1141,7 +1142,7 @@
     return map;
   }
   function buildRule(record) {
-    var _a2, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l;
+    var _a2, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m;
     const states = parseVerbalizationStates(record.verbalizacaoEsperada);
     const statesMap = states.length > 0 ? states.reduce((acc, s) => {
       acc[s.label] = s.text;
@@ -1184,10 +1185,11 @@
       smallTextAsPlainText: (_i = record.textoPequenoSemTitulo) != null ? _i : false,
       looseTextAsPlainText: (_j = record.textosSoltosComoTexto) != null ? _j : false,
       readAsBlock: (_k = record.lerInteiro) != null ? _k : false,
+      childrenWithoutMarker: (_l = record.filhosSemMarcador) != null ? _l : false,
       firstTextPlaceholder: record.primeiroTextoEm,
       textsByPosition: record.textosPorPosicao,
       stateFromInnerComponent: record.estadoDoComponenteInterno,
-      standardItemNamePattern: (_l = record.itensPadrao) == null ? void 0 : _l.nomeDoItem,
+      standardItemNamePattern: (_m = record.itensPadrao) == null ? void 0 : _m.nomeDoItem,
       links: record.links
     };
   }
@@ -1381,7 +1383,7 @@
       const shouldClassify = node.type === "INSTANCE" || node.type === "COMPONENT" || node.type === "TEXT" && !insideRecognizedContainer;
       let nextInsideRecognizedContainer = insideRecognizedContainer;
       if (shouldClassify) {
-        const { recognized, alwaysDescend, childrenOnly, cardPerItem, ignoreLooseText, items: classifiedItems } = await classify(
+        const { recognized, alwaysDescend, childrenOnly, cardPerItem, ignoreLooseText, items: classifiedItems, keepLooseText } = await classify(
           node
         );
         if (recognized && cardPerItem && (node.type === "INSTANCE" || node.type === "COMPONENT")) {
@@ -1405,7 +1407,7 @@
           if (!alwaysDescend) {
             return;
           }
-          nextInsideRecognizedContainer = true;
+          nextInsideRecognizedContainer = !keepLooseText;
         }
       }
       if ("children" in node) {
@@ -1837,7 +1839,7 @@
 
   // src/main/analysis/analyzer.ts
   async function classifyComponent(node) {
-    var _a2, _b, _c, _d;
+    var _a2, _b, _c, _d, _e;
     if (node.type === "TEXT") {
       if (node.characters.trim().length > 0 && await findAncestorWithRule(node, (r) => r.looseTextAsPlainText)) {
         return { recognized: true, alwaysDescend: false };
@@ -1868,7 +1870,8 @@
       alwaysDescend: (_a2 = rule == null ? void 0 : rule.alwaysDescend) != null ? _a2 : false,
       childrenOnly: (_b = rule == null ? void 0 : rule.childrenOnly) != null ? _b : false,
       cardPerItem: (_c = rule == null ? void 0 : rule.cardPerItem) != null ? _c : false,
-      ignoreLooseText: (_d = rule == null ? void 0 : rule.ignoreLooseText) != null ? _d : false
+      ignoreLooseText: (_d = rule == null ? void 0 : rule.ignoreLooseText) != null ? _d : false,
+      keepLooseText: (_e = rule == null ? void 0 : rule.looseTextAsPlainText) != null ? _e : false
     };
   }
   var DEBUG_STATE_MATCHING = true;
@@ -1963,6 +1966,10 @@
       if (outermost) blockOf.set(node.id, outermost);
     }
     if (blockOf.size === 0) return nodes;
+    const blockIds = new Set([...blockOf.values()].map((block) => block.id));
+    for (const node of nodes) {
+      if (blockIds.has(node.id) && !blockOf.has(node.id)) blockOf.set(node.id, node);
+    }
     const units = [];
     const membersByBlock = /* @__PURE__ */ new Map();
     for (const node of nodes) {
@@ -2169,10 +2176,11 @@
         if (innerBooleans) booleanProperties = __spreadValues(__spreadValues({}, booleanProperties != null ? booleanProperties : {}), innerBooleans);
       }
     }
+    const cardContainer = await findAncestorWithRule(node, (r) => r.childrenWithoutMarker === true);
     const variantValues = buildStateCandidates(variantProperties, rule == null ? void 0 : rule.derivedStates, booleanProperties);
     logStateDebugInfo(node, rule, variantProperties, variantValues);
     const verbalization = computeVerbalization(rule, extractedData, variantValues);
-    return {
+    return __spreadValues({
       id: generateSpecificationId(),
       nodeId: node.id,
       nodeName: node.name,
@@ -2187,8 +2195,8 @@
       order,
       manuallyAdded,
       verbalizationEdited: false,
-      focusEligible: (_f = rule == null ? void 0 : rule.focusEligible) != null ? _f : false
-    };
+      focusEligible: cardContainer ? false : (_f = rule == null ? void 0 : rule.focusEligible) != null ? _f : false
+    }, cardContainer ? { insideCardOf: cardContainer.id } : {});
   }
   function placeContainersBeforeContents(ordered) {
     const result = [...ordered];
@@ -2370,19 +2378,45 @@
     return updated;
   }
 
+  // src/shared/displayNumbers.ts
+  function computeDisplayNumbers(orderedItems) {
+    var _a2;
+    const result = /* @__PURE__ */ new Map();
+    const labelByNodeId = /* @__PURE__ */ new Map();
+    const subCountByNodeId = /* @__PURE__ */ new Map();
+    let topLevel = 0;
+    for (const item of orderedItems) {
+      const parentLabel = item.insideCardOf ? labelByNodeId.get(item.insideCardOf) : void 0;
+      let label;
+      let isSubItem = false;
+      if (item.insideCardOf && parentLabel !== void 0) {
+        const sub = ((_a2 = subCountByNodeId.get(item.insideCardOf)) != null ? _a2 : 0) + 1;
+        subCountByNodeId.set(item.insideCardOf, sub);
+        label = `${parentLabel}.${sub}`;
+        isSubItem = true;
+      } else {
+        topLevel += 1;
+        label = String(topLevel).padStart(2, "0");
+      }
+      labelByNodeId.set(item.nodeId, label);
+      result.set(item.id, { label, isSubItem });
+    }
+    return result;
+  }
+
   // src/main/generation/markers.ts
   var MARKER_BLUE = { r: 51 / 255, g: 108 / 255, b: 255 / 255 };
   var MARKER_STROKE_WIDTH = 2;
   var MARKER_PADDING = 6;
   var CIRCLE_DIAMETER = 24;
   var MARKER_FONT = { family: "Inter", style: "Bold" };
-  async function createMarkerForItem(node, index) {
+  async function createMarkerForItem(node, labelText) {
     const bounds = node.absoluteBoundingBox;
     if (!bounds) {
       throw new Error(`N\xE3o foi poss\xEDvel ler a posi\xE7\xE3o do componente "${node.name}".`);
     }
     const outline = figma.createRectangle();
-    outline.name = `Marca\xE7\xE3o ${formatIndex(index)} - contorno`;
+    outline.name = `Marca\xE7\xE3o ${labelText} - contorno`;
     outline.x = bounds.x - MARKER_PADDING;
     outline.y = bounds.y - MARKER_PADDING;
     outline.resize(bounds.width + MARKER_PADDING * 2, bounds.height + MARKER_PADDING * 2);
@@ -2392,8 +2426,9 @@
     outline.dashPattern = [4, 4];
     outline.cornerRadius = 4;
     const circle = figma.createEllipse();
-    circle.name = `Marca\xE7\xE3o ${formatIndex(index)} - c\xEDrculo`;
-    circle.resize(CIRCLE_DIAMETER, CIRCLE_DIAMETER);
+    circle.name = `Marca\xE7\xE3o ${labelText} - c\xEDrculo`;
+    const circleWidth = labelText.length > 2 ? CIRCLE_DIAMETER + 8 * (labelText.length - 2) : CIRCLE_DIAMETER;
+    circle.resize(circleWidth, CIRCLE_DIAMETER);
     circle.x = bounds.x - MARKER_PADDING - CIRCLE_DIAMETER / 2;
     circle.y = bounds.y - MARKER_PADDING - CIRCLE_DIAMETER / 2;
     circle.fills = [{ type: "SOLID", color: MARKER_BLUE }];
@@ -2401,37 +2436,41 @@
     await figma.loadFontAsync(MARKER_FONT);
     const label = figma.createText();
     label.fontName = MARKER_FONT;
-    label.characters = formatIndex(index);
+    label.characters = labelText;
     label.fontSize = 12;
     label.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
     label.textAlignHorizontal = "CENTER";
     label.textAlignVertical = "CENTER";
     label.textAutoResize = "NONE";
-    label.resize(CIRCLE_DIAMETER, CIRCLE_DIAMETER);
+    label.resize(circleWidth, CIRCLE_DIAMETER);
     label.x = circle.x;
     label.y = circle.y;
     const group = figma.group([outline, circle, label], figma.currentPage);
-    group.name = `Marca\xE7\xE3o ${formatIndex(index)} - ${node.name}`;
+    group.name = `Marca\xE7\xE3o ${labelText} - ${node.name}`;
     return group;
   }
-  function formatIndex(index) {
-    return String(index + 1).padStart(2, "0");
-  }
   async function generateMarkers(items, onProgress) {
+    var _a2;
     const createdGroups = [];
     const missingNodeErrors = [];
     const ordered = [...items].sort((a, b) => a.order - b.order);
+    const numbers = computeDisplayNumbers(ordered);
     const total = ordered.length;
     onProgress == null ? void 0 : onProgress(0, total);
     for (let i = 0; i < ordered.length; i += 1) {
       const item = ordered[i];
+      const number = numbers.get(item.id);
+      if (number == null ? void 0 : number.isSubItem) {
+        onProgress == null ? void 0 : onProgress(i + 1, total);
+        continue;
+      }
       const node = await figma.getNodeByIdAsync(item.nodeId);
       if (!node || !("absoluteBoundingBox" in node)) {
         missingNodeErrors.push(item.nodeName);
         onProgress == null ? void 0 : onProgress(i + 1, total);
         continue;
       }
-      const group = await createMarkerForItem(node, i);
+      const group = await createMarkerForItem(node, (_a2 = number == null ? void 0 : number.label) != null ? _a2 : String(i + 1).padStart(2, "0"));
       createdGroups.push(group);
       onProgress == null ? void 0 : onProgress(i + 1, total);
     }
@@ -2486,7 +2525,7 @@
     text.fills = [{ type: "SOLID", color }];
     return text;
   }
-  async function createBadge(index) {
+  async function createBadge(labelText) {
     const badge = figma.createFrame();
     badge.name = "Badge";
     badge.layoutMode = "VERTICAL";
@@ -2494,10 +2533,10 @@
     badge.counterAxisAlignItems = "CENTER";
     badge.primaryAxisSizingMode = "FIXED";
     badge.counterAxisSizingMode = "FIXED";
-    badge.resize(BADGE_DIAMETER, BADGE_DIAMETER);
+    badge.resize(labelText.length > 2 ? BADGE_DIAMETER + 8 * (labelText.length - 2) : BADGE_DIAMETER, BADGE_DIAMETER);
     badge.cornerRadius = BADGE_DIAMETER / 2;
     badge.fills = [{ type: "SOLID", color: BADGE_BLUE }];
-    const label = createPlainText(String(index + 1).padStart(2, "0"), LABEL_FONT, 13, TEXT_WHITE);
+    const label = createPlainText(labelText, LABEL_FONT, 13, TEXT_WHITE);
     badge.appendChild(label);
     return badge;
   }
@@ -2508,9 +2547,9 @@
     rect.opacity = DIVIDER_OPACITY;
     return rect;
   }
-  async function createEntryRow(item, index, isLast, readingOrderNumber, focusOrderNumber) {
+  async function createEntryRow(item, labelText, isLast, readingOrderNumber, focusOrderNumber) {
     const row = figma.createFrame();
-    row.name = `Especifica\xE7\xE3o ${String(index + 1).padStart(2, "0")}`;
+    row.name = `Especifica\xE7\xE3o ${labelText}`;
     row.layoutMode = "VERTICAL";
     row.itemSpacing = 20;
     row.paddingTop = 24;
@@ -2528,7 +2567,7 @@
     header.fills = [];
     header.primaryAxisSizingMode = "AUTO";
     header.counterAxisSizingMode = "AUTO";
-    const badge = await createBadge(index);
+    const badge = await createBadge(labelText);
     header.appendChild(badge);
     badge.layoutSizingHorizontal = "FIXED";
     badge.layoutSizingVertical = "FIXED";
@@ -2592,7 +2631,7 @@
     return row;
   }
   async function generatePanel(screenNode, items) {
-    var _a2, _b;
+    var _a2, _b, _c, _d;
     await loadFonts();
     const ordered = [...items].sort((a, b) => a.order - b.order);
     const panel = figma.createFrame();
@@ -2634,13 +2673,14 @@
         nextFocusNumber += 1;
       }
     }
+    const numbers = computeDisplayNumbers(ordered);
     for (let i = 0; i < ordered.length; i += 1) {
       const row = await createEntryRow(
         ordered[i],
-        i,
+        (_b = (_a2 = numbers.get(ordered[i].id)) == null ? void 0 : _a2.label) != null ? _b : String(i + 1).padStart(2, "0"),
         i === ordered.length - 1,
-        (_a2 = readingOrderByItemId.get(ordered[i].id)) != null ? _a2 : null,
-        (_b = focusOrderByItemId.get(ordered[i].id)) != null ? _b : null
+        (_c = readingOrderByItemId.get(ordered[i].id)) != null ? _c : null,
+        (_d = focusOrderByItemId.get(ordered[i].id)) != null ? _d : null
       );
       appendSized(panel, row, { horizontal: "FILL", vertical: "HUG" });
     }
@@ -2706,13 +2746,13 @@
 
   // src/main/generation/previewMarker.ts
   var previewMarkerGroup = null;
-  async function showPreviewMarker(nodeId, index) {
+  async function showPreviewMarker(nodeId, label) {
     clearPreviewMarker();
     const node = await figma.getNodeByIdAsync(nodeId);
     if (!node || !("absoluteBoundingBox" in node) || !node.absoluteBoundingBox) {
       return;
     }
-    previewMarkerGroup = await createMarkerForItem(node, index);
+    previewMarkerGroup = await createMarkerForItem(node, label);
   }
   function clearPreviewMarker() {
     if (!previewMarkerGroup) return;
@@ -2962,7 +3002,7 @@
         void generateSpecifications(message.items);
         break;
       case "preview-marker":
-        void showPreviewMarker(message.nodeId, message.index);
+        void showPreviewMarker(message.nodeId, message.label);
         break;
       case "clear-preview-marker":
         clearPreviewMarker();

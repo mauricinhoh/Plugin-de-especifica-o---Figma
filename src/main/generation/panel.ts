@@ -1,5 +1,6 @@
 /// <reference types="@figma/plugin-typings" />
 
+import { computeDisplayNumbers } from "../../shared/displayNumbers";
 import { SpecificationItem } from "../../shared/types";
 import { DECORATIVE_MARKUP_TYPE, MARKUP_TYPES } from "../../rules/markupTypes";
 import { UNSPECIFIED_TYPE_LABEL } from "../../rules/engine";
@@ -83,7 +84,7 @@ function createPlainText(characters: string, font: FontName, size: number, color
  * `createEntryRow`). Por isso todo item numerado aqui, inclusive
  * Decorativo, que não entra na Ordem de leitura.
  */
-async function createBadge(index: number): Promise<FrameNode> {
+async function createBadge(labelText: string): Promise<FrameNode> {
   const badge = figma.createFrame();
   badge.name = "Badge";
   badge.layoutMode = "VERTICAL";
@@ -91,11 +92,12 @@ async function createBadge(index: number): Promise<FrameNode> {
   badge.counterAxisAlignItems = "CENTER";
   badge.primaryAxisSizingMode = "FIXED";
   badge.counterAxisSizingMode = "FIXED";
-  badge.resize(BADGE_DIAMETER, BADGE_DIAMETER);
+  // Subnúmero (ex.: "02.1") precisa de um badge mais largo.
+  badge.resize(labelText.length > 2 ? BADGE_DIAMETER + 8 * (labelText.length - 2) : BADGE_DIAMETER, BADGE_DIAMETER);
   badge.cornerRadius = BADGE_DIAMETER / 2;
   badge.fills = [{ type: "SOLID", color: BADGE_BLUE }];
 
-  const label = createPlainText(String(index + 1).padStart(2, "0"), LABEL_FONT, 13, TEXT_WHITE);
+  const label = createPlainText(labelText, LABEL_FONT, 13, TEXT_WHITE);
   badge.appendChild(label);
 
   return badge;
@@ -111,13 +113,13 @@ function createDividerRect(): RectangleNode {
 
 async function createEntryRow(
   item: SpecificationItem,
-  index: number,
+  labelText: string,
   isLast: boolean,
   readingOrderNumber: number | null,
   focusOrderNumber: number | null
 ): Promise<FrameNode> {
   const row = figma.createFrame();
-  row.name = `Especificação ${String(index + 1).padStart(2, "0")}`;
+  row.name = `Especificação ${labelText}`;
   row.layoutMode = "VERTICAL";
   row.itemSpacing = 20;
   row.paddingTop = 24;
@@ -138,7 +140,7 @@ async function createEntryRow(
   header.primaryAxisSizingMode = "AUTO";
   header.counterAxisSizingMode = "AUTO";
 
-  const badge = await createBadge(index);
+  const badge = await createBadge(labelText);
   header.appendChild(badge);
   badge.layoutSizingHorizontal = "FIXED";
   badge.layoutSizingVertical = "FIXED";
@@ -307,10 +309,11 @@ export async function generatePanel(screenNode: SceneNode, items: SpecificationI
     }
   }
 
+  const numbers = computeDisplayNumbers(ordered);
   for (let i = 0; i < ordered.length; i += 1) {
     const row = await createEntryRow(
       ordered[i],
-      i,
+      numbers.get(ordered[i].id)?.label ?? String(i + 1).padStart(2, "0"),
       i === ordered.length - 1,
       readingOrderByItemId.get(ordered[i].id) ?? null,
       focusOrderByItemId.get(ordered[i].id) ?? null

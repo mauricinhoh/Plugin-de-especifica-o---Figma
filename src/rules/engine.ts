@@ -189,6 +189,8 @@ export interface ComponentTypeRule<TExtracted extends object = ExtractedTextData
   looseTextAsPlainText?: boolean;
   /** Itens deste contêiner são lidos juntos na ordem de leitura (ver dados: lerInteiro). */
   readAsBlock?: boolean;
+  /** Filhos sem marcador, sem foco e com subnúmero (ver dados: filhosSemMarcador). */
+  childrenWithoutMarker?: boolean;
   /** Placeholder preenchido com o primeiro texto visível do componente (ver dados: primeiroTextoEm). */
   firstTextPlaceholder?: string;
   /** Placeholders preenchidos pela posição do texto visível (ver dados: textosPorPosicao). */

@@ -40,6 +40,8 @@ export type ComponentClassifier = (
   childrenOnly?: boolean;
   cardPerItem?: boolean;
   ignoreLooseText?: boolean;
+  /** Contêiner com card próprio que continua lendo os textos soltos de dentro (ex.: Card). */
+  keepLooseText?: boolean;
   /** Itens já encontrados pelo classificador (ex.: lista padrão do Popover Menu, mesmo embrulhada). */
   items?: (InstanceNode | ComponentNode)[];
 }>;
@@ -148,7 +150,7 @@ export async function discoverTopLevelComponents(
     let nextInsideRecognizedContainer = insideRecognizedContainer;
 
     if (shouldClassify) {
-      const { recognized, alwaysDescend, childrenOnly, cardPerItem, ignoreLooseText, items: classifiedItems } = await classify(
+      const { recognized, alwaysDescend, childrenOnly, cardPerItem, ignoreLooseText, items: classifiedItems, keepLooseText } = await classify(
         node as InstanceNode | ComponentNode | TextNode
       );
       if (recognized && cardPerItem && (node.type === "INSTANCE" || node.type === "COMPONENT")) {
@@ -185,8 +187,9 @@ export async function discoverTopLevelComponents(
         // reconhecido, mas marcado para sempre aprofundar: cria o
         // card acima E continua a busca dentro dele também — a partir
         // daqui, TEXT solto encontrado já está "dentro" desse
-        // container reconhecido.
-        nextInsideRecognizedContainer = true;
+        // container reconhecido. Exceção: contêineres que leem os
+        // textos soltos de dentro (ex.: Card).
+        nextInsideRecognizedContainer = !keepLooseText;
       }
       // não reconhecido: não vira card sozinho, mas continua a busca
       // dentro dele (pode haver componentes reais lá dentro — não se

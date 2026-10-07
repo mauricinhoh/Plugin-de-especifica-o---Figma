@@ -55,6 +55,7 @@ async function classifyComponent(
   cardPerItem?: boolean;
   ignoreLooseText?: boolean;
   items?: (InstanceNode | ComponentNode)[];
+  keepLooseText?: boolean;
 }> {
   if (node.type === "TEXT") {
     // Texto solto dentro de contêiner como o Card: sempre vira card.
@@ -93,7 +94,8 @@ async function classifyComponent(
     alwaysDescend: rule?.alwaysDescend ?? false,
     childrenOnly: rule?.childrenOnly ?? false,
     cardPerItem: rule?.cardPerItem ?? false,
-    ignoreLooseText: rule?.ignoreLooseText ?? false
+    ignoreLooseText: rule?.ignoreLooseText ?? false,
+    keepLooseText: rule?.looseTextAsPlainText ?? false
   };
 }
 
@@ -283,6 +285,12 @@ async function groupReadingBlocks<T extends SceneNode>(nodes: T[]): Promise<T[]>
     if (outermost) blockOf.set(node.id, outermost);
   }
   if (blockOf.size === 0) return nodes;
+  // O próprio contêiner (ex.: Card com card próprio) entra no bloco
+  // dele, para ficar junto dos itens de dentro.
+  const blockIds = new Set([...blockOf.values()].map((block) => block.id));
+  for (const node of nodes) {
+    if (blockIds.has(node.id) && !blockOf.has(node.id)) blockOf.set(node.id, node);
+  }
 
   // Unidades da tela: cada item solto, ou um bloco (representado pelo
   // próprio contêiner, para ordenar pela posição dele).
@@ -551,6 +559,10 @@ async function buildSpecificationItem(
       if (innerBooleans) booleanProperties = { ...(booleanProperties ?? {}), ...innerBooleans };
     }
   }
+  // Dentro de um Card (regra "filhosSemMarcador"): sem marcador, sem
+  // ordem de foco, subnúmero do Card.
+  const cardContainer = await findAncestorWithRule(node, (r) => r.childrenWithoutMarker === true);
+
   const variantValues = buildStateCandidates(variantProperties, rule?.derivedStates, booleanProperties);
   logStateDebugInfo(node, rule, variantProperties, variantValues);
   const verbalization = computeVerbalization(rule, extractedData, variantValues);
@@ -570,7 +582,8 @@ async function buildSpecificationItem(
     order,
     manuallyAdded,
     verbalizationEdited: false,
-    focusEligible: rule?.focusEligible ?? false
+    focusEligible: cardContainer ? false : rule?.focusEligible ?? false,
+    ...(cardContainer ? { insideCardOf: cardContainer.id } : {})
   };
 }
 

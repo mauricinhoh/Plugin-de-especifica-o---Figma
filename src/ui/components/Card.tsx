@@ -5,6 +5,8 @@ import { Icon } from "./Icon";
 interface CardProps {
   item: SpecificationItem;
   index: number;
+  /** Número exibido (ex.: "02" ou "02.1" para item dentro de Card). */
+  displayLabel?: string;
   options: ComponentTypeOption[];
   isDetached: boolean;
   isExpanded: boolean;
@@ -37,6 +39,7 @@ const DESIGNER_NOTES_MARKUP_TYPE = "notas-designer";
 export function Card({
   item,
   index,
+  displayLabel,
   options,
   isDetached,
   isExpanded,
@@ -224,7 +227,7 @@ export function Card({
               ...chipColor
             }}
           >
-            {displayNumber}
+            {displayLabel ?? displayNumber}
           </span>
         )}
 

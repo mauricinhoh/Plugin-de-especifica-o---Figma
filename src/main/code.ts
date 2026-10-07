@@ -361,7 +361,7 @@ figma.ui.onmessage = (message: UiToMainMessage) => {
       void generateSpecifications(message.items);
       break;
     case "preview-marker":
-      void showPreviewMarker(message.nodeId, message.index);
+      void showPreviewMarker(message.nodeId, message.label);
       break;
     case "clear-preview-marker":
       clearPreviewMarker();

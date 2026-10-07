@@ -1,3 +1,4 @@
+import { computeDisplayNumbers } from "../../shared/displayNumbers";
 import React, { useEffect, useMemo, useState } from "react";
 import { ComponentTypeOption, DetachWarning, SpecificationItem } from "../../shared/types";
 import { Card } from "./Card";
@@ -64,19 +65,21 @@ export function Step2({
   // verbalização do card aberto.
   const expandedItem = useMemo(() => items.find((item) => item.id === expandedId) ?? null, [items, expandedId]);
   const expandedIndex = expandedItem ? items.indexOf(expandedItem) : -1;
+  const displayNumbers = useMemo(() => computeDisplayNumbers(items), [items]);
+  const expandedLabel = expandedItem ? displayNumbers.get(expandedItem.id)?.label ?? null : null;
   const expandedNodeId = expandedItem?.nodeId ?? null;
 
   useEffect(() => {
-    if (expandedNodeId === null || expandedIndex === -1) {
+    if (expandedNodeId === null || expandedIndex === -1 || expandedLabel === null) {
       postToMain({ type: "clear-preview-marker" });
       return;
     }
-    postToMain({ type: "preview-marker", nodeId: expandedNodeId, index: expandedIndex });
+    postToMain({ type: "preview-marker", nodeId: expandedNodeId, label: expandedLabel });
     return () => {
       postToMain({ type: "clear-preview-marker" });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expandedNodeId, expandedIndex]);
+  }, [expandedNodeId, expandedIndex, expandedLabel]);
 
   const optionLabelByKey = useMemo(() => {
     const map = new Map<string, string>();
@@ -231,6 +234,7 @@ export function Step2({
                 key={item.id}
                 item={item}
                 index={realIndex}
+                displayLabel={displayNumbers.get(item.id)?.label ?? String(realIndex + 1).padStart(2, "0")}
                 options={options}
                 isDetached={detachedNodeIds.has(item.nodeId)}
                 isExpanded={expandedId === item.id}

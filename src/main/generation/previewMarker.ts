@@ -28,7 +28,7 @@ import { createMarkerForItem } from "./markers";
  */
 let previewMarkerGroup: GroupNode | null = null;
 
-export async function showPreviewMarker(nodeId: string, index: number): Promise<void> {
+export async function showPreviewMarker(nodeId: string, label: string): Promise<void> {
   clearPreviewMarker();
 
   const node = await figma.getNodeByIdAsync(nodeId);
@@ -39,7 +39,7 @@ export async function showPreviewMarker(nodeId: string, index: number): Promise<
     return;
   }
 
-  previewMarkerGroup = await createMarkerForItem(node as SceneNode, index);
+  previewMarkerGroup = await createMarkerForItem(node as SceneNode, label);
 }
 
 export function clearPreviewMarker(): void {
