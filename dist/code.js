@@ -1300,28 +1300,45 @@
   }
 
   // src/main/analysis/pdfFrame.ts
-  var PDF_FRAME_NAME = "pdf";
+  var PDF_FRAME_PREFIX = "pdf";
   function isPdfFrame(node) {
-    return (node.type === "FRAME" || node.type === "GROUP" || node.type === "SECTION") && node.name.trim().toLowerCase() === PDF_FRAME_NAME;
+    return (node.type === "FRAME" || node.type === "GROUP" || node.type === "SECTION") && node.name.trim().toLowerCase().startsWith(PDF_FRAME_PREFIX);
   }
-  function isInsidePdfFrame(node) {
+  function findPdfFrame(node) {
     let current = node.parent;
     while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
-      if (isPdfFrame(current)) return true;
+      if (isPdfFrame(current)) return current;
       current = current.parent;
     }
-    return false;
+    return null;
   }
-  function isBoldStyle(style) {
+  function isInsidePdfFrame(node) {
+    return findPdfFrame(node) !== null;
+  }
+  function weightOf(style) {
     const compact = style.toLowerCase().replace(/[\s_-]+/g, "");
-    return compact.startsWith("bold") || compact.startsWith("extrabold");
+    if (compact.startsWith("extrabold")) return "extrabold";
+    if (compact.startsWith("bold")) return "bold";
+    return "other";
+  }
+  function isHeadingStyle(style, size) {
+    const weight = weightOf(style);
+    return weight === "bold" && size === 14 || weight === "extrabold" && size === 12;
+  }
+  function isOnLeftSide(node, pdfFrame) {
+    const text = node.absoluteBoundingBox;
+    const frame = pdfFrame.absoluteBoundingBox;
+    if (!text || !frame) return false;
+    return text.x < frame.x + frame.width / 2;
   }
   function isPdfHeadingText(node) {
-    if (node.fontName !== figma.mixed) {
-      return isBoldStyle(node.fontName.style);
+    const pdfFrame = findPdfFrame(node);
+    if (!pdfFrame || !isOnLeftSide(node, pdfFrame)) return false;
+    if (node.fontName !== figma.mixed && node.fontSize !== figma.mixed) {
+      return isHeadingStyle(node.fontName.style, node.fontSize);
     }
-    const segments = node.getStyledTextSegments(["fontName"]);
-    return segments.length > 0 && segments.every((segment) => isBoldStyle(segment.fontName.style));
+    const segments = node.getStyledTextSegments(["fontName", "fontSize"]);
+    return segments.length > 0 && segments.every((segment) => isHeadingStyle(segment.fontName.style, segment.fontSize));
   }
 
   // src/main/analysis/discovery.ts
@@ -1364,11 +1381,11 @@
       const shouldClassify = node.type === "INSTANCE" || node.type === "COMPONENT" || node.type === "TEXT" && !insideRecognizedContainer;
       let nextInsideRecognizedContainer = insideRecognizedContainer;
       if (shouldClassify) {
-        const { recognized, alwaysDescend, childrenOnly, cardPerItem, ignoreLooseText } = await classify(
+        const { recognized, alwaysDescend, childrenOnly, cardPerItem, ignoreLooseText, items: classifiedItems } = await classify(
           node
         );
         if (recognized && cardPerItem && (node.type === "INSTANCE" || node.type === "COMPONENT")) {
-          const items = collectItems(node);
+          const items = classifiedItems != null ? classifiedItems : collectItems(node);
           if (items.length === 0) {
             found.push(node);
           } else {
@@ -1837,8 +1854,14 @@
     }
     const componentName = await resolveComponentName(node);
     const rule = findMatchingRule(accessibilityRules, { nodeName: node.name, componentName });
-    if ((rule == null ? void 0 : rule.standardItemNamePattern) && await hasStandardItems(node, rule.standardItemNamePattern)) {
-      return { recognized: true, alwaysDescend: false, childrenOnly: false, cardPerItem: true, ignoreLooseText: false };
+    if (!rule && await findItemListContainer(node)) {
+      return { recognized: true, alwaysDescend: false };
+    }
+    if (rule == null ? void 0 : rule.standardItemNamePattern) {
+      const items = await findStandardItems(node, rule.standardItemNamePattern);
+      if (items) {
+        return { recognized: true, alwaysDescend: false, childrenOnly: false, cardPerItem: true, ignoreLooseText: false, items };
+      }
     }
     return {
       recognized: rule !== void 0,
@@ -1860,14 +1883,31 @@
       valoresComparados: variantValues
     });
   }
-  async function hasStandardItems(node, pattern) {
-    const items = collectItems(node);
-    if (items.length === 0) return false;
+  async function findItemListContainer(node) {
+    if (node.type !== "INSTANCE" && node.type !== "COMPONENT") return null;
+    return findAncestorWithRule(
+      node,
+      (rule) => rule.standardItemNamePattern !== void 0 && new RegExp(rule.standardItemNamePattern, "i").test(node.name.trim())
+    );
+  }
+  async function findStandardItems(node, pattern) {
     const nameRegex = new RegExp(pattern, "i");
-    if (!items.every((item) => nameRegex.test(item.name.trim()))) return false;
-    const componentNames = /* @__PURE__ */ new Set();
-    for (const item of items) componentNames.add(await resolveComponentName(item));
-    return componentNames.size === 1 && !componentNames.has(null);
+    let current = node;
+    for (; ; ) {
+      const items = collectItems(current);
+      if (items.length === 0) return null;
+      const matching = items.filter((item) => nameRegex.test(item.name.trim()));
+      if (matching.length === items.length) {
+        const componentNames = /* @__PURE__ */ new Set();
+        for (const item of items) componentNames.add(await resolveComponentName(item));
+        return componentNames.size === 1 && !componentNames.has(null) ? items : null;
+      }
+      if (matching.length === 0 && items.length === 1) {
+        current = items[0];
+        continue;
+      }
+      return null;
+    }
   }
   function normalizePlaceholderKey(name) {
     return name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
@@ -1960,6 +2000,14 @@
       rule = (_a2 = findMatchingRule(accessibilityRules, { nodeName: inheritRuleFrom.name, componentName: parentComponentName })) != null ? _a2 : rule;
       if (rule == null ? void 0 : rule.standardItemNamePattern) {
         rule = (_b = findRuleByKey(`${rule.key}--item`)) != null ? _b : rule;
+      }
+    }
+    if (!rule && !inheritRuleFrom && isComponentLike) {
+      const listContainer = await findItemListContainer(node);
+      if (listContainer) {
+        const containerName = listContainer.type === "INSTANCE" || listContainer.type === "COMPONENT" ? await resolveComponentName(listContainer) : null;
+        const containerRule = findMatchingRule(accessibilityRules, { nodeName: listContainer.name, componentName: containerName });
+        if (containerRule) rule = findRuleByKey(`${containerRule.key}--item`);
       }
     }
     if (rule == null ? void 0 : rule.variantsInsideContainer) {

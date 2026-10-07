@@ -54,6 +54,7 @@ async function classifyComponent(
   childrenOnly?: boolean;
   cardPerItem?: boolean;
   ignoreLooseText?: boolean;
+  items?: (InstanceNode | ComponentNode)[];
 }> {
   if (node.type === "TEXT") {
     // Texto solto dentro de contêiner como o Card: sempre vira card.
@@ -76,8 +77,16 @@ async function classifyComponent(
   const rule = findMatchingRule(accessibilityRules, { nodeName: node.name, componentName });
   // Lista no formato padrão (ex.: Popover Menu com Item1..Item4): um
   // card por item. Alterada pelo PD: cada componente de dentro.
-  if (rule?.standardItemNamePattern && (await hasStandardItems(node, rule.standardItemNamePattern))) {
-    return { recognized: true, alwaysDescend: false, childrenOnly: false, cardPerItem: true, ignoreLooseText: false };
+  // Item de lista padrão (ex.: "Item 2") dentro de um Popover Menu cuja
+  // lista foi ALTERADA: continua sendo um card só com o texto dele.
+  if (!rule && (await findItemListContainer(node))) {
+    return { recognized: true, alwaysDescend: false };
+  }
+  if (rule?.standardItemNamePattern) {
+    const items = await findStandardItems(node, rule.standardItemNamePattern);
+    if (items) {
+      return { recognized: true, alwaysDescend: false, childrenOnly: false, cardPerItem: true, ignoreLooseText: false, items };
+    }
   }
   return {
     recognized: rule !== undefined,
@@ -141,14 +150,53 @@ function logStateDebugInfo(
  * true quando a lista do contêiner está no formato padrão: há itens, e
  * TODOS têm nome que bate com `pattern` e são do mesmo componente.
  */
-export async function hasStandardItems(node: InstanceNode | ComponentNode, pattern: string): Promise<boolean> {
-  const items = collectItems(node);
-  if (items.length === 0) return false;
+/**
+ * Itens da lista no formato PADRÃO (ex.: Item1..Item4 do Popover Menu),
+ * ou null se a lista foi alterada pelo PD.
+ *
+ * Os itens podem estar embrulhados em componentes intermediários com um
+ * ÚNICO componente dentro (ex.: Popover Menu → Popover → Popover
+ * Menu-Items → Item 1..4): o plugin atravessa esses invólucros até achar
+ * o nível em que estão os itens. Nesse nível, TODOS os componentes
+ * precisam ter nome de item e ser do mesmo componente; se houver outro
+ * componente no meio, a lista foi alterada (null).
+ */
+/**
+ * Contêiner com lista padrão (ex.: Popover Menu) do qual este node é um
+ * item pelo NOME (ex.: "Item 2") — usado quando a lista foi alterada
+ * pelo PD: os itens que sobraram continuam com a verbalização do item.
+ * Só vale para componentes sem regra própria.
+ */
+async function findItemListContainer(node: SceneNode): Promise<SceneNode | null> {
+  if (node.type !== "INSTANCE" && node.type !== "COMPONENT") return null;
+  return findAncestorWithRule(
+    node,
+    (rule) => rule.standardItemNamePattern !== undefined && new RegExp(rule.standardItemNamePattern, "i").test(node.name.trim())
+  );
+}
+
+export async function findStandardItems(
+  node: InstanceNode | ComponentNode,
+  pattern: string
+): Promise<(InstanceNode | ComponentNode)[] | null> {
   const nameRegex = new RegExp(pattern, "i");
-  if (!items.every((item) => nameRegex.test(item.name.trim()))) return false;
-  const componentNames = new Set<string | null>();
-  for (const item of items) componentNames.add(await resolveComponentName(item));
-  return componentNames.size === 1 && !componentNames.has(null);
+  let current: InstanceNode | ComponentNode = node;
+  for (;;) {
+    const items = collectItems(current);
+    if (items.length === 0) return null;
+    const matching = items.filter((item) => nameRegex.test(item.name.trim()));
+    if (matching.length === items.length) {
+      const componentNames = new Set<string | null>();
+      for (const item of items) componentNames.add(await resolveComponentName(item));
+      return componentNames.size === 1 && !componentNames.has(null) ? items : null;
+    }
+    // Invólucro com um único componente dentro: desce nele.
+    if (matching.length === 0 && items.length === 1) {
+      current = items[0];
+      continue;
+    }
+    return null;
+  }
 }
 
 /** Mesma normalização dos nomes de placeholder (sem acento, minúsculo). */
@@ -292,6 +340,18 @@ async function buildSpecificationItem(
     // Item de lista padrão (ex.: Popover Menu): regra própria do item.
     if (rule?.standardItemNamePattern) {
       rule = findRuleByKey(`${rule.key}--item`) ?? rule;
+    }
+  }
+
+  // Item de lista padrão numa lista ALTERADA (ex.: "Item 2" no Popover
+  // Menu com um Button no meio): regra do item do contêiner.
+  if (!rule && !inheritRuleFrom && isComponentLike) {
+    const listContainer = await findItemListContainer(node);
+    if (listContainer) {
+      const containerName =
+        listContainer.type === "INSTANCE" || listContainer.type === "COMPONENT" ? await resolveComponentName(listContainer) : null;
+      const containerRule = findMatchingRule(accessibilityRules, { nodeName: listContainer.name, componentName: containerName });
+      if (containerRule) rule = findRuleByKey(`${containerRule.key}--item`);
     }
   }
 
