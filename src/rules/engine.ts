@@ -185,6 +185,10 @@ export interface ComponentTypeRule<TExtracted extends object = ExtractedTextData
   headingsInLogicalOrder?: boolean;
   /** Textos soltos pequenos (nível 5/6 pelo tamanho) dentro deste contêiner viram texto, não título (ver dados: textoPequenoSemTitulo). */
   smallTextAsPlainText?: boolean;
+  /** Todo texto solto dentro deste contêiner vira texto simples (ver dados: textosSoltosComoTexto). */
+  looseTextAsPlainText?: boolean;
+  /** Itens deste contêiner são lidos juntos na ordem de leitura (ver dados: lerInteiro). */
+  readAsBlock?: boolean;
   /** Placeholder preenchido com o primeiro texto visível do componente (ver dados: primeiroTextoEm). */
   firstTextPlaceholder?: string;
   /** Placeholders preenchidos pela posição do texto visível (ver dados: textosPorPosicao). */

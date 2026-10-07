@@ -241,6 +241,8 @@ function buildRule(record: AccessibilityRuleRecord): ComponentTypeRule<Extracted
     lastTextLayer: record.ultimaCamadaDeTexto,
     headingsInLogicalOrder: record.titulosEmOrdemLogica ?? false,
     smallTextAsPlainText: record.textoPequenoSemTitulo ?? false,
+    looseTextAsPlainText: record.textosSoltosComoTexto ?? false,
+    readAsBlock: record.lerInteiro ?? false,
     firstTextPlaceholder: record.primeiroTextoEm,
     textsByPosition: record.textosPorPosicao,
     stateFromInnerComponent: record.estadoDoComponenteInterno,

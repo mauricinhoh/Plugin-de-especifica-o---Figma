@@ -492,7 +492,9 @@
       "verbalizacaoEsperada": "Ordem l\xF3gica dos componentes",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "sempreAprofundar": true
+      "somenteFilhos": true,
+      "textosSoltosComoTexto": true,
+      "lerInteiro": true
     },
     {
       "categoria": "Containers",
@@ -1139,7 +1141,7 @@
     return map;
   }
   function buildRule(record) {
-    var _a2, _b, _c, _d, _e, _f, _g, _h, _i, _j;
+    var _a2, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l;
     const states = parseVerbalizationStates(record.verbalizacaoEsperada);
     const statesMap = states.length > 0 ? states.reduce((acc, s) => {
       acc[s.label] = s.text;
@@ -1180,10 +1182,12 @@
       lastTextLayer: record.ultimaCamadaDeTexto,
       headingsInLogicalOrder: (_h = record.titulosEmOrdemLogica) != null ? _h : false,
       smallTextAsPlainText: (_i = record.textoPequenoSemTitulo) != null ? _i : false,
+      looseTextAsPlainText: (_j = record.textosSoltosComoTexto) != null ? _j : false,
+      readAsBlock: (_k = record.lerInteiro) != null ? _k : false,
       firstTextPlaceholder: record.primeiroTextoEm,
       textsByPosition: record.textosPorPosicao,
       stateFromInnerComponent: record.estadoDoComponenteInterno,
-      standardItemNamePattern: (_j = record.itensPadrao) == null ? void 0 : _j.nomeDoItem,
+      standardItemNamePattern: (_l = record.itensPadrao) == null ? void 0 : _l.nomeDoItem,
       links: record.links
     };
   }
@@ -1818,6 +1822,9 @@
   async function classifyComponent(node) {
     var _a2, _b, _c, _d;
     if (node.type === "TEXT") {
+      if (node.characters.trim().length > 0 && await findAncestorWithRule(node, (r) => r.looseTextAsPlainText)) {
+        return { recognized: true, alwaysDescend: false };
+      }
       const headingLevel = detectHeadingLevelFromFontSize(node);
       if (headingLevel === null && DEBUG_TEXT_LAYERS && node.characters.trim().length > 0) {
         console.log("[texto-solto-ignorado-debug]", {
@@ -1892,14 +1899,54 @@
     return result;
   }
   async function isInsideSmallTextAsPlainTextContainer(node) {
+    return await findAncestorWithRule(node, (rule) => rule.smallTextAsPlainText === true) !== null;
+  }
+  async function findAncestorWithRule(node, predicate) {
     let current = node.parent;
     while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
       const componentName = current.type === "INSTANCE" || current.type === "COMPONENT" ? await resolveComponentName(current) : null;
       const rule = findMatchingRule(accessibilityRules, { nodeName: current.name, componentName });
-      if (rule == null ? void 0 : rule.smallTextAsPlainText) return true;
+      if (rule && predicate(rule)) return current;
       current = current.parent;
     }
-    return false;
+    return null;
+  }
+  async function groupReadingBlocks(nodes) {
+    const blockOf = /* @__PURE__ */ new Map();
+    for (const node of nodes) {
+      let outermost = null;
+      let current = await findAncestorWithRule(node, (rule) => rule.readAsBlock === true);
+      while (current) {
+        outermost = current;
+        current = await findAncestorWithRule(current, (rule) => rule.readAsBlock === true);
+      }
+      if (outermost) blockOf.set(node.id, outermost);
+    }
+    if (blockOf.size === 0) return nodes;
+    const units = [];
+    const membersByBlock = /* @__PURE__ */ new Map();
+    for (const node of nodes) {
+      const block = blockOf.get(node.id);
+      if (!block) {
+        units.push(node);
+        continue;
+      }
+      if (!membersByBlock.has(block.id)) {
+        membersByBlock.set(block.id, []);
+        units.push(block);
+      }
+      membersByBlock.get(block.id).push(node);
+    }
+    const result = [];
+    for (const unit of sortByReadingOrder(units)) {
+      const members = membersByBlock.get(unit.id);
+      if (members) {
+        result.push(...sortByReadingOrder(members));
+      } else {
+        result.push(unit);
+      }
+    }
+    return result;
   }
   async function buildSpecificationItem(node, order, manuallyAdded, inheritRuleFrom) {
     var _a2, _b, _c, _d, _e, _f;
@@ -1927,6 +1974,9 @@
     const extractedData = {};
     if (isTextNode && isInsidePdfFrame(node)) {
       rule = findRuleByKey(isPdfHeadingText(node) ? PDF_HEADING_RULE_KEY : PLAIN_TEXT_RULE_KEY);
+      extractedData.text = node.characters;
+    } else if (isTextNode && await findAncestorWithRule(node, (r) => r.looseTextAsPlainText)) {
+      rule = findRuleByKey(PLAIN_TEXT_RULE_KEY);
       extractedData.text = node.characters;
     } else if (isTextNode) {
       const headingLevel = detectHeadingLevelFromFontSize(node);
@@ -2153,7 +2203,7 @@
   async function analyzeScreen(screenNode, forcedContext) {
     const inheritedParents = /* @__PURE__ */ new Map();
     const discovered = await discoverTopLevelComponents(screenNode, classifyComponent, inheritedParents);
-    const topLevelNodes = await moveLastInsideContainers(placeContainersBeforeContents(sortByReadingOrder(discovered)));
+    const topLevelNodes = await moveLastInsideContainers(placeContainersBeforeContents(await groupReadingBlocks(sortByReadingOrder(discovered))));
     const items = [];
     let coreWebCount = 0;
     let coreAppCount = 0;

@@ -171,6 +171,21 @@ export interface AccessibilityRuleRecord {
    */
   textoPequenoSemTitulo?: boolean;
   /**
+   * NÃO vem da planilha — campo de extensão. TODO texto solto (sem
+   * componente) dentro deste contêiner vira um card com o próprio texto,
+   * de qualquer tamanho — nunca título. Ex.: Card. Confirmado com o
+   * usuário em 07/10/2026.
+   */
+  textosSoltosComoTexto?: boolean;
+  /**
+   * NÃO vem da planilha — campo de extensão. Os itens de dentro deste
+   * contêiner são lidos JUNTOS (todos, na ordem de leitura de dentro)
+   * antes de passar para o que vem depois; o contêiner ocupa o lugar
+   * dele na ordem da tela. Evita intercalar itens de Cards lado a lado.
+   * Ex.: Card. Confirmado com o usuário em 07/10/2026.
+   */
+  lerInteiro?: boolean;
+  /**
    * NÃO vem da planilha — campo de extensão. Nome do placeholder que é
    * preenchido com o PRIMEIRO texto visível do componente (ex.: Input
    * Search → [Placeholder] = primeira label de dentro). Confirmado com
@@ -554,7 +569,9 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "verbalizacaoEsperada": "Ordem lógica dos componentes",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "sempreAprofundar": true
+    "somenteFilhos": true,
+    "textosSoltosComoTexto": true,
+    "lerInteiro": true
   },
   {
     "categoria": "Containers",

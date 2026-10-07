@@ -56,6 +56,10 @@ async function classifyComponent(
   ignoreLooseText?: boolean;
 }> {
   if (node.type === "TEXT") {
+    // Texto solto dentro de contêiner como o Card: sempre vira card.
+    if (node.characters.trim().length > 0 && (await findAncestorWithRule(node, (r) => r.looseTextAsPlainText))) {
+      return { recognized: true, alwaysDescend: false };
+    }
     const headingLevel = detectHeadingLevelFromFontSize(node);
     if (headingLevel === null && DEBUG_TEXT_LAYERS && node.characters.trim().length > 0) {
       // Texto solto ignorado porque o tamanho não está na tabela de
@@ -190,15 +194,75 @@ async function findAncestorRules(
  * camada (o Header Flow pode ser só uma composição do arquivo).
  */
 async function isInsideSmallTextAsPlainTextContainer(node: SceneNode): Promise<boolean> {
+  return (await findAncestorWithRule(node, (rule) => rule.smallTextAsPlainText === true)) !== null;
+}
+
+/**
+ * Ancestral MAIS PRÓXIMO cuja regra atende `predicate`. Confere
+ * instância/componente pelo nome do componente principal e também
+ * frames/grupos pelo nome da camada.
+ */
+async function findAncestorWithRule(
+  node: SceneNode,
+  predicate: (rule: NonNullable<ReturnType<typeof findMatchingRule>>) => boolean | undefined
+): Promise<SceneNode | null> {
   let current = node.parent;
   while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
     const componentName =
       current.type === "INSTANCE" || current.type === "COMPONENT" ? await resolveComponentName(current) : null;
     const rule = findMatchingRule(accessibilityRules, { nodeName: current.name, componentName });
-    if (rule?.smallTextAsPlainText) return true;
+    if (rule && predicate(rule)) return current as SceneNode;
     current = current.parent;
   }
-  return false;
+  return null;
+}
+
+/**
+ * Contêineres com `readAsBlock` (ex.: Card): todos os itens de dentro
+ * são lidos juntos, na ordem de leitura de dentro, e o bloco ocupa o
+ * lugar do contêiner na ordem da tela. Com Cards aninhados, vale o mais
+ * externo. Itens fora de blocos seguem a ordem normal.
+ */
+async function groupReadingBlocks<T extends SceneNode>(nodes: T[]): Promise<T[]> {
+  const blockOf = new Map<string, SceneNode>();
+  for (const node of nodes) {
+    let outermost: SceneNode | null = null;
+    let current = await findAncestorWithRule(node, (rule) => rule.readAsBlock === true);
+    while (current) {
+      outermost = current;
+      current = await findAncestorWithRule(current, (rule) => rule.readAsBlock === true);
+    }
+    if (outermost) blockOf.set(node.id, outermost);
+  }
+  if (blockOf.size === 0) return nodes;
+
+  // Unidades da tela: cada item solto, ou um bloco (representado pelo
+  // próprio contêiner, para ordenar pela posição dele).
+  const units: SceneNode[] = [];
+  const membersByBlock = new Map<string, T[]>();
+  for (const node of nodes) {
+    const block = blockOf.get(node.id);
+    if (!block) {
+      units.push(node);
+      continue;
+    }
+    if (!membersByBlock.has(block.id)) {
+      membersByBlock.set(block.id, []);
+      units.push(block);
+    }
+    membersByBlock.get(block.id)!.push(node);
+  }
+
+  const result: T[] = [];
+  for (const unit of sortByReadingOrder(units)) {
+    const members = membersByBlock.get(unit.id);
+    if (members) {
+      result.push(...sortByReadingOrder(members));
+    } else {
+      result.push(unit as T);
+    }
+  }
+  return result;
 }
 
 async function buildSpecificationItem(
@@ -251,6 +315,11 @@ async function buildSpecificationItem(
     // = título, sem nível automático (o PD completa); o resto = o
     // próprio texto. O tamanho da fonte não é usado aqui.
     rule = findRuleByKey(isPdfHeadingText(node as TextNode) ? PDF_HEADING_RULE_KEY : PLAIN_TEXT_RULE_KEY);
+    extractedData.text = (node as TextNode).characters;
+  } else if (isTextNode && (await findAncestorWithRule(node, (r) => r.looseTextAsPlainText))) {
+    // Texto solto dentro de contêiner como o Card: sempre só o texto,
+    // de qualquer tamanho.
+    rule = findRuleByKey(PLAIN_TEXT_RULE_KEY);
     extractedData.text = (node as TextNode).characters;
   } else if (isTextNode) {
     // Título "solto": usa sempre a regra "Heading", independente do
@@ -540,7 +609,7 @@ export async function analyzeScreen(
   // Numeração pela posição real no canvas (leitura em "Z"), não pela
   // ordem das camadas no arquivo — pedido explícito após testes reais
   // com arquivos organizados de forma inconsistente nas camadas.
-  const topLevelNodes = await moveLastInsideContainers(placeContainersBeforeContents(sortByReadingOrder(discovered)));
+  const topLevelNodes = await moveLastInsideContainers(placeContainersBeforeContents(await groupReadingBlocks(sortByReadingOrder(discovered))));
 
   const items: SpecificationItem[] = [];
   let coreWebCount = 0;
