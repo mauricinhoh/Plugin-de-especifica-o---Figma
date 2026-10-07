@@ -19,6 +19,18 @@
     return a;
   };
   var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
+  var __objRest = (source, exclude) => {
+    var target = {};
+    for (var prop in source)
+      if (__hasOwnProp.call(source, prop) && exclude.indexOf(prop) < 0)
+        target[prop] = source[prop];
+    if (source != null && __getOwnPropSymbols)
+      for (var prop of __getOwnPropSymbols(source)) {
+        if (exclude.indexOf(prop) < 0 && __propIsEnum.call(source, prop))
+          target[prop] = source[prop];
+      }
+    return target;
+  };
 
   // src/main/messaging.ts
   function postToUi(message) {
@@ -2169,35 +2181,67 @@
       detachWarnings
     };
   }
+  var SCREEN_FIRST_HEADING_LEVEL = 2;
   async function renumberHeadingsInLogicalOrder(nodes, items) {
     var _a2;
-    const headingRule = findRuleByKey("heading");
-    if (!headingRule) return;
-    const counters = /* @__PURE__ */ new Map();
+    const containerCounters = /* @__PURE__ */ new Map();
+    let screenLevel = SCREEN_FIRST_HEADING_LEVEL - 1;
     for (let index = 0; index < items.length; index += 1) {
       const item = items[index];
       const node = nodes[index];
-      if (item.ruleKey !== "heading" || !node) continue;
+      if (!node) continue;
+      const isHeading = item.ruleKey === "heading";
+      const isHeaderProductWithTitle = item.ruleKey === "header-product" && item.extractedData.text !== void 0;
+      if (!isHeading && !isHeaderProductWithTitle) continue;
       const currentLevel = item.extractedData.nivel;
-      if (currentLevel === void 0 || SMALL_TEXT_HEADING_LEVELS.has(currentLevel)) continue;
       const container = (await findAncestorRules(node)).find(
         (ancestor) => {
           var _a3;
           return (_a3 = findRuleByKey(ancestor.ruleKey)) == null ? void 0 : _a3.headingsInLogicalOrder;
         }
       );
-      if (!container) continue;
-      const next = Math.min(((_a2 = counters.get(container.node.id)) != null ? _a2 : 0) + 1, MAX_HEADING_LEVEL);
-      counters.set(container.node.id, next);
-      item.extractedData = __spreadProps(__spreadValues({}, item.extractedData), { nivel: String(next) });
-      if (!item.verbalizationEdited) {
-        item.verbalization = computeVerbalization(
-          headingRule,
-          item.extractedData,
-          buildStateCandidates(item.variantProperties, headingRule.derivedStates, item.booleanProperties)
-        );
+      if (container) {
+        if (!isHeading || currentLevel === void 0 || SMALL_TEXT_HEADING_LEVELS.has(currentLevel)) continue;
+        const next = Math.min(((_a2 = containerCounters.get(container.node.id)) != null ? _a2 : 0) + 1, MAX_HEADING_LEVEL);
+        containerCounters.set(container.node.id, next);
+        applyHeadingLevel(item, String(next));
+        continue;
+      }
+      screenLevel += 1;
+      if (screenLevel <= MAX_HEADING_LEVEL) {
+        applyHeadingLevel(item, String(screenLevel));
+        continue;
+      }
+      const isSmallLooseText = node.type === "TEXT" && currentLevel !== void 0 && SMALL_TEXT_HEADING_LEVELS.has(currentLevel);
+      if (isSmallLooseText) {
+        turnIntoPlainText(item);
+      } else {
+        applyHeadingLevel(item, String(MAX_HEADING_LEVEL));
       }
     }
+  }
+  function recomputeVerbalization(item) {
+    const rule = findRuleByKey(item.ruleKey);
+    if (!rule || item.verbalizationEdited) return;
+    item.verbalization = computeVerbalization(
+      rule,
+      item.extractedData,
+      buildStateCandidates(item.variantProperties, rule.derivedStates, item.booleanProperties)
+    );
+  }
+  function applyHeadingLevel(item, level) {
+    item.extractedData = __spreadProps(__spreadValues({}, item.extractedData), { nivel: level });
+    recomputeVerbalization(item);
+  }
+  function turnIntoPlainText(item) {
+    const textRule = findRuleByKey(PLAIN_TEXT_RULE_KEY);
+    if (!textRule) return;
+    const _a2 = item.extractedData, { nivel: _nivel } = _a2, rest = __objRest(_a2, ["nivel"]);
+    item.extractedData = rest;
+    item.ruleKey = textRule.key;
+    item.markupType = textRule.markupType;
+    item.focusEligible = textRule.focusEligible;
+    recomputeVerbalization(item);
   }
   async function buildManualItem(node, order) {
     return buildSpecificationItem(node, order, true);

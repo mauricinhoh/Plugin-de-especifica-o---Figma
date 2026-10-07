@@ -581,38 +581,91 @@ export async function analyzeScreen(
 }
 
 /**
- * Títulos dentro de um contêiner com `headingsInLogicalOrder` (ex.:
- * Modal): o 1º título (na ordem de leitura) vira nível 1, o 2º nível 2,
- * e assim por diante, até o nível 6. Textos pequenos (nível 5/6 pelo
- * tamanho da fonte) ficam como estão e não entram na contagem. Cada
- * contêiner tem a própria contagem. Títulos fora desses contêineres
- * continuam com o nível pelo tamanho da fonte.
+ * Nível dos títulos pela ORDEM LÓGICA (ordem de leitura), não pelo
+ * tamanho da fonte — o tamanho só serve para saber se um texto solto é
+ * título. Confirmado com o usuário em 07/10/2026.
+ *
+ * - Dentro de um contêiner com `headingsInLogicalOrder` (ex.: Modal):
+ *   contagem própria, 1º título = nível 1, 2º = nível 2... até 6.
+ *   Textos pequenos (nível 5/6 pelo tamanho) ficam como estão e não
+ *   entram na contagem. (Regra de 05/10/2026, sem mudança.)
+ * - No resto da tela: 1º título = nível 2, 2º = nível 3... até 6.
+ *   Entram na contagem: texto solto reconhecido como título (inclusive
+ *   14/16 px), componente Heading e o título do Header Product.
+ *   Depois do nível 6: títulos continuam nível 6, mas texto solto
+ *   pequeno (14/16 px) vira só texto (regra "texto", sem "Título de
+ *   nível").
+ * - Não entram: textos do frame PDF (nível manual pelo PD) e textos
+ *   pequenos do Header Flow (já são regra "texto").
  */
+const SCREEN_FIRST_HEADING_LEVEL = 2;
+
 export async function renumberHeadingsInLogicalOrder(nodes: SceneNode[], items: SpecificationItem[]): Promise<void> {
-  const headingRule = findRuleByKey("heading");
-  if (!headingRule) return;
-  const counters = new Map<string, number>();
+  const containerCounters = new Map<string, number>();
+  let screenLevel = SCREEN_FIRST_HEADING_LEVEL - 1;
+
   for (let index = 0; index < items.length; index += 1) {
     const item = items[index];
     const node = nodes[index];
-    if (item.ruleKey !== "heading" || !node) continue;
+    if (!node) continue;
+    const isHeading = item.ruleKey === "heading";
+    const isHeaderProductWithTitle = item.ruleKey === "header-product" && item.extractedData.text !== undefined;
+    if (!isHeading && !isHeaderProductWithTitle) continue;
+
     const currentLevel = item.extractedData.nivel;
-    if (currentLevel === undefined || SMALL_TEXT_HEADING_LEVELS.has(currentLevel)) continue;
     const container = (await findAncestorRules(node)).find(
       (ancestor) => findRuleByKey(ancestor.ruleKey)?.headingsInLogicalOrder
     );
-    if (!container) continue;
-    const next = Math.min((counters.get(container.node.id) ?? 0) + 1, MAX_HEADING_LEVEL);
-    counters.set(container.node.id, next);
-    item.extractedData = { ...item.extractedData, nivel: String(next) };
-    if (!item.verbalizationEdited) {
-      item.verbalization = computeVerbalization(
-        headingRule,
-        item.extractedData,
-        buildStateCandidates(item.variantProperties, headingRule.derivedStates, item.booleanProperties)
-      );
+
+    if (container) {
+      // Contagem própria do contêiner (ex.: Modal) — só para o Heading,
+      // como antes.
+      if (!isHeading || currentLevel === undefined || SMALL_TEXT_HEADING_LEVELS.has(currentLevel)) continue;
+      const next = Math.min((containerCounters.get(container.node.id) ?? 0) + 1, MAX_HEADING_LEVEL);
+      containerCounters.set(container.node.id, next);
+      applyHeadingLevel(item, String(next));
+      continue;
+    }
+
+    screenLevel += 1;
+    if (screenLevel <= MAX_HEADING_LEVEL) {
+      applyHeadingLevel(item, String(screenLevel));
+      continue;
+    }
+    // Passou do nível 6.
+    const isSmallLooseText = node.type === "TEXT" && currentLevel !== undefined && SMALL_TEXT_HEADING_LEVELS.has(currentLevel);
+    if (isSmallLooseText) {
+      turnIntoPlainText(item);
+    } else {
+      applyHeadingLevel(item, String(MAX_HEADING_LEVEL));
     }
   }
+}
+
+function recomputeVerbalization(item: SpecificationItem): void {
+  const rule = findRuleByKey(item.ruleKey);
+  if (!rule || item.verbalizationEdited) return;
+  item.verbalization = computeVerbalization(
+    rule,
+    item.extractedData,
+    buildStateCandidates(item.variantProperties, rule.derivedStates, item.booleanProperties)
+  );
+}
+
+function applyHeadingLevel(item: SpecificationItem, level: string): void {
+  item.extractedData = { ...item.extractedData, nivel: level };
+  recomputeVerbalization(item);
+}
+
+function turnIntoPlainText(item: SpecificationItem): void {
+  const textRule = findRuleByKey(PLAIN_TEXT_RULE_KEY);
+  if (!textRule) return;
+  const { nivel: _nivel, ...rest } = item.extractedData;
+  item.extractedData = rest;
+  item.ruleKey = textRule.key;
+  item.markupType = textRule.markupType;
+  item.focusEligible = textRule.focusEligible;
+  recomputeVerbalization(item);
 }
 
 /** Constrói um item a partir de um node selecionado manualmente (seção 23-24). */
