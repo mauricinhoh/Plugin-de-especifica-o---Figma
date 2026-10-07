@@ -1193,10 +1193,36 @@
   }))), {
     key: `${slugify(record.componente)}--item`
   }));
+  var PDF_HEADING_RULE_KEY = "pdf-titulo";
+  var PDF_TEXT_RULE_KEY = "pdf-texto";
+  var pdfRules = [
+    __spreadProps(__spreadValues({}, buildRule({
+      categoria: "Content",
+      componente: "PDF T\xEDtulo",
+      estados: null,
+      // O número do nível é preenchido manualmente pelo PD.
+      verbalizacaoEsperada: "[Label], T\xEDtulo de n\xEDvel",
+      tipo: "T\xEDtulo",
+      foco: "N\xE3o"
+    })), {
+      key: PDF_HEADING_RULE_KEY
+    }),
+    __spreadProps(__spreadValues({}, buildRule({
+      categoria: "Content",
+      componente: "PDF Texto",
+      estados: null,
+      // O próprio texto.
+      verbalizacaoEsperada: "[Label]",
+      tipo: "N\xE3o interativo",
+      foco: "N\xE3o"
+    })), {
+      key: PDF_TEXT_RULE_KEY
+    })
+  ];
   function findRuleByKey(key) {
-    var _a2, _b;
+    var _a2, _b, _c;
     if (!key) return void 0;
-    return (_b = (_a2 = accessibilityRules.find((r) => r.key === key)) != null ? _a2 : containerVariantRules.find((r) => r.key === key)) != null ? _b : standardItemRules.find((r) => r.key === key);
+    return (_c = (_b = (_a2 = accessibilityRules.find((r) => r.key === key)) != null ? _a2 : containerVariantRules.find((r) => r.key === key)) != null ? _b : standardItemRules.find((r) => r.key === key)) != null ? _c : pdfRules.find((r) => r.key === key);
   }
 
   // src/main/figma-api.ts
@@ -1257,6 +1283,31 @@
     return `spec-${Date.now()}-${counter}`;
   }
 
+  // src/main/analysis/pdfFrame.ts
+  var PDF_FRAME_NAME = "pdf";
+  function isPdfFrame(node) {
+    return (node.type === "FRAME" || node.type === "GROUP" || node.type === "SECTION") && node.name.trim().toLowerCase() === PDF_FRAME_NAME;
+  }
+  function isInsidePdfFrame(node) {
+    let current = node.parent;
+    while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
+      if (isPdfFrame(current)) return true;
+      current = current.parent;
+    }
+    return false;
+  }
+  function isBoldStyle(style) {
+    const compact = style.toLowerCase().replace(/[\s_-]+/g, "");
+    return compact.startsWith("bold") || compact.startsWith("extrabold");
+  }
+  function isPdfHeadingText(node) {
+    if (node.fontName !== figma.mixed) {
+      return isBoldStyle(node.fontName.style);
+    }
+    const segments = node.getStyledTextSegments(["fontName"]);
+    return segments.length > 0 && segments.every((segment) => isBoldStyle(segment.fontName.style));
+  }
+
   // src/main/analysis/discovery.ts
   var IGNORED_COMPONENT_NAMES = [
     "Header Web",
@@ -1280,11 +1331,18 @@
   }
   async function discoverTopLevelComponents(root, classify, inheritedParents) {
     const found = [];
-    async function walk(node, insideRecognizedContainer) {
+    async function walk(node, insideRecognizedContainer, insidePdf) {
       if ("visible" in node && !node.visible) {
         return;
       }
       if (IGNORED_COMPONENT_NAMES.includes(node.name)) {
+        return;
+      }
+      const nextInsidePdf = insidePdf || isPdfFrame(node);
+      if (nextInsidePdf && node.type === "TEXT" && !insideRecognizedContainer) {
+        if (node.characters.trim().length > 0) {
+          found.push(node);
+        }
         return;
       }
       const shouldClassify = node.type === "INSTANCE" || node.type === "COMPONENT" || node.type === "TEXT" && !insideRecognizedContainer;
@@ -1319,13 +1377,14 @@
       }
       if ("children" in node) {
         for (const child of node.children) {
-          await walk(child, nextInsideRecognizedContainer);
+          await walk(child, nextInsideRecognizedContainer, nextInsidePdf);
         }
       }
     }
     if ("children" in root) {
+      const rootIsPdf = isPdfFrame(root);
       for (const child of root.children) {
-        await walk(child, false);
+        await walk(child, false, rootIsPdf);
       }
     }
     return found;
@@ -1844,7 +1903,10 @@
       }
     }
     const extractedData = {};
-    if (isTextNode) {
+    if (isTextNode && isInsidePdfFrame(node)) {
+      rule = findRuleByKey(isPdfHeadingText(node) ? PDF_HEADING_RULE_KEY : PDF_TEXT_RULE_KEY);
+      extractedData.text = node.characters;
+    } else if (isTextNode) {
       const headingLevel = detectHeadingLevelFromFontSize(node);
       if (headingLevel) {
         rule = accessibilityRules.find((r) => r.key === "heading");

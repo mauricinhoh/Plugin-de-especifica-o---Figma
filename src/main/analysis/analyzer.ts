@@ -1,7 +1,7 @@
 /// <reference types="@figma/plugin-typings" />
 
 import { ScreenAnalysisResult, ScreenContext, SpecificationItem } from "../../shared/types";
-import { accessibilityRules, findRuleByKey } from "../../rules/accessibility-rules";
+import { accessibilityRules, findRuleByKey, PDF_HEADING_RULE_KEY, PDF_TEXT_RULE_KEY } from "../../rules/accessibility-rules";
 import { computeVerbalization, buildStateCandidates, findMatchingRule, UNSPECIFIED_TYPE_KEY } from "../../rules/engine";
 import { generateSpecificationId } from "../idGenerator";
 import { collectItems, discoverTopLevelComponents } from "./discovery";
@@ -28,6 +28,7 @@ import {
   listTextLayers
 } from "./textExtraction";
 import { extractBooleanProperties, extractVariantProperties } from "./stateExtraction";
+import { isInsidePdfFrame, isPdfHeadingText } from "./pdfFrame";
 import { detectHeadingLevelFromFontSize, MAX_HEADING_LEVEL, SMALL_TEXT_HEADING_LEVELS } from "./headingDetection";
 import { findCoreIncompatibilities } from "./validation";
 
@@ -227,7 +228,13 @@ async function buildSpecificationItem(
 
   const extractedData: Record<string, string> = {};
 
-  if (isTextNode) {
+  if (isTextNode && isInsidePdfFrame(node)) {
+    // Texto dentro de um frame "PDF" (ver pdfFrame.ts): Bold/ExtraBold
+    // = título, sem nível automático (o PD completa); o resto = o
+    // próprio texto. O tamanho da fonte não é usado aqui.
+    rule = findRuleByKey(isPdfHeadingText(node as TextNode) ? PDF_HEADING_RULE_KEY : PDF_TEXT_RULE_KEY);
+    extractedData.text = (node as TextNode).characters;
+  } else if (isTextNode) {
     // Título "solto": usa sempre a regra "Heading", independente do
     // nome da camada — o motivo de ter sido descoberto já é o tamanho
     // da fonte bater com um nível de título (ver classifyComponent).

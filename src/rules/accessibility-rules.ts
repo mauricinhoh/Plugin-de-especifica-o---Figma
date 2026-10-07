@@ -285,13 +285,53 @@ export const standardItemRules: ComponentTypeRule<ExtractedTextData>[] = accessi
     key: `${slugify(record.componente)}--item`
   }));
 
+/**
+ * Regras dos textos dentro de um frame "PDF" (ver
+ * main/analysis/pdfFrame.ts). NÃO vêm da planilha — o PDF não é
+ * componente do Design System, é um frame montado à mão pelo designer.
+ * Reaproveitam as categorias de Título e de texto (Não interativo).
+ * Ficam fora de `accessibilityRules` de propósito: não são achadas
+ * pelo nome, só quando o analyzer confirma que o texto está num PDF.
+ * Confirmado com o usuário em 07/10/2026.
+ */
+export const PDF_HEADING_RULE_KEY = "pdf-titulo";
+export const PDF_TEXT_RULE_KEY = "pdf-texto";
+
+export const pdfRules: ComponentTypeRule<ExtractedTextData>[] = [
+  {
+    ...buildRule({
+      categoria: "Content",
+      componente: "PDF Título",
+      estados: null,
+      // O número do nível é preenchido manualmente pelo PD.
+      verbalizacaoEsperada: "[Label], Título de nível",
+      tipo: "Título",
+      foco: "Não"
+    }),
+    key: PDF_HEADING_RULE_KEY
+  },
+  {
+    ...buildRule({
+      categoria: "Content",
+      componente: "PDF Texto",
+      estados: null,
+      // O próprio texto.
+      verbalizacaoEsperada: "[Label]",
+      tipo: "Não interativo",
+      foco: "Não"
+    }),
+    key: PDF_TEXT_RULE_KEY
+  }
+];
+
 /** Busca uma regra pela chave, incluindo as variantes "dentro de contêiner". */
 export function findRuleByKey(key: string | null | undefined): ComponentTypeRule<ExtractedTextData> | undefined {
   if (!key) return undefined;
   return (
     accessibilityRules.find((r) => r.key === key) ??
     containerVariantRules.find((r) => r.key === key) ??
-    standardItemRules.find((r) => r.key === key)
+    standardItemRules.find((r) => r.key === key) ??
+    pdfRules.find((r) => r.key === key)
   );
 }
 
