@@ -757,7 +757,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "categoria": "Inputs",
     "componente": "Input Code",
     "estados": "enabled, focus, hover, filled.",
-    "verbalizacaoEsperada": "Quando vazio: Label acessível \"Informe o código, [posição], Campo de edição, [Help Text]\". Quando preenchido: Label acessível \"Informe o código, Marcador, [posição], Campo de edição, [Help Text]\".\n",
+    "verbalizacaoEsperada": "Quando vazio: Label acessível \"Informe o código, 1 de 3, Campo de edição, [Help Text]\". Quando preenchido: Label acessível \"Informe o código, Marcador, 1 de 3, Campo de edição, [Help Text]\".\n",
     "tipo": "Entrada",
     "foco": "Sim",
     "ultimaCamadaDeTexto": {

@@ -672,7 +672,7 @@
       "categoria": "Inputs",
       "componente": "Input Code",
       "estados": "enabled, focus, hover, filled.",
-      "verbalizacaoEsperada": 'Quando vazio: Label acess\xEDvel "Informe o c\xF3digo, [posi\xE7\xE3o], Campo de edi\xE7\xE3o, [Help Text]". Quando preenchido: Label acess\xEDvel "Informe o c\xF3digo, Marcador, [posi\xE7\xE3o], Campo de edi\xE7\xE3o, [Help Text]".\n',
+      "verbalizacaoEsperada": 'Quando vazio: Label acess\xEDvel "Informe o c\xF3digo, 1 de 3, Campo de edi\xE7\xE3o, [Help Text]". Quando preenchido: Label acess\xEDvel "Informe o c\xF3digo, Marcador, 1 de 3, Campo de edi\xE7\xE3o, [Help Text]".\n',
       "tipo": "Entrada",
       "foco": "Sim",
       "ultimaCamadaDeTexto": {
