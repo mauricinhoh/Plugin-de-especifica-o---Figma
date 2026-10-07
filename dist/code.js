@@ -1300,28 +1300,45 @@
   }
 
   // src/main/analysis/pdfFrame.ts
-  var PDF_FRAME_NAME = "pdf";
+  var PDF_FRAME_PREFIX = "pdf";
   function isPdfFrame(node) {
-    return (node.type === "FRAME" || node.type === "GROUP" || node.type === "SECTION") && node.name.trim().toLowerCase() === PDF_FRAME_NAME;
+    return (node.type === "FRAME" || node.type === "GROUP" || node.type === "SECTION") && node.name.trim().toLowerCase().startsWith(PDF_FRAME_PREFIX);
   }
-  function isInsidePdfFrame(node) {
+  function findPdfFrame(node) {
     let current = node.parent;
     while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
-      if (isPdfFrame(current)) return true;
+      if (isPdfFrame(current)) return current;
       current = current.parent;
     }
-    return false;
+    return null;
   }
-  function isBoldStyle(style) {
+  function isInsidePdfFrame(node) {
+    return findPdfFrame(node) !== null;
+  }
+  function weightOf(style) {
     const compact = style.toLowerCase().replace(/[\s_-]+/g, "");
-    return compact.startsWith("bold") || compact.startsWith("extrabold");
+    if (compact.startsWith("extrabold")) return "extrabold";
+    if (compact.startsWith("bold")) return "bold";
+    return "other";
+  }
+  function isHeadingStyle(style, size) {
+    const weight = weightOf(style);
+    return weight === "bold" && size === 14 || weight === "extrabold" && size === 12;
+  }
+  function isOnLeftSide(node, pdfFrame) {
+    const text = node.absoluteBoundingBox;
+    const frame = pdfFrame.absoluteBoundingBox;
+    if (!text || !frame) return false;
+    return text.x < frame.x + frame.width / 2;
   }
   function isPdfHeadingText(node) {
-    if (node.fontName !== figma.mixed) {
-      return isBoldStyle(node.fontName.style);
+    const pdfFrame = findPdfFrame(node);
+    if (!pdfFrame || !isOnLeftSide(node, pdfFrame)) return false;
+    if (node.fontName !== figma.mixed && node.fontSize !== figma.mixed) {
+      return isHeadingStyle(node.fontName.style, node.fontSize);
     }
-    const segments = node.getStyledTextSegments(["fontName"]);
-    return segments.length > 0 && segments.every((segment) => isBoldStyle(segment.fontName.style));
+    const segments = node.getStyledTextSegments(["fontName", "fontSize"]);
+    return segments.length > 0 && segments.every((segment) => isHeadingStyle(segment.fontName.style, segment.fontSize));
   }
 
   // src/main/analysis/discovery.ts
