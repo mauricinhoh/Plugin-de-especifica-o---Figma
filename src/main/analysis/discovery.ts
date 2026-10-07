@@ -1,5 +1,7 @@
 /// <reference types="@figma/plugin-typings" />
 
+import { isPdfFrame } from "./pdfFrame";
+
 /**
  * Nomes de componentes/instâncias sempre ignorados pela descoberta
  * automática: não viram card, não contam para Core Web/Core App, e
@@ -108,13 +110,25 @@ export async function discoverTopLevelComponents(
 ): Promise<(InstanceNode | ComponentNode | TextNode)[]> {
   const found: (InstanceNode | ComponentNode | TextNode)[] = [];
 
-  async function walk(node: SceneNode, insideRecognizedContainer: boolean): Promise<void> {
+  async function walk(node: SceneNode, insideRecognizedContainer: boolean, insidePdf: boolean): Promise<void> {
     if ("visible" in node && !node.visible) {
       return; // oculto: ignora completamente, inclusive a subárvore
     }
 
     if (IGNORED_COMPONENT_NAMES.includes(node.name)) {
       return; // ignora completamente, inclusive a subárvore
+    }
+
+    // Frame "PDF" (ver pdfFrame.ts): TODO texto visível de dentro vira
+    // card, sem olhar o tamanho da fonte — o analyzer decide se é
+    // título (Bold/ExtraBold) ou texto. Componentes de dentro seguem a
+    // regra normal.
+    const nextInsidePdf = insidePdf || isPdfFrame(node);
+    if (nextInsidePdf && node.type === "TEXT" && !insideRecognizedContainer) {
+      if (node.characters.trim().length > 0) {
+        found.push(node);
+      }
+      return;
     }
 
     // TEXT solto só é classificado (por tamanho de título) quando NÃO
@@ -179,14 +193,16 @@ export async function discoverTopLevelComponents(
 
     if ("children" in node) {
       for (const child of node.children) {
-        await walk(child, nextInsideRecognizedContainer);
+        await walk(child, nextInsideRecognizedContainer, nextInsidePdf);
       }
     }
   }
 
   if ("children" in root) {
+    // A própria tela selecionada pode ser o frame "PDF".
+    const rootIsPdf = isPdfFrame(root);
     for (const child of root.children) {
-      await walk(child, false);
+      await walk(child, false, rootIsPdf);
     }
   }
 

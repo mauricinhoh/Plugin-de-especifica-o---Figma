@@ -19,6 +19,18 @@
     return a;
   };
   var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
+  var __objRest = (source, exclude) => {
+    var target = {};
+    for (var prop in source)
+      if (__hasOwnProp.call(source, prop) && exclude.indexOf(prop) < 0)
+        target[prop] = source[prop];
+    if (source != null && __getOwnPropSymbols)
+      for (var prop of __getOwnPropSymbols(source)) {
+        if (exclude.indexOf(prop) < 0 && __propIsEnum.call(source, prop))
+          target[prop] = source[prop];
+      }
+    return target;
+  };
 
   // src/main/messaging.ts
   function postToUi(message) {
@@ -366,6 +378,16 @@
       "foco": "N\xE3o"
     },
     {
+      // NÃO vem da planilha — componente usado dentro do frame "PDF".
+      // Verbalização passada pelo usuário em 07/10/2026.
+      "categoria": "Content",
+      "componente": "Sicredi Logo",
+      "estados": null,
+      "verbalizacaoEsperada": "Alt Text: Sicredi, Logo Sicredi",
+      "tipo": "Imagem",
+      "foco": "N\xE3o"
+    },
+    {
       "categoria": "Content",
       "componente": "Brand",
       "estados": "Est\xE1tico; quando usado como link, possui intera\xE7\xE3o.",
@@ -470,7 +492,9 @@
       "verbalizacaoEsperada": "Ordem l\xF3gica dos componentes",
       "tipo": "Estrutura",
       "foco": "Apenas elementos interativos",
-      "sempreAprofundar": true
+      "somenteFilhos": true,
+      "textosSoltosComoTexto": true,
+      "lerInteiro": true
     },
     {
       "categoria": "Containers",
@@ -650,15 +674,9 @@
       "verbalizacaoEsperada": 'Quando vazio: Label acess\xEDvel "Informe o c\xF3digo, [posi\xE7\xE3o], Campo de edi\xE7\xE3o, [Help Text]". Quando preenchido: Label acess\xEDvel "Informe o c\xF3digo, Marcador, [posi\xE7\xE3o], Campo de edi\xE7\xE3o, [Help Text]".\n',
       "tipo": "Entrada",
       "foco": "Sim",
-      "textosPorCamada": {
-        "help text": [
-          "help",
-          "texto de apoio",
-          "texto de ajuda",
-          "texto de suporte",
-          "suporte",
-          "support"
-        ]
+      "ultimaCamadaDeTexto": {
+        "placeholder": "help text",
+        "trechoSeOculta": ", [Help Text]"
       }
     },
     {
@@ -668,15 +686,9 @@
       "verbalizacaoEsperada": "Ao focar em cada um dos bot\xF5es leitor anuncia: \u201C6 ou 1, Bot\xE3o, [Help Text]\u201D.\nFeedback din\xE2mico:\nQuando uma tecla \xE9 acionada, o campo de senha atualiza\u2028 \u201Cx d\xEDgitos inseridos\u201D\nBot\xE3o Limpar:\nDeve anunciar \u201CCaracteres apagados\u201D ap\xF3s a\xE7\xE3o.",
       "tipo": "Entrada",
       "foco": "Sim",
-      "textosPorCamada": {
-        "help text": [
-          "help",
-          "texto de apoio",
-          "texto de ajuda",
-          "texto de suporte",
-          "suporte",
-          "support"
-        ]
+      "ultimaCamadaDeTexto": {
+        "placeholder": "help text",
+        "trechoSeOculta": ", [Help Text]"
       }
     },
     {
@@ -858,7 +870,7 @@
       "somenteFilhos": true,
       "itensPadrao": {
         "nomeDoItem": "^item\\s*\\d+$",
-        "verbalizacaoDoItem": "N\xE3o deve ser verbalizado, [Label]"
+        "verbalizacaoDoItem": "[Label]"
       }
     },
     {
@@ -972,7 +984,8 @@
       "verbalizacaoEsperada": null,
       "tipo": null,
       "foco": null,
-      "sempreAprofundar": true
+      "sempreAprofundar": true,
+      "textoPequenoSemTitulo": true
     },
     {
       "categoria": "Navigation",
@@ -1128,7 +1141,7 @@
     return map;
   }
   function buildRule(record) {
-    var _a2, _b, _c, _d, _e, _f, _g, _h, _i;
+    var _a2, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l;
     const states = parseVerbalizationStates(record.verbalizacaoEsperada);
     const statesMap = states.length > 0 ? states.reduce((acc, s) => {
       acc[s.label] = s.text;
@@ -1168,10 +1181,13 @@
       onlyWithUnderline: record.trechoSoComSublinhado,
       lastTextLayer: record.ultimaCamadaDeTexto,
       headingsInLogicalOrder: (_h = record.titulosEmOrdemLogica) != null ? _h : false,
+      smallTextAsPlainText: (_i = record.textoPequenoSemTitulo) != null ? _i : false,
+      looseTextAsPlainText: (_j = record.textosSoltosComoTexto) != null ? _j : false,
+      readAsBlock: (_k = record.lerInteiro) != null ? _k : false,
       firstTextPlaceholder: record.primeiroTextoEm,
       textsByPosition: record.textosPorPosicao,
       stateFromInnerComponent: record.estadoDoComponenteInterno,
-      standardItemNamePattern: (_i = record.itensPadrao) == null ? void 0 : _i.nomeDoItem,
+      standardItemNamePattern: (_l = record.itensPadrao) == null ? void 0 : _l.nomeDoItem,
       links: record.links
     };
   }
@@ -1193,10 +1209,36 @@
   }))), {
     key: `${slugify(record.componente)}--item`
   }));
+  var PDF_HEADING_RULE_KEY = "pdf-titulo";
+  var PLAIN_TEXT_RULE_KEY = "texto";
+  var looseTextRules = [
+    __spreadProps(__spreadValues({}, buildRule({
+      categoria: "Content",
+      componente: "PDF T\xEDtulo",
+      estados: null,
+      // O número do nível é preenchido manualmente pelo PD.
+      verbalizacaoEsperada: "[Label], T\xEDtulo de n\xEDvel",
+      tipo: "T\xEDtulo",
+      foco: "N\xE3o"
+    })), {
+      key: PDF_HEADING_RULE_KEY
+    }),
+    __spreadProps(__spreadValues({}, buildRule({
+      categoria: "Content",
+      componente: "Texto",
+      estados: null,
+      // O próprio texto.
+      verbalizacaoEsperada: "[Label]",
+      tipo: "N\xE3o interativo",
+      foco: "N\xE3o"
+    })), {
+      key: PLAIN_TEXT_RULE_KEY
+    })
+  ];
   function findRuleByKey(key) {
-    var _a2, _b;
+    var _a2, _b, _c;
     if (!key) return void 0;
-    return (_b = (_a2 = accessibilityRules.find((r) => r.key === key)) != null ? _a2 : containerVariantRules.find((r) => r.key === key)) != null ? _b : standardItemRules.find((r) => r.key === key);
+    return (_c = (_b = (_a2 = accessibilityRules.find((r) => r.key === key)) != null ? _a2 : containerVariantRules.find((r) => r.key === key)) != null ? _b : standardItemRules.find((r) => r.key === key)) != null ? _c : looseTextRules.find((r) => r.key === key);
   }
 
   // src/main/figma-api.ts
@@ -1257,6 +1299,31 @@
     return `spec-${Date.now()}-${counter}`;
   }
 
+  // src/main/analysis/pdfFrame.ts
+  var PDF_FRAME_NAME = "pdf";
+  function isPdfFrame(node) {
+    return (node.type === "FRAME" || node.type === "GROUP" || node.type === "SECTION") && node.name.trim().toLowerCase() === PDF_FRAME_NAME;
+  }
+  function isInsidePdfFrame(node) {
+    let current = node.parent;
+    while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
+      if (isPdfFrame(current)) return true;
+      current = current.parent;
+    }
+    return false;
+  }
+  function isBoldStyle(style) {
+    const compact = style.toLowerCase().replace(/[\s_-]+/g, "");
+    return compact.startsWith("bold") || compact.startsWith("extrabold");
+  }
+  function isPdfHeadingText(node) {
+    if (node.fontName !== figma.mixed) {
+      return isBoldStyle(node.fontName.style);
+    }
+    const segments = node.getStyledTextSegments(["fontName"]);
+    return segments.length > 0 && segments.every((segment) => isBoldStyle(segment.fontName.style));
+  }
+
   // src/main/analysis/discovery.ts
   var IGNORED_COMPONENT_NAMES = [
     "Header Web",
@@ -1280,11 +1347,18 @@
   }
   async function discoverTopLevelComponents(root, classify, inheritedParents) {
     const found = [];
-    async function walk(node, insideRecognizedContainer) {
+    async function walk(node, insideRecognizedContainer, insidePdf) {
       if ("visible" in node && !node.visible) {
         return;
       }
       if (IGNORED_COMPONENT_NAMES.includes(node.name)) {
+        return;
+      }
+      const nextInsidePdf = insidePdf || isPdfFrame(node);
+      if (nextInsidePdf && node.type === "TEXT" && !insideRecognizedContainer) {
+        if (node.characters.trim().length > 0) {
+          found.push(node);
+        }
         return;
       }
       const shouldClassify = node.type === "INSTANCE" || node.type === "COMPONENT" || node.type === "TEXT" && !insideRecognizedContainer;
@@ -1319,13 +1393,14 @@
       }
       if ("children" in node) {
         for (const child of node.children) {
-          await walk(child, nextInsideRecognizedContainer);
+          await walk(child, nextInsideRecognizedContainer, nextInsidePdf);
         }
       }
     }
     if ("children" in root) {
+      const rootIsPdf = isPdfFrame(root);
       for (const child of root.children) {
-        await walk(child, false);
+        await walk(child, false, rootIsPdf);
       }
     }
     return found;
@@ -1747,6 +1822,9 @@
   async function classifyComponent(node) {
     var _a2, _b, _c, _d;
     if (node.type === "TEXT") {
+      if (node.characters.trim().length > 0 && await findAncestorWithRule(node, (r) => r.looseTextAsPlainText)) {
+        return { recognized: true, alwaysDescend: false };
+      }
       const headingLevel = detectHeadingLevelFromFontSize(node);
       if (headingLevel === null && DEBUG_TEXT_LAYERS && node.characters.trim().length > 0) {
         console.log("[texto-solto-ignorado-debug]", {
@@ -1820,6 +1898,56 @@
     }
     return result;
   }
+  async function isInsideSmallTextAsPlainTextContainer(node) {
+    return await findAncestorWithRule(node, (rule) => rule.smallTextAsPlainText === true) !== null;
+  }
+  async function findAncestorWithRule(node, predicate) {
+    let current = node.parent;
+    while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
+      const componentName = current.type === "INSTANCE" || current.type === "COMPONENT" ? await resolveComponentName(current) : null;
+      const rule = findMatchingRule(accessibilityRules, { nodeName: current.name, componentName });
+      if (rule && predicate(rule)) return current;
+      current = current.parent;
+    }
+    return null;
+  }
+  async function groupReadingBlocks(nodes) {
+    const blockOf = /* @__PURE__ */ new Map();
+    for (const node of nodes) {
+      let outermost = null;
+      let current = await findAncestorWithRule(node, (rule) => rule.readAsBlock === true);
+      while (current) {
+        outermost = current;
+        current = await findAncestorWithRule(current, (rule) => rule.readAsBlock === true);
+      }
+      if (outermost) blockOf.set(node.id, outermost);
+    }
+    if (blockOf.size === 0) return nodes;
+    const units = [];
+    const membersByBlock = /* @__PURE__ */ new Map();
+    for (const node of nodes) {
+      const block = blockOf.get(node.id);
+      if (!block) {
+        units.push(node);
+        continue;
+      }
+      if (!membersByBlock.has(block.id)) {
+        membersByBlock.set(block.id, []);
+        units.push(block);
+      }
+      membersByBlock.get(block.id).push(node);
+    }
+    const result = [];
+    for (const unit of sortByReadingOrder(units)) {
+      const members = membersByBlock.get(unit.id);
+      if (members) {
+        result.push(...sortByReadingOrder(members));
+      } else {
+        result.push(unit);
+      }
+    }
+    return result;
+  }
   async function buildSpecificationItem(node, order, manuallyAdded, inheritRuleFrom) {
     var _a2, _b, _c, _d, _e, _f;
     const isComponentLike = node.type === "INSTANCE" || node.type === "COMPONENT";
@@ -1844,9 +1972,18 @@
       }
     }
     const extractedData = {};
-    if (isTextNode) {
+    if (isTextNode && isInsidePdfFrame(node)) {
+      rule = findRuleByKey(isPdfHeadingText(node) ? PDF_HEADING_RULE_KEY : PLAIN_TEXT_RULE_KEY);
+      extractedData.text = node.characters;
+    } else if (isTextNode && await findAncestorWithRule(node, (r) => r.looseTextAsPlainText)) {
+      rule = findRuleByKey(PLAIN_TEXT_RULE_KEY);
+      extractedData.text = node.characters;
+    } else if (isTextNode) {
       const headingLevel = detectHeadingLevelFromFontSize(node);
-      if (headingLevel) {
+      if (headingLevel && SMALL_TEXT_HEADING_LEVELS.has(headingLevel) && await isInsideSmallTextAsPlainTextContainer(node)) {
+        rule = findRuleByKey(PLAIN_TEXT_RULE_KEY);
+        extractedData.text = node.characters;
+      } else if (headingLevel) {
         rule = accessibilityRules.find((r) => r.key === "heading");
         extractedData.text = node.characters;
         extractedData.nivel = headingLevel;
@@ -2066,7 +2203,7 @@
   async function analyzeScreen(screenNode, forcedContext) {
     const inheritedParents = /* @__PURE__ */ new Map();
     const discovered = await discoverTopLevelComponents(screenNode, classifyComponent, inheritedParents);
-    const topLevelNodes = await moveLastInsideContainers(placeContainersBeforeContents(sortByReadingOrder(discovered)));
+    const topLevelNodes = await moveLastInsideContainers(placeContainersBeforeContents(await groupReadingBlocks(sortByReadingOrder(discovered))));
     const items = [];
     let coreWebCount = 0;
     let coreAppCount = 0;
@@ -2094,35 +2231,68 @@
       detachWarnings
     };
   }
+  var SCREEN_FIRST_HEADING_LEVEL = 2;
   async function renumberHeadingsInLogicalOrder(nodes, items) {
     var _a2;
-    const headingRule = findRuleByKey("heading");
-    if (!headingRule) return;
-    const counters = /* @__PURE__ */ new Map();
+    const containerCounters = /* @__PURE__ */ new Map();
+    let screenLevel = SCREEN_FIRST_HEADING_LEVEL - 1;
     for (let index = 0; index < items.length; index += 1) {
       const item = items[index];
       const node = nodes[index];
-      if (item.ruleKey !== "heading" || !node) continue;
+      if (!node) continue;
+      if (isInsidePdfFrame(node)) continue;
+      const isHeading = item.ruleKey === "heading";
+      const isHeaderProductWithTitle = item.ruleKey === "header-product" && item.extractedData.text !== void 0;
+      if (!isHeading && !isHeaderProductWithTitle) continue;
       const currentLevel = item.extractedData.nivel;
-      if (currentLevel === void 0 || SMALL_TEXT_HEADING_LEVELS.has(currentLevel)) continue;
       const container = (await findAncestorRules(node)).find(
         (ancestor) => {
           var _a3;
           return (_a3 = findRuleByKey(ancestor.ruleKey)) == null ? void 0 : _a3.headingsInLogicalOrder;
         }
       );
-      if (!container) continue;
-      const next = Math.min(((_a2 = counters.get(container.node.id)) != null ? _a2 : 0) + 1, MAX_HEADING_LEVEL);
-      counters.set(container.node.id, next);
-      item.extractedData = __spreadProps(__spreadValues({}, item.extractedData), { nivel: String(next) });
-      if (!item.verbalizationEdited) {
-        item.verbalization = computeVerbalization(
-          headingRule,
-          item.extractedData,
-          buildStateCandidates(item.variantProperties, headingRule.derivedStates, item.booleanProperties)
-        );
+      if (container) {
+        if (!isHeading || currentLevel === void 0 || SMALL_TEXT_HEADING_LEVELS.has(currentLevel)) continue;
+        const next = Math.min(((_a2 = containerCounters.get(container.node.id)) != null ? _a2 : 0) + 1, MAX_HEADING_LEVEL);
+        containerCounters.set(container.node.id, next);
+        applyHeadingLevel(item, String(next));
+        continue;
+      }
+      screenLevel += 1;
+      if (screenLevel <= MAX_HEADING_LEVEL) {
+        applyHeadingLevel(item, String(screenLevel));
+        continue;
+      }
+      const isSmallLooseText = node.type === "TEXT" && currentLevel !== void 0 && SMALL_TEXT_HEADING_LEVELS.has(currentLevel);
+      if (isSmallLooseText) {
+        turnIntoPlainText(item);
+      } else {
+        applyHeadingLevel(item, String(MAX_HEADING_LEVEL));
       }
     }
+  }
+  function recomputeVerbalization(item) {
+    const rule = findRuleByKey(item.ruleKey);
+    if (!rule || item.verbalizationEdited) return;
+    item.verbalization = computeVerbalization(
+      rule,
+      item.extractedData,
+      buildStateCandidates(item.variantProperties, rule.derivedStates, item.booleanProperties)
+    );
+  }
+  function applyHeadingLevel(item, level) {
+    item.extractedData = __spreadProps(__spreadValues({}, item.extractedData), { nivel: level });
+    recomputeVerbalization(item);
+  }
+  function turnIntoPlainText(item) {
+    const textRule = findRuleByKey(PLAIN_TEXT_RULE_KEY);
+    if (!textRule) return;
+    const _a2 = item.extractedData, { nivel: _nivel } = _a2, rest = __objRest(_a2, ["nivel"]);
+    item.extractedData = rest;
+    item.ruleKey = textRule.key;
+    item.markupType = textRule.markupType;
+    item.focusEligible = textRule.focusEligible;
+    recomputeVerbalization(item);
   }
   async function buildManualItem(node, order) {
     return buildSpecificationItem(node, order, true);

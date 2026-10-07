@@ -1,7 +1,7 @@
 /// <reference types="@figma/plugin-typings" />
 
 import { ScreenAnalysisResult, ScreenContext, SpecificationItem } from "../../shared/types";
-import { accessibilityRules, findRuleByKey } from "../../rules/accessibility-rules";
+import { accessibilityRules, findRuleByKey, PDF_HEADING_RULE_KEY, PLAIN_TEXT_RULE_KEY } from "../../rules/accessibility-rules";
 import { computeVerbalization, buildStateCandidates, findMatchingRule, UNSPECIFIED_TYPE_KEY } from "../../rules/engine";
 import { generateSpecificationId } from "../idGenerator";
 import { collectItems, discoverTopLevelComponents } from "./discovery";
@@ -28,6 +28,7 @@ import {
   listTextLayers
 } from "./textExtraction";
 import { extractBooleanProperties, extractVariantProperties } from "./stateExtraction";
+import { isInsidePdfFrame, isPdfHeadingText } from "./pdfFrame";
 import { detectHeadingLevelFromFontSize, MAX_HEADING_LEVEL, SMALL_TEXT_HEADING_LEVELS } from "./headingDetection";
 import { findCoreIncompatibilities } from "./validation";
 
@@ -55,6 +56,10 @@ async function classifyComponent(
   ignoreLooseText?: boolean;
 }> {
   if (node.type === "TEXT") {
+    // Texto solto dentro de contêiner como o Card: sempre vira card.
+    if (node.characters.trim().length > 0 && (await findAncestorWithRule(node, (r) => r.looseTextAsPlainText))) {
+      return { recognized: true, alwaysDescend: false };
+    }
     const headingLevel = detectHeadingLevelFromFontSize(node);
     if (headingLevel === null && DEBUG_TEXT_LAYERS && node.characters.trim().length > 0) {
       // Texto solto ignorado porque o tamanho não está na tabela de
@@ -182,6 +187,84 @@ async function findAncestorRules(
   return result;
 }
 
+/**
+ * O texto está dentro de um contêiner com `textoPequenoSemTitulo` (ex.:
+ * Header Flow)? Confere qualquer ancestral — instância/componente pelo
+ * nome do componente principal, e também frames/grupos pelo nome da
+ * camada (o Header Flow pode ser só uma composição do arquivo).
+ */
+async function isInsideSmallTextAsPlainTextContainer(node: SceneNode): Promise<boolean> {
+  return (await findAncestorWithRule(node, (rule) => rule.smallTextAsPlainText === true)) !== null;
+}
+
+/**
+ * Ancestral MAIS PRÓXIMO cuja regra atende `predicate`. Confere
+ * instância/componente pelo nome do componente principal e também
+ * frames/grupos pelo nome da camada.
+ */
+async function findAncestorWithRule(
+  node: SceneNode,
+  predicate: (rule: NonNullable<ReturnType<typeof findMatchingRule>>) => boolean | undefined
+): Promise<SceneNode | null> {
+  let current = node.parent;
+  while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
+    const componentName =
+      current.type === "INSTANCE" || current.type === "COMPONENT" ? await resolveComponentName(current) : null;
+    const rule = findMatchingRule(accessibilityRules, { nodeName: current.name, componentName });
+    if (rule && predicate(rule)) return current as SceneNode;
+    current = current.parent;
+  }
+  return null;
+}
+
+/**
+ * Contêineres com `readAsBlock` (ex.: Card): todos os itens de dentro
+ * são lidos juntos, na ordem de leitura de dentro, e o bloco ocupa o
+ * lugar do contêiner na ordem da tela. Com Cards aninhados, vale o mais
+ * externo. Itens fora de blocos seguem a ordem normal.
+ */
+async function groupReadingBlocks<T extends SceneNode>(nodes: T[]): Promise<T[]> {
+  const blockOf = new Map<string, SceneNode>();
+  for (const node of nodes) {
+    let outermost: SceneNode | null = null;
+    let current = await findAncestorWithRule(node, (rule) => rule.readAsBlock === true);
+    while (current) {
+      outermost = current;
+      current = await findAncestorWithRule(current, (rule) => rule.readAsBlock === true);
+    }
+    if (outermost) blockOf.set(node.id, outermost);
+  }
+  if (blockOf.size === 0) return nodes;
+
+  // Unidades da tela: cada item solto, ou um bloco (representado pelo
+  // próprio contêiner, para ordenar pela posição dele).
+  const units: SceneNode[] = [];
+  const membersByBlock = new Map<string, T[]>();
+  for (const node of nodes) {
+    const block = blockOf.get(node.id);
+    if (!block) {
+      units.push(node);
+      continue;
+    }
+    if (!membersByBlock.has(block.id)) {
+      membersByBlock.set(block.id, []);
+      units.push(block);
+    }
+    membersByBlock.get(block.id)!.push(node);
+  }
+
+  const result: T[] = [];
+  for (const unit of sortByReadingOrder(units)) {
+    const members = membersByBlock.get(unit.id);
+    if (members) {
+      result.push(...sortByReadingOrder(members));
+    } else {
+      result.push(unit as T);
+    }
+  }
+  return result;
+}
+
 async function buildSpecificationItem(
   node: SceneNode,
   order: number,
@@ -227,12 +310,27 @@ async function buildSpecificationItem(
 
   const extractedData: Record<string, string> = {};
 
-  if (isTextNode) {
+  if (isTextNode && isInsidePdfFrame(node)) {
+    // Texto dentro de um frame "PDF" (ver pdfFrame.ts): Bold/ExtraBold
+    // = título, sem nível automático (o PD completa); o resto = o
+    // próprio texto. O tamanho da fonte não é usado aqui.
+    rule = findRuleByKey(isPdfHeadingText(node as TextNode) ? PDF_HEADING_RULE_KEY : PLAIN_TEXT_RULE_KEY);
+    extractedData.text = (node as TextNode).characters;
+  } else if (isTextNode && (await findAncestorWithRule(node, (r) => r.looseTextAsPlainText))) {
+    // Texto solto dentro de contêiner como o Card: sempre só o texto,
+    // de qualquer tamanho.
+    rule = findRuleByKey(PLAIN_TEXT_RULE_KEY);
+    extractedData.text = (node as TextNode).characters;
+  } else if (isTextNode) {
     // Título "solto": usa sempre a regra "Heading", independente do
     // nome da camada — o motivo de ter sido descoberto já é o tamanho
     // da fonte bater com um nível de título (ver classifyComponent).
     const headingLevel = detectHeadingLevelFromFontSize(node as TextNode);
-    if (headingLevel) {
+    if (headingLevel && SMALL_TEXT_HEADING_LEVELS.has(headingLevel) && (await isInsideSmallTextAsPlainTextContainer(node))) {
+      // Texto pequeno dentro de contêiner como o Header Flow: só texto.
+      rule = findRuleByKey(PLAIN_TEXT_RULE_KEY);
+      extractedData.text = (node as TextNode).characters;
+    } else if (headingLevel) {
       rule = accessibilityRules.find((r) => r.key === "heading");
       extractedData.text = (node as TextNode).characters;
       extractedData.nivel = headingLevel;
@@ -511,7 +609,7 @@ export async function analyzeScreen(
   // Numeração pela posição real no canvas (leitura em "Z"), não pela
   // ordem das camadas no arquivo — pedido explícito após testes reais
   // com arquivos organizados de forma inconsistente nas camadas.
-  const topLevelNodes = await moveLastInsideContainers(placeContainersBeforeContents(sortByReadingOrder(discovered)));
+  const topLevelNodes = await moveLastInsideContainers(placeContainersBeforeContents(await groupReadingBlocks(sortByReadingOrder(discovered))));
 
   const items: SpecificationItem[] = [];
   let coreWebCount = 0;
@@ -552,38 +650,95 @@ export async function analyzeScreen(
 }
 
 /**
- * Títulos dentro de um contêiner com `headingsInLogicalOrder` (ex.:
- * Modal): o 1º título (na ordem de leitura) vira nível 1, o 2º nível 2,
- * e assim por diante, até o nível 6. Textos pequenos (nível 5/6 pelo
- * tamanho da fonte) ficam como estão e não entram na contagem. Cada
- * contêiner tem a própria contagem. Títulos fora desses contêineres
- * continuam com o nível pelo tamanho da fonte.
+ * Nível dos títulos pela ORDEM LÓGICA (ordem de leitura), não pelo
+ * tamanho da fonte — o tamanho só serve para saber se um texto solto é
+ * título. Confirmado com o usuário em 07/10/2026.
+ *
+ * - Dentro de um contêiner com `headingsInLogicalOrder` (ex.: Modal):
+ *   contagem própria, 1º título = nível 1, 2º = nível 2... até 6.
+ *   Textos pequenos (nível 5/6 pelo tamanho) ficam como estão e não
+ *   entram na contagem. (Regra de 05/10/2026, sem mudança.)
+ * - No resto da tela: 1º título = nível 2, 2º = nível 3... até 6.
+ *   Entram na contagem: texto solto reconhecido como título (inclusive
+ *   14/16 px), componente Heading e o título do Header Product.
+ *   Depois do nível 6: títulos continuam nível 6, mas texto solto
+ *   pequeno (14/16 px) vira só texto (regra "texto", sem "Título de
+ *   nível").
+ * - Não entram: NADA dentro do frame PDF (textos e componentes ficam
+ *   com as regras do PDF / do próprio componente, como antes) e textos
+ *   pequenos do Header Flow (já são regra "texto").
  */
+const SCREEN_FIRST_HEADING_LEVEL = 2;
+
 export async function renumberHeadingsInLogicalOrder(nodes: SceneNode[], items: SpecificationItem[]): Promise<void> {
-  const headingRule = findRuleByKey("heading");
-  if (!headingRule) return;
-  const counters = new Map<string, number>();
+  const containerCounters = new Map<string, number>();
+  let screenLevel = SCREEN_FIRST_HEADING_LEVEL - 1;
+
   for (let index = 0; index < items.length; index += 1) {
     const item = items[index];
     const node = nodes[index];
-    if (item.ruleKey !== "heading" || !node) continue;
+    if (!node) continue;
+    // Frame "PDF": regras próprias (Bold/ExtraBold, nível manual pelo PD).
+    // Nada dentro dele entra nesta contagem nem é renumerado.
+    if (isInsidePdfFrame(node)) continue;
+    const isHeading = item.ruleKey === "heading";
+    const isHeaderProductWithTitle = item.ruleKey === "header-product" && item.extractedData.text !== undefined;
+    if (!isHeading && !isHeaderProductWithTitle) continue;
+
     const currentLevel = item.extractedData.nivel;
-    if (currentLevel === undefined || SMALL_TEXT_HEADING_LEVELS.has(currentLevel)) continue;
     const container = (await findAncestorRules(node)).find(
       (ancestor) => findRuleByKey(ancestor.ruleKey)?.headingsInLogicalOrder
     );
-    if (!container) continue;
-    const next = Math.min((counters.get(container.node.id) ?? 0) + 1, MAX_HEADING_LEVEL);
-    counters.set(container.node.id, next);
-    item.extractedData = { ...item.extractedData, nivel: String(next) };
-    if (!item.verbalizationEdited) {
-      item.verbalization = computeVerbalization(
-        headingRule,
-        item.extractedData,
-        buildStateCandidates(item.variantProperties, headingRule.derivedStates, item.booleanProperties)
-      );
+
+    if (container) {
+      // Contagem própria do contêiner (ex.: Modal) — só para o Heading,
+      // como antes.
+      if (!isHeading || currentLevel === undefined || SMALL_TEXT_HEADING_LEVELS.has(currentLevel)) continue;
+      const next = Math.min((containerCounters.get(container.node.id) ?? 0) + 1, MAX_HEADING_LEVEL);
+      containerCounters.set(container.node.id, next);
+      applyHeadingLevel(item, String(next));
+      continue;
+    }
+
+    screenLevel += 1;
+    if (screenLevel <= MAX_HEADING_LEVEL) {
+      applyHeadingLevel(item, String(screenLevel));
+      continue;
+    }
+    // Passou do nível 6.
+    const isSmallLooseText = node.type === "TEXT" && currentLevel !== undefined && SMALL_TEXT_HEADING_LEVELS.has(currentLevel);
+    if (isSmallLooseText) {
+      turnIntoPlainText(item);
+    } else {
+      applyHeadingLevel(item, String(MAX_HEADING_LEVEL));
     }
   }
+}
+
+function recomputeVerbalization(item: SpecificationItem): void {
+  const rule = findRuleByKey(item.ruleKey);
+  if (!rule || item.verbalizationEdited) return;
+  item.verbalization = computeVerbalization(
+    rule,
+    item.extractedData,
+    buildStateCandidates(item.variantProperties, rule.derivedStates, item.booleanProperties)
+  );
+}
+
+function applyHeadingLevel(item: SpecificationItem, level: string): void {
+  item.extractedData = { ...item.extractedData, nivel: level };
+  recomputeVerbalization(item);
+}
+
+function turnIntoPlainText(item: SpecificationItem): void {
+  const textRule = findRuleByKey(PLAIN_TEXT_RULE_KEY);
+  if (!textRule) return;
+  const { nivel: _nivel, ...rest } = item.extractedData;
+  item.extractedData = rest;
+  item.ruleKey = textRule.key;
+  item.markupType = textRule.markupType;
+  item.focusEligible = textRule.focusEligible;
+  recomputeVerbalization(item);
 }
 
 /** Constrói um item a partir de um node selecionado manualmente (seção 23-24). */

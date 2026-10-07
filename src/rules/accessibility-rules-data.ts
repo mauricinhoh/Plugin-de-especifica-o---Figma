@@ -162,6 +162,30 @@ export interface AccessibilityRuleRecord {
    */
   titulosEmOrdemLogica?: boolean;
   /**
+   * NÃO vem da planilha — campo de extensão. Texto solto PEQUENO (14 ou
+   * 16 px, que fora daqui vira título de nível 6/5 pelo tamanho) dentro
+   * deste contêiner é só texto: card com o próprio texto, sem "Título
+   * de nível". Títulos maiores continuam como título. Ex.: Header Flow
+   * (texto Paragraph). Vale também para um frame com esse nome.
+   * Confirmado com o usuário em 07/10/2026.
+   */
+  textoPequenoSemTitulo?: boolean;
+  /**
+   * NÃO vem da planilha — campo de extensão. TODO texto solto (sem
+   * componente) dentro deste contêiner vira um card com o próprio texto,
+   * de qualquer tamanho — nunca título. Ex.: Card. Confirmado com o
+   * usuário em 07/10/2026.
+   */
+  textosSoltosComoTexto?: boolean;
+  /**
+   * NÃO vem da planilha — campo de extensão. Os itens de dentro deste
+   * contêiner são lidos JUNTOS (todos, na ordem de leitura de dentro)
+   * antes de passar para o que vem depois; o contêiner ocupa o lugar
+   * dele na ordem da tela. Evita intercalar itens de Cards lado a lado.
+   * Ex.: Card. Confirmado com o usuário em 07/10/2026.
+   */
+  lerInteiro?: boolean;
+  /**
    * NÃO vem da planilha — campo de extensão. Nome do placeholder que é
    * preenchido com o PRIMEIRO texto visível do componente (ex.: Input
    * Search → [Placeholder] = primeira label de dentro). Confirmado com
@@ -431,6 +455,16 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "foco": "Não"
   },
   {
+    // NÃO vem da planilha — componente usado dentro do frame "PDF".
+    // Verbalização passada pelo usuário em 07/10/2026.
+    "categoria": "Content",
+    "componente": "Sicredi Logo",
+    "estados": null,
+    "verbalizacaoEsperada": "Alt Text: Sicredi, Logo Sicredi",
+    "tipo": "Imagem",
+    "foco": "Não"
+  },
+  {
     "categoria": "Content",
     "componente": "Brand",
     "estados": "Estático; quando usado como link, possui interação.",
@@ -535,7 +569,9 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "verbalizacaoEsperada": "Ordem lógica dos componentes",
     "tipo": "Estrutura",
     "foco": "Apenas elementos interativos",
-    "sempreAprofundar": true
+    "somenteFilhos": true,
+    "textosSoltosComoTexto": true,
+    "lerInteiro": true
   },
   {
     "categoria": "Containers",
@@ -715,15 +751,9 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "verbalizacaoEsperada": "Quando vazio: Label acessível \"Informe o código, [posição], Campo de edição, [Help Text]\". Quando preenchido: Label acessível \"Informe o código, Marcador, [posição], Campo de edição, [Help Text]\".\n",
     "tipo": "Entrada",
     "foco": "Sim",
-    "textosPorCamada": {
-      "help text": [
-        "help",
-        "texto de apoio",
-        "texto de ajuda",
-        "texto de suporte",
-        "suporte",
-        "support"
-      ]
+    "ultimaCamadaDeTexto": {
+      "placeholder": "help text",
+      "trechoSeOculta": ", [Help Text]"
     }
   },
   {
@@ -733,15 +763,9 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "verbalizacaoEsperada": "Ao focar em cada um dos botões leitor anuncia: “6 ou 1, Botão, [Help Text]”.\nFeedback dinâmico:\nQuando uma tecla é acionada, o campo de senha atualiza  “x dígitos inseridos”\nBotão Limpar:\nDeve anunciar “Caracteres apagados” após ação.",
     "tipo": "Entrada",
     "foco": "Sim",
-    "textosPorCamada": {
-      "help text": [
-        "help",
-        "texto de apoio",
-        "texto de ajuda",
-        "texto de suporte",
-        "suporte",
-        "support"
-      ]
+    "ultimaCamadaDeTexto": {
+      "placeholder": "help text",
+      "trechoSeOculta": ", [Help Text]"
     }
   },
   {
@@ -923,7 +947,7 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "somenteFilhos": true,
     "itensPadrao": {
       "nomeDoItem": "^item\\s*\\d+$",
-      "verbalizacaoDoItem": "Não deve ser verbalizado, [Label]"
+      "verbalizacaoDoItem": "[Label]"
     }
   },
   {
@@ -1037,7 +1061,8 @@ export const accessibilityRuleRecords: AccessibilityRuleRecord[] = [
     "verbalizacaoEsperada": null,
     "tipo": null,
     "foco": null,
-    "sempreAprofundar": true
+    "sempreAprofundar": true,
+    "textoPequenoSemTitulo": true
   },
   {
     "categoria": "Navigation",
